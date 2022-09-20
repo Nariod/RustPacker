@@ -13,11 +13,7 @@ fn parser() -> ArgMatches {
                 .short('f')
                 .required(true),
         )
-        .arg(
-            Arg::with_name("Output file")
-                .takes_value(true)
-                .short('o')
-        )
+        .arg(Arg::with_name("Output file").takes_value(true).short('o'))
         .arg(
             Arg::with_name("encryption / encoding method")
                 .takes_value(true)
@@ -33,16 +29,16 @@ fn parser() -> ArgMatches {
     args
 }
 
-fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>>{
+fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
     Ok(bytes)
 }
 
 fn main() {
     dbg!("Entering main function");
-    let _args = parser();    
+    let _args = parser();
     let path_to_shellcode_file = Path::new("shellcode.bin");
-    let shellcode = shellcode_reader_from_file(&path_to_shellcode_file);
+    let shellcode = shellcode_reader_from_file(path_to_shellcode_file);
 
     match shellcode {
         Ok(bytes) => {

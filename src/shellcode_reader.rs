@@ -1,5 +1,7 @@
 use std::path::Path;
 
+// File that get the content of a shellcode file, and returns its content in a Vec<u8>.
+
 fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
     Ok(bytes)

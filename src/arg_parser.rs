@@ -1,6 +1,26 @@
 use clap::{Arg, ArgMatches, Command, PossibleValue};
+use std::path::Path;
+use std::str::FromStr;
 
 // File that handles the CLI arguments and checks them for correct values.
+
+pub struct Order {
+    shellcode_path: Box<Path>,
+    execution: Execution,
+    encryption: Option<Encryption>,
+    sandbox: Option<bool>,
+    output: Option<String>,
+}
+
+pub enum Execution {
+    CreateRemoteThread,
+    CreateThread,
+}
+
+pub enum Encryption {
+    Xor,
+    Aes,
+}
 
 fn parser() -> ArgMatches {
     let args = Command::new("RustPacker")
@@ -25,10 +45,13 @@ fn parser() -> ArgMatches {
                 ]),
         )
         .arg(
+            Arg::with_name("Sandbox checks")
+                .short('s')
+        )
+        .arg(
             Arg::with_name("Encryption / encoding method")
                 .takes_value(true)
                 .short('e')
-                .required(true)
                 .value_parser([
                     PossibleValue::new("xor").help("'Exclusive or' encoding"),
                     PossibleValue::new("aes").help("AES encryption"),
@@ -39,6 +62,34 @@ fn parser() -> ArgMatches {
     args
 }
 
+fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
+    let shellcode_path = Path::new(String::from_str(args.value_of("Path to shellcode file").unwrap()));
+    let execution = String::from_str(args.value_of("Execution technique").unwrap())?;
+    let mut encryption;
+    if args.value_of("Encryption / encoding method").unwrap()? == None {
+        encryption = None;
+    } else {
+        encryption = Some(args.value_of("Encryption / encoding method").unwrap())?;
+    }
+    let mut sandbox;
+    if args.value_of("Encryption / encoding method").unwrap()? == None {
+        encryption = None;
+    } else {
+        encryption = Some(String::from_str(args.value_of("Encryption / encoding method").unwrap()))?;
+    }
+
+    let result = Order {
+        shellcode_path: shellcode_path,
+        execution: execution,
+        encryption: encryption,
+        sandbox: sandbox,
+        output: output,
+    };
+
+    Ok(result)
+}
+
 pub fn meta_arg_parser() {
-    let _args = parser();
+    let args = parser();
+    args_checker(args);
 }

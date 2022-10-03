@@ -1,14 +1,14 @@
 // Module that handles the CLI arguments and checks them for correct values.
 
 use clap::{Arg, ArgMatches, Command, PossibleValue};
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 //use std::process::Output;
 use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Order {
     shellcode_path: PathBuf,
-    execution: Execution,
+    pub execution: Execution,
     encryption: Option<Encryption>,
     sandbox: Option<bool>,
     output: Option<String>,
@@ -70,7 +70,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     //dbg!(args.clone());
     let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
     let shellcode_path: PathBuf = [sp].iter().collect();
-    let execution;
+    let execution: Execution;
     let encryption: Option<Encryption> = None;
     let sandbox: Option<bool> = None;
     let output: Option<String> = None;

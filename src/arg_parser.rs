@@ -1,22 +1,26 @@
+// Module that handles the CLI arguments and checks them for correct values.
+
 use clap::{Arg, ArgMatches, Command, PossibleValue};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+//use std::process::Output;
 use std::str::FromStr;
 
-// File that handles the CLI arguments and checks them for correct values.
-
+#[derive(Debug)]
 pub struct Order {
-    shellcode_path: Box<Path>,
+    shellcode_path: PathBuf,
     execution: Execution,
     encryption: Option<Encryption>,
     sandbox: Option<bool>,
     output: Option<String>,
 }
 
+#[derive(Debug)]
 pub enum Execution {
-    CreateRemoteThread,
+    //CreateRemoteThread(String),
     CreateThread,
 }
 
+#[derive(Debug)]
 pub enum Encryption {
     Xor,
     Aes,
@@ -41,7 +45,7 @@ fn parser() -> ArgMatches {
                 .short('i')
                 .required(true)
                 .value_parser([
-                    PossibleValue::new("crt").help("Create Remote Thread"),
+                    PossibleValue::new("ct").help("Create Thread"),
                 ]),
         )
         .arg(
@@ -63,33 +67,39 @@ fn parser() -> ArgMatches {
 }
 
 fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
-    let shellcode_path = Path::new(String::from_str(args.value_of("Path to shellcode file").unwrap()));
-    let execution = String::from_str(args.value_of("Execution technique").unwrap())?;
-    let mut encryption;
-    if args.value_of("Encryption / encoding method").unwrap()? == None {
-        encryption = None;
-    } else {
-        encryption = Some(args.value_of("Encryption / encoding method").unwrap())?;
-    }
-    let mut sandbox;
-    if args.value_of("Encryption / encoding method").unwrap()? == None {
-        encryption = None;
-    } else {
-        encryption = Some(String::from_str(args.value_of("Encryption / encoding method").unwrap()))?;
+    dbg!(args.clone());
+    let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
+    let shellcode_path: PathBuf = [sp].iter().collect();
+    let execution;
+    let encryption: Option<Encryption> = None;
+    let sandbox: Option<bool> = None;
+    let output: Option<String> = None;
+
+    let s = String::from_str(args.value_of("Execution technique").unwrap())?;
+    match s.as_str() {
+        "ct" => execution = Execution::CreateThread,
+        _ => panic!("Don't even know how this error exists."),
     }
 
+    //let e = String::from_str(args.value_of("Encryption / encoding method").unwrap())?;
+
     let result = Order {
-        shellcode_path: shellcode_path,
-        execution: execution,
-        encryption: encryption,
-        sandbox: sandbox,
-        output: output,
+        shellcode_path,
+        execution,
+        encryption,
+        sandbox,
+        output,
     };
 
     Ok(result)
 }
 
 pub fn meta_arg_parser() {
+    let order:Order;
     let args = parser();
-    args_checker(args);
+    match args_checker(args) {
+        Ok(content) => order = content,
+        Err(err) => panic!("{:?}", err),
+    } 
+    dbg!(order);
 }

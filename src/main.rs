@@ -1,8 +1,9 @@
+// The main module only calls the meta functions in each of the needed modules. Must be simple to read and very short.
+
 mod arg_parser;
 mod shellcode_reader;
 mod puzzle;
 
-// main file is just to call the meta function in each of the needed module. Must be simple to read and very short.
 
 fn main() {
     dbg!("Entering main function");

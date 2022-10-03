@@ -1,4 +1,6 @@
-// file that handle the target Rust code puzzle :)
+// Module building the end-result Rust code
+
+
 use std::path::Path;
 
 fn string_reader_from_file(path: &Path) -> Result<String, Box<dyn std::error::Error>> {

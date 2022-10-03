@@ -67,7 +67,7 @@ fn parser() -> ArgMatches {
 }
 
 fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
-    dbg!(args.clone());
+    //dbg!(args.clone());
     let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
     let shellcode_path: PathBuf = [sp].iter().collect();
     let execution;
@@ -94,12 +94,12 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     Ok(result)
 }
 
-pub fn meta_arg_parser() {
+pub fn meta_arg_parser() -> Order {
     let order:Order;
     let args = parser();
     match args_checker(args) {
         Ok(content) => order = content,
         Err(err) => panic!("{:?}", err),
     } 
-    dbg!(order);
+    return order;
 }

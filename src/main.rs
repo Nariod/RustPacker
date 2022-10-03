@@ -8,9 +8,9 @@ mod puzzle;
 fn main() {
     dbg!("Entering main function");
 
-    let args = arg_parser::meta_arg_parser();
+    let order = arg_parser::meta_arg_parser();
     let shellcode = shellcode_reader::meta_shellcode_reader();
-    puzzle::meta_puzzle();
+    puzzle::meta_puzzle(order, shellcode);
 
     dbg!("Exiting main function");
 }

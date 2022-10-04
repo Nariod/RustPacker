@@ -16,6 +16,12 @@ fn search_and_replace(path_to_main: &Path, search: &str, replace: &str) -> Resul
     Ok(())
 }
 
+fn vec_to_string(shellcode: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
+    //println!("{:?}", shellcode.clone());
+    let result: String = String::from_utf8(shellcode)?;
+    Ok(result)
+}
+
 pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) {
     let path_to_main;
     match order.execution {
@@ -23,10 +29,10 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) {
         _ => panic!("Don't even know how this error exists."),
     }
     let search = "{{shellcode}}";
-    let replace = match str::from_utf8(&shellcode) {
-        Ok(v) => v,
-        Err(e) => panic!("Invalid UTF-8 shellcode sequence: {}", e),
-    };
-    dbg!("Replace ? {}", replace);
-    let _ = search_and_replace(path_to_main, search, replace);
+    let replace: String;
+    match vec_to_string(shellcode) {
+        Ok(content) => replace = content,
+        Err(err) => panic!("{:?}", err),
+    }
+    let _ = search_and_replace(path_to_main, search, &replace);
 }

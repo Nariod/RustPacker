@@ -5,6 +5,8 @@ Shellcode packer written in Rust.
 WIP, not functional for now.
 
 ## Todo
+- [ ] Port createThread Rust template
+- [ ] Port CreateRemoteThread Rust template
 - [ ] Packer POC
 - [ ] Add encryption / encoding
 - [ ] Build dockerfile

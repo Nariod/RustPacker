@@ -7,6 +7,7 @@ WIP, not functional for now.
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port CreateRemoteThread Rust template
+- [ ] Debug file to Vec<u8>
 - [ ] Packer POC
 - [ ] Add encryption / encoding
 - [ ] Build dockerfile

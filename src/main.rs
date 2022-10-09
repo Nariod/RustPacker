@@ -6,11 +6,11 @@ mod puzzle;
 
 
 fn main() {
-    dbg!("Entering main function");
+    println!("Entering main function");
 
     let order = arg_parser::meta_arg_parser();
     let shellcode = shellcode_reader::meta_shellcode_reader();
     puzzle::meta_puzzle(order, shellcode);
 
-    dbg!("Exiting main function");
+    println!("Exiting main function");
 }

@@ -1,5 +1,4 @@
 // Module that gets the content of a shellcode file, and returns its content in a Vec<u8>.
-
 use std::path::Path;
 
 fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {

@@ -7,3 +7,4 @@ edition = "2021"
 
 [dependencies]
 clap = "3.2.22"
+random-string = "1.0.0"

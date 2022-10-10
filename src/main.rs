@@ -9,7 +9,7 @@ fn main() {
     println!("Entering main function");
 
     let order = arg_parser::meta_arg_parser();
-    let shellcode = shellcode_reader::meta_shellcode_reader();
+    let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
     puzzle::meta_puzzle(order, shellcode);
 
     println!("Exiting main function");

@@ -8,3 +8,5 @@ edition = "2021"
 [dependencies]
 clap = "3.2.22"
 random-string = "1.0.0"
+cargo = "0.65.0"
+path-absolutize = "3.0.13"

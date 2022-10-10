@@ -3,6 +3,7 @@
 mod arg_parser;
 mod shellcode_reader;
 mod puzzle;
+mod compiler;
 
 
 fn main() {
@@ -10,7 +11,9 @@ fn main() {
 
     let order = arg_parser::meta_arg_parser();
     let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
-    puzzle::meta_puzzle(order, shellcode);
+    let mut output_folder = puzzle::meta_puzzle(order, shellcode);
+    compiler::meta_compiler(&mut output_folder);
+
 
     println!("Exiting main function");
 }

@@ -4,6 +4,7 @@ use std::path::Path;
 use crate::arg_parser::{Order, Execution};
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
+use std::path::{PathBuf};
 use random_string::generate;
 
 fn search_and_replace(path_to_main: &Path, search: &str, replace: &str) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,7 +27,7 @@ fn create_folder() -> Result<String, Box<dyn std::error::Error>> {
     Ok(random)
 }
 
-pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) {
+pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     println!("[+] Assembling Rust code..");
 
     let path_to_main;
@@ -44,4 +45,5 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) {
 
     let _ = search_and_replace(path_to_main, search, &replace);
     println!("[+] Done assembling Rust code!");
+    return Path::new(&folder).to_path_buf();
 }

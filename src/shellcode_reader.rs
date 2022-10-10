@@ -5,7 +5,7 @@ use std::path::{PathBuf};
 
 fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
-    println!("{:#04X?}", &bytes);
+    //println!("{:#04X?}", &bytes);
     Ok(bytes)
 }
 

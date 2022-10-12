@@ -11,3 +11,5 @@ Cargo.lock
 
 # Local shellcodes used for tests
 *.bin
+
+output_*/

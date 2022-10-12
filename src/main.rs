@@ -14,6 +14,5 @@ fn main() {
     let mut output_folder = puzzle::meta_puzzle(order, shellcode);
     compiler::meta_compiler(&mut output_folder);
 
-
     println!("Exiting main function");
 }

@@ -4,6 +4,14 @@ Shellcode packer written in Rust.
 # Current state
 WIP, not functional for now.
 
+## Are you a Rust developer?
+If you have some experience with Rust, you're more than welcome to help !
+You can help by:
+- Contributing to the project
+- Reviewing the Rust code
+- Opening issue to discuss Rust code
+- Contacting me on Discord for a more in depth review (nariod#4621)
+
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port CreateRemoteThread Rust template
@@ -12,6 +20,7 @@ WIP, not functional for now.
 - [ ] Packer POC
 - [ ] Add encryption / encoding
 - [ ] Build dockerfile
+- [ ] Strip output binaries
 
 ## Setup
 - install fedora environment

@@ -2,7 +2,7 @@
 Shellcode packer written in Rust.
 
 # Current state
-WIP, not functional for now.
+Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
@@ -16,7 +16,7 @@ You can help by:
 - [X] Port createThread Rust template
 - [X] Port CreateRemoteThread Rust template
 - [X] Debug file to Vec<u8>
-- [ ] Debug compiler
+- [X] Debug compiler -> Done, FFS !
 - [ ] Packer POC
 - [ ] Add encryption / encoding
 - [ ] Build dockerfile

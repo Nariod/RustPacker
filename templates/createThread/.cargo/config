@@ -1,6 +1,2 @@
 [build]
 target = "x86_64-pc-windows-gnu"
-
-[target.x86_64-pc-windows-gnu]
-linker = "/usr/bin/$ARCH-w64-mingw32-gcc"
-ar = "/usr/$ARCH-w64-mingw32/bin/ar"

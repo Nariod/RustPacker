@@ -1,19 +1,26 @@
 // Module building the end-result Rust code
-use std::str;
-use std::path::Path;
-use crate::arg_parser::{Order, Execution};
+use crate::arg_parser::{Execution, Order};
+use fs_extra::dir::{copy, CopyOptions};
+use random_string::generate;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
-use std::path::{PathBuf};
-use random_string::generate;
-use fs_extra::dir::{copy, CopyOptions};
+use std::path::Path;
+use std::path::PathBuf;
+use std::str;
 
-fn search_and_replace(path_to_main: &Path, search: &str, replace: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn search_and_replace(
+    path_to_main: &Path,
+    search: &str,
+    replace: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     // thanks to https://users.rust-lang.org/t/replacing-content-in-file/52690/5
     let file_content = fs::read_to_string(path_to_main)?;
-    let new_content = file_content.replace(search, &replace);
+    let new_content = file_content.replace(search, replace);
 
-    let mut file = OpenOptions::new().write(true).truncate(true).open(path_to_main)?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path_to_main)?;
     file.write(new_content.as_bytes())?;
 
     Ok(())
@@ -30,7 +37,7 @@ fn create_root_folder() -> Result<String, Box<dyn std::error::Error>> {
     Ok(result)
 }
 
-fn copy_template(source: &Path, dest : &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let options = CopyOptions {
         content_only: true,
         ..Default::default()
@@ -43,19 +50,21 @@ fn copy_template(source: &Path, dest : &Path) -> Result<(), Box<dyn std::error::
 pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     println!("[+] Assembling Rust code..");
 
-    let path_to_template;
-    match order.execution {
-        Execution::CreateThread => path_to_template = Path::new("templates/createThread/."),
-        Execution::CreateRemoteThread => path_to_template = Path::new("templates/createRemoteThread/."),
-    }
+    //let path_to_template;
+    let path_to_template =  match order.execution {
+        Execution::CreateThread => Path::new("templates/createThread/."),
+        Execution::CreateRemoteThread => {
+            Path::new("templates/createRemoteThread/.")
+        }
+    };
     let search = "{{shellcode}}";
     let replace: String = format!("{:?}", &shellcode);
 
-    let folder: String;
-    match create_root_folder() {
-        Ok(content) => folder = content,
+    //let folder: String;
+    let folder: String = match create_root_folder() {
+        Ok(content) => content,
         Err(err) => panic!("{:?}", err),
-    }
+    };
     match copy_template(path_to_template, Path::new(&folder)) {
         Ok(_) => (),
         Err(err) => panic!("{:?}", err),

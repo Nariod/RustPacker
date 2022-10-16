@@ -1,10 +1,9 @@
 // The main module only calls the meta functions in each of the needed modules. Must be simple to read and very short.
 
 mod arg_parser;
-mod shellcode_reader;
-mod puzzle;
 mod compiler;
-
+mod puzzle;
+mod shellcode_reader;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();

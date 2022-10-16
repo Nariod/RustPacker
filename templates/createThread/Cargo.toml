@@ -25,6 +25,3 @@ opt-level = "z"  # Optimize for size.
 lto = true
 codegen-units = 1
 panic = "abort"
-
-[build]
-target = "x86_64-pc-windows-gnu"

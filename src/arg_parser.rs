@@ -16,7 +16,7 @@ pub struct Order {
 
 #[derive(Debug)]
 pub enum Execution {
-    //CreateRemoteThread(String),
+    CreateRemoteThread,
     CreateThread,
 }
 
@@ -46,6 +46,7 @@ fn parser() -> ArgMatches {
                 .required(true)
                 .value_parser([
                     PossibleValue::new("ct").help("Create Thread"),
+                    PossibleValue::new("crt").help("Create Remote Thread"),
                 ]),
         )
         .arg(
@@ -78,6 +79,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     let s = String::from_str(args.value_of("Execution technique").unwrap())?;
     match s.as_str() {
         "ct" => execution = Execution::CreateThread,
+        "crt" => execution = Execution::CreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),
     }
 

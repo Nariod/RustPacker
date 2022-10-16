@@ -46,6 +46,7 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     let path_to_template;
     match order.execution {
         Execution::CreateThread => path_to_template = Path::new("templates/createThread/."),
+        Execution::CreateRemoteThread => path_to_template = Path::new("templates/createRemoteThread/."),
     }
     let search = "{{shellcode}}";
     let replace: String = format!("{:?}", &shellcode);

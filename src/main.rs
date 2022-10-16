@@ -7,12 +7,8 @@ mod compiler;
 
 
 fn main() {
-    println!("Entering main function");
-
     let order = arg_parser::meta_arg_parser();
     let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
     let mut output_folder = puzzle::meta_puzzle(order, shellcode);
     compiler::meta_compiler(&mut output_folder);
-
-    println!("Exiting main function");
 }

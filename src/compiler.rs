@@ -16,7 +16,7 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
     let absolute_toml_path = path_to_cargo_project.absolutize()?;
     let _ = set_current_dir(&path_to_cargo_folder)?; //needed to make sure cargo use the target .cargo/config file.. FFS
     let config: Config = Config::default()?;
-    let _ = set_current_dir(original_wd)?;
+    let _ = set_current_dir(original_wd)?; // set back to default working dir
     let ws = Workspace::new(&absolute_toml_path, &config)?;
     let mut compile_options: CompileOptions = CompileOptions::new(&config , CompileMode::Build)?;
     compile_options.build_config.requested_profile = InternedString::new("release");
@@ -28,7 +28,9 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
 pub fn meta_compiler(path_to_cargo_project: &mut PathBuf) {
     let res = compiler(path_to_cargo_project);
     match res {
-        Ok(()) => println!("[+] Successfully compiled!"),
+        Ok(()) => {
+            println!("[+] Successfully compiled!");
+            }
         Err(err) => panic!("{:?}", err),
     }
 }

@@ -1,8 +1,15 @@
 # RustPacker
 Shellcode packer written in Rust.
 
-# Current state
-Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff.
+## Current state
+Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff before it can bypass AV/EDR.
+
+## Are you a Rust developer?
+If you have some experience with Rust, you're more than welcome to help !
+You can help by:
+- Review the code for mistakes / improvements
+- Opening issues
+- Contacting me on Discord for a more in depth review (nariod#4621)
 
 # Quick start
 
@@ -21,30 +28,23 @@ Run RustPacker:
 - `cd RustPacker/`
 - `cargo run -- -f shellcode.bin -i ct`
 
-## Are you a Rust developer?
-If you have some experience with Rust, you're more than welcome to help !
-You can help by:
-- Review the code for mistakes / improvements
-- Opening issues
-- Contacting me on Discord for a more in depth review (nariod#4621)
-
+## Podman Setup
+- install fedora environment
+- sudo dnf groupinstall "Development Tools" "Development Libraries"
+- sudo dnf install mingw64-winpthreads-static
+- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+- rustup target add x86_64-pc-windows-gnu
 
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port CreateRemoteThread Rust template
 - [X] Debug file to Vec<u8>
 - [X] Debug compiler -> Done, FFS !
-- [ ] Packer POC
+- [X] Packer POC
 - [ ] Add encryption / encoding
 - [ ] Build dockerfile
-- [ ] Strip output binaries
-
-## Setup
-- install fedora environment
-- sudo dnf groupinstall "Development Tools" "Development Libraries"
-- sudo dnf install mingw64-winpthreads-static
-- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-- rustup target add x86_64-pc-windows-gnu
+- [X] Strip output binaries
+- [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
 
 ## Credits
 - Rust discord

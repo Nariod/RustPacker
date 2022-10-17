@@ -28,12 +28,13 @@ Run RustPacker:
 - `cd RustPacker/`
 - `cargo run -- -f shellcode.bin -i ct`
 
-## Podman Setup
-- install fedora environment
-- sudo dnf groupinstall "Development Tools" "Development Libraries"
-- sudo dnf install mingw64-winpthreads-static
-- curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-- rustup target add x86_64-pc-windows-gnu
+## Podman/Docker setup
+Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
+From any OS with either Podman or Docker installed:
+- `git clone https://github.com/Nariod/RustPacker.git`
+- `cd RustPacker/`
+- `podman build -t rustpacker -f Dockerfile`
+- `podman run -it --rm rustpacker`
 
 ## Todo
 - [X] Port createThread Rust template

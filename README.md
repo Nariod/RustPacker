@@ -30,7 +30,7 @@ Run RustPacker:
 
 ## Podman/Docker setup
 Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
-From any OS with either Podman or Docker installed:
+From any internet-connected OS with either Podman or Docker installed:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
@@ -39,11 +39,11 @@ From any OS with either Podman or Docker installed:
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port CreateRemoteThread Rust template
-- [X] Debug file to Vec<u8>
+- [X] Debug binary file to Vec<u8>
 - [X] Debug compiler -> Done, FFS !
 - [X] Packer POC
 - [ ] Add encryption / encoding
-- [ ] Build dockerfile
+- [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
 

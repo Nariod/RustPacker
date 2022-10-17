@@ -14,7 +14,6 @@ fn search_and_replace(
     replace: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // thanks to https://users.rust-lang.org/t/replacing-content-in-file/52690/5
-    dbg!(&path_to_main);
     let file_content = fs::read_to_string(path_to_main)?;
     let new_content = file_content.replace(search, replace);
 

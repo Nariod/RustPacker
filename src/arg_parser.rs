@@ -64,10 +64,8 @@ fn parser() -> ArgMatches {
 }
 
 fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
-    //dbg!(args.clone());
     let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
     let shellcode_path: PathBuf = [sp].iter().collect();
-    //let execution: Execution;
     let encryption: Option<Encryption> = None;
     let sandbox: Option<bool> = None;
     let output: Option<String> = None;
@@ -78,8 +76,6 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "crt" => Execution::CreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),
     };
-
-    //let e = String::from_str(args.value_of("Encryption / encoding method").unwrap())?;
 
     let result = Order {
         shellcode_path,
@@ -94,7 +90,6 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
 
 pub fn meta_arg_parser() -> Order {
     println!("[+] Parsing arguments..");
-    //let order: Order;
     let args = parser();
     let order: Order = match args_checker(args) {
         Ok(content) => content,

@@ -29,7 +29,7 @@ pub fn meta_compiler(path_to_cargo_project: &mut PathBuf) {
     let res = compiler(path_to_cargo_project);
     match res {
         Ok(()) => {
-            println!("[+] Successfully compiled! Rust code and compiled binary are in the 'output' folder");
+            println!("[+] Successfully compiled! Rust code and compiled binary are in the 'shared' folder");
         }
         Err(err) => panic!("{:?}", err),
     }

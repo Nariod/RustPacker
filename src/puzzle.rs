@@ -74,7 +74,6 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     let mut to_main = folder.clone();
     to_main.push("src");
     to_main.push("main.rs");
-    //dbg!(to_main.clone());
     let _ = search_and_replace(&to_main, search, &replace);
     println!("[+] Done assembling Rust code!");
     return Path::new(&folder).to_path_buf();

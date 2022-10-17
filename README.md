@@ -2,7 +2,7 @@
 Shellcode packer written in Rust.
 
 ## Current state
-Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff before it can bypass AV/EDR.
+Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff before it can bypass anything.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
@@ -12,6 +12,18 @@ You can help by:
 - Contacting me on Discord for a more in depth review (nariod#4621)
 
 # Quick start
+
+## Podman/Docker setup
+Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
+From any internet-connected OS with either Podman or Docker installed:
+- `git clone https://github.com/Nariod/RustPacker.git`
+- `cd RustPacker/`
+- `podman build -t rustpacker -f Dockerfile`
+- `podman run -it --rm -v output:/usr/src/output rustpacker RustPacker -f calc.bin -i ct`
+
+For regular use, you can set an alias:
+- On Linux host: `alias rustpacker='podman run -it --rm -v shared:/usr/src/shared rustpacker RustPacker'`
+- Then: `rustpacker -f calc.bin -i ct`
 
 ## Manual install on Kali
 Install dependencies:
@@ -27,14 +39,6 @@ Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
 - `cargo run -- -f shellcode.bin -i ct`
-
-## Podman/Docker setup
-Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
-From any internet-connected OS with either Podman or Docker installed:
-- `git clone https://github.com/Nariod/RustPacker.git`
-- `cd RustPacker/`
-- `podman build -t rustpacker -f Dockerfile`
-- `podman run -it --rm rustpacker`
 
 ## Todo
 - [X] Port createThread Rust template

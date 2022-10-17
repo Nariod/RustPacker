@@ -19,11 +19,12 @@ From any internet-connected OS with either Podman or Docker installed:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
-- `podman run -it --rm -v output:/usr/src/output rustpacker RustPacker -f calc.bin -i ct`
+- Paste your shellcode file in the `shared` folder
+- `podman run -it --rm -v shared:/usr/src/shared rustpacker RustPacker -f shared/calc.bin -i ct`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run -it --rm -v shared:/usr/src/shared rustpacker RustPacker'`
-- Then: `rustpacker -f calc.bin -i ct`
+- Then: `rustpacker -f shared/calc.bin -i ct`
 
 ## Manual install on Kali
 Install dependencies:

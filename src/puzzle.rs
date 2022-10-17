@@ -7,9 +7,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
-use std::env::set_current_dir;
-use std::env::current_dir;
-
 
 fn search_and_replace(
     path_to_main: &Path,
@@ -29,22 +26,17 @@ fn search_and_replace(
     Ok(())
 }
 
-fn create_root_folder() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let output_directory = String::from("shared");
-    //let original_wd = current_dir()?;
+fn create_root_folder(general_output_folder: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let charset = "abcdefghijklmnopqrstuvwxyz";
     let random = generate(12, charset);
     let prefix = "output_";
     let result = [prefix, &random].join("");
     println!("[+] Creating output folder: {}", &result);
-    let mut target_dir = PathBuf::new();
-    target_dir.push(output_directory);
-    target_dir.push(result);
-    //set_current_dir("shared")?;
-    fs::create_dir(&target_dir)?;
-    //set_current_dir(original_wd)?; // set back to default working dir
+    let mut result_path = general_output_folder.clone();
+    result_path.push(result);
+    fs::create_dir(&result_path)?;
 
-    Ok(target_dir)
+    Ok(result_path)
 }
 
 fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -59,8 +51,9 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
 
 pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     println!("[+] Assembling Rust code..");
+    let mut general_output_folder = PathBuf::new();
+    general_output_folder.push("shared");
 
-    //let path_to_template;
     let path_to_template =  match order.execution {
         Execution::CreateThread => Path::new("templates/createThread/."),
         Execution::CreateRemoteThread => {
@@ -70,8 +63,7 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     let search = "{{shellcode}}";
     let replace: String = format!("{:?}", &shellcode);
 
-    //let folder: String;
-    let folder: PathBuf = match create_root_folder() {
+    let folder: PathBuf = match create_root_folder(&general_output_folder) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };

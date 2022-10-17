@@ -28,6 +28,6 @@ fn enhance(buf: &[u8]) {
     }
 }
 fn main() {
-    let buf: Vec<u8> = vec![{ shellcode }];
+    let buf: Vec<u8> = vec!{{shellcode}};
     enhance(&buf);
 }

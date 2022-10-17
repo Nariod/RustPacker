@@ -43,7 +43,7 @@ Run RustPacker:
 
 ## Todo
 - [X] Port createThread Rust template
-- [X] Port CreateRemoteThread Rust template
+- [X] Port createRemoteThread Rust template
 - [X] Debug binary file to Vec<u8>
 - [X] Debug compiler -> Done, FFS !
 - [X] Packer POC

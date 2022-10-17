@@ -21,18 +21,20 @@ fn search_and_replace(
         .write(true)
         .truncate(true)
         .open(path_to_main)?;
-    file.write(new_content.as_bytes())?;
+    file.write_all(new_content.as_bytes())?;
 
     Ok(())
 }
 
-fn create_root_folder(general_output_folder: &PathBuf) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn create_root_folder(
+    general_output_folder: &Path,
+) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let charset = "abcdefghijklmnopqrstuvwxyz";
     let random = generate(12, charset);
     let prefix = "output_";
     let result = [prefix, &random].join("");
     println!("[+] Creating output folder: {}", &result);
-    let mut result_path = general_output_folder.clone();
+    let mut result_path = general_output_folder.to_path_buf();
     result_path.push(result);
     fs::create_dir(&result_path)?;
 
@@ -54,11 +56,9 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
     let mut general_output_folder = PathBuf::new();
     general_output_folder.push("shared");
 
-    let path_to_template =  match order.execution {
+    let path_to_template = match order.execution {
         Execution::CreateThread => Path::new("templates/createThread/."),
-        Execution::CreateRemoteThread => {
-            Path::new("templates/createRemoteThread/.")
-        }
+        Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
     };
     let search = "{{shellcode}}";
     let replace: String = format!("{:?}", &shellcode);

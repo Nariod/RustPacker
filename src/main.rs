@@ -7,7 +7,7 @@ mod shellcode_reader;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();
-    let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
-    let mut output_folder = puzzle::meta_puzzle(order, shellcode);
+    //let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
+    let mut output_folder = puzzle::meta_puzzle(order);
     compiler::meta_compiler(&mut output_folder);
 }

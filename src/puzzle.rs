@@ -7,6 +7,22 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
+use std::env;
+use std::io;
+use path_clean::PathClean;
+
+pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
+    // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
+    let path = path.as_ref();
+
+    let absolute_path = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        env::current_dir()?.join(path)
+    }.clean();
+
+    Ok(absolute_path)
+}
 
 fn search_and_replace(
     path_to_main: &Path,
@@ -51,7 +67,7 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
+pub fn meta_puzzle(order: Order) -> PathBuf {
     println!("[+] Assembling Rust code..");
     let mut general_output_folder = PathBuf::new();
     general_output_folder.push("shared");
@@ -60,8 +76,12 @@ pub fn meta_puzzle(order: Order, shellcode: Vec<u8>) -> PathBuf {
         Execution::CreateThread => Path::new("templates/createThread/."),
         Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
     };
-    let search = "{{shellcode}}";
-    let replace: String = format!("{:?}", &shellcode);
+    let search = "{{PATH_TO_SHELLCODE}}";
+    let absolute_shellcode_path = match absolute_path(order.shellcode_path) {
+        Ok(path) => path,
+        Err(err) => panic!("{:?}", err),
+    };
+    let replace: String = format!("{:?}", &absolute_shellcode_path);
 
     let folder: PathBuf = match create_root_folder(&general_output_folder) {
         Ok(content) => content,

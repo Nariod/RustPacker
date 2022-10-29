@@ -56,6 +56,7 @@ You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 - [X] Debug binary file to Vec<u8>
 - [X] Debug compiler -> Done, FFS !
 - [X] Packer POC
+- [ ] Migrate to "std::include_bytes"
 - [ ] Add encryption / encoding
 - [X] Build dockerfile
 - [X] Strip output binaries

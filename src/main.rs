@@ -4,10 +4,11 @@ mod arg_parser;
 mod compiler;
 mod puzzle;
 mod shellcode_reader;
+mod tools;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();
-    //let shellcode = shellcode_reader::meta_shellcode_reader(&order.shellcode_path);
+    //let shellcode = shellcode_reader::meta_vec_from_file(&order.shellcode_path);
     let mut output_folder = puzzle::meta_puzzle(order);
     compiler::meta_compiler(&mut output_folder);
 }

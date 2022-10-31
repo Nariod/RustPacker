@@ -2,15 +2,15 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-fn shellcode_reader_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+fn vec_from_file(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let bytes = std::fs::read(path)?;
     Ok(bytes)
 }
 
-pub fn meta_shellcode_reader(file_path: &PathBuf) -> Vec<u8> {
+pub fn meta_vec_from_file(file_path: &PathBuf) -> Vec<u8> {
     println!("[+] Reading binary file..");
     let path_to_shellcode_file = Path::new(&file_path);
-    let shellcode = shellcode_reader_from_file(path_to_shellcode_file);
+    let shellcode = vec_from_file(path_to_shellcode_file);
 
     match shellcode {
         Ok(bytes) => {

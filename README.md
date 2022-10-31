@@ -62,7 +62,8 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [X] Debug compiler -> Done, FFS !
 - [X] Packer POC
 - [X] Migrate to "std::include_bytes"
-- [ ] Add encryption / encoding
+- [ ] Add xor
+- [ ] Add AES
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs

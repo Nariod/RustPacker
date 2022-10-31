@@ -1,5 +1,6 @@
 // Module building the end-result Rust code
-use crate::arg_parser::{Execution, Order};
+use crate::arg_parser::{Execution, Order, Encryption};
+use crate::tools::absolute_path;
 use fs_extra::dir::{copy, CopyOptions};
 use random_string::generate;
 use std::fs::{self, OpenOptions};
@@ -7,22 +8,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
-use std::env;
-use std::io;
-use path_clean::PathClean;
-
-pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
-    // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
-    let path = path.as_ref();
-
-    let absolute_path = if path.is_absolute() {
-        path.to_path_buf()
-    } else {
-        env::current_dir()?.join(path)
-    }.clean();
-
-    Ok(absolute_path)
-}
 
 fn search_and_replace(
     path_to_main: &Path,
@@ -76,7 +61,14 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         Execution::CreateThread => Path::new("templates/createThread/."),
         Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
     };
+    /* 
+    match order.encryption {
+        Some(Encryption::Xor) => ,
+        None,
+    }
+    */
     let search = "{{PATH_TO_SHELLCODE}}";
+
     let absolute_shellcode_path = match absolute_path(order.shellcode_path) {
         Ok(path) => path,
         Err(err) => panic!("{:?}", err),

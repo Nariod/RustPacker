@@ -4,11 +4,13 @@ use clap::{Arg, ArgMatches, Command, PossibleValue};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::tools::absolute_path;
+
 #[derive(Debug)]
 pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
-    encryption: Option<Encryption>,
+    pub encryption: Option<Encryption>,
     sandbox: Option<bool>,
     output: Option<String>,
 }
@@ -65,7 +67,11 @@ fn parser() -> ArgMatches {
 
 fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
-    let shellcode_path: PathBuf = [sp].iter().collect();
+    let relative_shellcode_path: PathBuf = [sp].iter().collect();
+    let shellcode_path = match absolute_path(relative_shellcode_path) {
+        Ok(path) => path,
+        Err(err) => panic!("{:?}", err),
+    };
     let encryption: Option<Encryption> = None;
     let sandbox: Option<bool> = None;
     let output: Option<String> = None;

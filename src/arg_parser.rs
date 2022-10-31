@@ -24,7 +24,7 @@ pub enum Execution {
 #[derive(Debug)]
 pub enum Encryption {
     Xor,
-    Aes,
+    //Aes,
 }
 
 fn parser() -> ArgMatches {
@@ -57,7 +57,7 @@ fn parser() -> ArgMatches {
                 .short('e')
                 .value_parser([
                     PossibleValue::new("xor").help("'Exclusive or' encoding"),
-                    PossibleValue::new("aes").help("AES encryption"),
+                    //PossibleValue::new("aes").help("AES encryption"),
                 ]),
         )
         .get_matches();
@@ -72,7 +72,11 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         Ok(path) => path,
         Err(err) => panic!("{:?}", err),
     };
-    let encryption: Option<Encryption> = None;
+    let encryption: Option<Encryption> = match args.value_of("Encryption / encoding method") {
+        Some(content) => if Some(Encryption::Xor),
+        _ => None,
+    };
+
     let sandbox: Option<bool> = None;
     let output: Option<String> = None;
 

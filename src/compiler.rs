@@ -26,6 +26,7 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
 }
 
 pub fn meta_compiler(path_to_cargo_project: &mut PathBuf) {
+    println!("[+] Starting to compile your malware..");
     let res = compiler(path_to_cargo_project);
     match res {
         Ok(()) => {

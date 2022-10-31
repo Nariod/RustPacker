@@ -27,3 +27,7 @@ pub fn write_to_file(content: &Vec<u8>, path: &Path) -> Result<(), Box<dyn std::
 
     Ok(())
 }
+
+pub fn path_to_string(input: &Path) -> String {
+    format!("{:?}", &input)
+}

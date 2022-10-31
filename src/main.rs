@@ -5,6 +5,7 @@ mod compiler;
 mod puzzle;
 mod shellcode_reader;
 mod tools;
+mod xor;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();

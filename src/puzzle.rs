@@ -111,8 +111,8 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
                 Some(content) => content,
                 None => panic!("I don't even know how this happened.."),
             };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", &decryption_function);
-            to_be_replaced.insert("{{MAIN}}", &main);
+            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function);
+            to_be_replaced.insert("{{MAIN}}", main);
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_xor_as_string);
 
             for (key, value) in to_be_replaced.iter() {

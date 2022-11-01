@@ -1,12 +1,13 @@
 // Module embedding various useful functions
 
+use path_clean::PathClean;
+use rand::Rng;
 use std::env;
 use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
-use path_clean::PathClean;
 
 pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
     // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
@@ -16,7 +17,8 @@ pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
         path.to_path_buf()
     } else {
         env::current_dir()?.join(path)
-    }.clean();
+    }
+    .clean();
 
     Ok(absolute_path)
 }
@@ -30,4 +32,9 @@ pub fn write_to_file(content: &Vec<u8>, path: &Path) -> Result<(), Box<dyn std::
 
 pub fn path_to_string(input: &Path) -> String {
     format!("{:?}", &input)
+}
+
+pub fn random_u8() -> u8 {
+    let random_number: u8 = rand::thread_rng().gen();
+    random_number
 }

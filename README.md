@@ -59,13 +59,14 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [X] Port createThread Rust template
 - [X] Port createRemoteThread Rust template
 - [X] Debug binary file to Vec<u8>
-- [X] Debug compiler -> Done, FFS !
+- [X] Debug compiler
 - [X] Packer POC
 - [X] Migrate to "std::include_bytes"
 - [ ] Add xor
 - [ ] Add AES
 - [X] Build dockerfile
 - [X] Strip output binaries
+- [ ] Reduce cargo verbosity
 - [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
 - [ ] Write detailed doc
 

@@ -11,8 +11,8 @@ pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
     pub encryption: Option<Encryption>,
-    sandbox: Option<bool>,
-    output: Option<String>,
+    //sandbox: Option<bool>,
+    //output: Option<String>,
 }
 
 #[derive(Debug)]
@@ -72,13 +72,16 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         Ok(path) => path,
         Err(err) => panic!("{:?}", err),
     };
-    let encryption: Option<Encryption> = match args.value_of("Encryption / encoding method") {
-        Some(content) => if Some(Encryption::Xor),
-        _ => None,
-    };
+    let encryption: Option<Encryption>;
 
-    let sandbox: Option<bool> = None;
-    let output: Option<String> = None;
+    if let Some("xor") = args.value_of("Encryption / encoding method") {
+        encryption = Some(Encryption::Xor);
+    } else {
+        encryption = None;
+    }
+
+    //let sandbox: Option<bool> = None;
+    //let output: Option<String> = None;
 
     let s = String::from_str(args.value_of("Execution technique").unwrap())?;
     let execution: Execution = match s.as_str() {
@@ -91,8 +94,8 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         shellcode_path,
         execution,
         encryption,
-        sandbox,
-        output,
+        //sandbox,
+        //output,
     };
 
     Ok(result)

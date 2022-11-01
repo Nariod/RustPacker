@@ -2,7 +2,7 @@
 Shellcode packer written in Rust.
 
 ## Current state
-Functional as it packs a binary file, but useless as I need to add evasion and encryption stuff before it can bypass anything.
+Functional as it packs a binary file, but very basic as it only support XOR encoding for now.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
@@ -64,6 +64,7 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [X] Migrate to "std::include_bytes"
 - [X] Add xor
 - [ ] Add AES
+- [ ] Refactor code
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Reduce cargo verbosity

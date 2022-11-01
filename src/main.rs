@@ -9,7 +9,6 @@ mod xor;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();
-    //let shellcode = shellcode_reader::meta_vec_from_file(&order.shellcode_path);
     let mut output_folder = puzzle::meta_puzzle(order);
     compiler::meta_compiler(&mut output_folder);
 }

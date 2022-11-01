@@ -4,13 +4,15 @@ use clap::{Arg, ArgMatches, Command, PossibleValue};
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use crate::tools::absolute_path;
+
 #[derive(Debug)]
 pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
-    encryption: Option<Encryption>,
-    sandbox: Option<bool>,
-    output: Option<String>,
+    pub encryption: Option<Encryption>,
+    //sandbox: Option<bool>,
+    //output: Option<String>,
 }
 
 #[derive(Debug)]
@@ -22,7 +24,7 @@ pub enum Execution {
 #[derive(Debug)]
 pub enum Encryption {
     Xor,
-    Aes,
+    //Aes,
 }
 
 fn parser() -> ArgMatches {
@@ -55,7 +57,7 @@ fn parser() -> ArgMatches {
                 .short('e')
                 .value_parser([
                     PossibleValue::new("xor").help("'Exclusive or' encoding"),
-                    PossibleValue::new("aes").help("AES encryption"),
+                    //PossibleValue::new("aes").help("AES encryption"),
                 ]),
         )
         .get_matches();
@@ -65,10 +67,21 @@ fn parser() -> ArgMatches {
 
 fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     let sp: String = String::from_str(args.value_of("Path to shellcode file").unwrap())?;
-    let shellcode_path: PathBuf = [sp].iter().collect();
-    let encryption: Option<Encryption> = None;
-    let sandbox: Option<bool> = None;
-    let output: Option<String> = None;
+    let relative_shellcode_path: PathBuf = [sp].iter().collect();
+    let shellcode_path = match absolute_path(relative_shellcode_path) {
+        Ok(path) => path,
+        Err(err) => panic!("{:?}", err),
+    };
+    let encryption: Option<Encryption>;
+
+    if let Some("xor") = args.value_of("Encryption / encoding method") {
+        encryption = Some(Encryption::Xor);
+    } else {
+        encryption = None;
+    }
+
+    //let sandbox: Option<bool> = None;
+    //let output: Option<String> = None;
 
     let s = String::from_str(args.value_of("Execution technique").unwrap())?;
     let execution: Execution = match s.as_str() {
@@ -81,8 +94,8 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         shellcode_path,
         execution,
         encryption,
-        sandbox,
-        output,
+        //sandbox,
+        //output,
     };
 
     Ok(result)

@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 use sysinfo::{PidExt, ProcessExt, System, SystemExt};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;

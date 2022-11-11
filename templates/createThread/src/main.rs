@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"] 
+
 use windows::Win32::System::Memory::VirtualAlloc;
 use windows::Win32::System::Memory::VirtualProtect;
 use windows::Win32::System::Memory::PAGE_PROTECTION_FLAGS;

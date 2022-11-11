@@ -2,7 +2,7 @@
 Shellcode packer written in Rust.
 
 ## Current state
-Functional as it packs a binary file, but very basic as it only support XOR encoding for now.
+Functional as it packs a binary file, but very basic as it only supports XOR encoding for now.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
@@ -52,8 +52,8 @@ You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 
 ### Sliver
 You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
-- `generate --mtls 127.0.0.1:443 --format shellcode --windows`
-- Do not use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates do not use RWX memory regions, which are required for SGN to work.
+- `generate --mtls 127.0.0.1:443 --format shellcode --windows --evasion`
+- You can now use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions, which are required for SGN to work.
 
 ## Todo
 - [X] Port createThread Rust template
@@ -64,10 +64,14 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [X] Migrate to "std::include_bytes"
 - [X] Add xor
 - [ ] Add AES
+- [X] Add Sliver SGN support
 - [ ] Refactor code
+- [ ] Rewrite templates with Nt APIs
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Reduce cargo verbosity
+- [ ] Generate random name for generated binary
+- [ ] Add binary signing support
 - [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
 - [ ] Write detailed doc
 

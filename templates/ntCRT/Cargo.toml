@@ -1,0 +1,27 @@
+[package]
+name = "create_remote_thread"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ntapi = { version = "0.4.0", features = ["impl-default"] }
+sysinfo = "0.26.7"
+freshycalls_syswhispers = { path = "/home/nariod/Dev/mordor-rs/freshycalls_syswhispers",  features = ["_DIRECT_"] }
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default"] }
+
+[dependencies.windows]
+version = "0.43"
+features = [
+    "Win32_UI_Input_Pointer",
+    "Win32_Foundation",
+    "Win32_System_Threading",
+    "Win32_System_Memory",
+    "Win32_System_Diagnostics_Debug",
+    "Win32_Security",
+    "Win32_UI_Input_Pointer",
+]
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.

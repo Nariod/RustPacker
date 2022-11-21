@@ -20,6 +20,7 @@ pub enum Execution {
     CreateRemoteThread,
     CreateThread,
     SysCreateRemoteThread,
+    NtCreateRemoteThread,
 }
 
 #[derive(Debug)]
@@ -49,6 +50,7 @@ fn parser() -> ArgMatches {
                 .value_parser([
                     PossibleValue::new("ct").help("Create Thread"),
                     PossibleValue::new("crt").help("Create Remote Thread"),
+                    PossibleValue::new("ntcrt").help("Create Remote Thread using low level APIs"),
                     PossibleValue::new("syscrt").help("Create Remote Thread using syscalls"),
                 ]),
         )
@@ -89,6 +91,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     let execution: Execution = match s.as_str() {
         "ct" => Execution::CreateThread,
         "crt" => Execution::CreateRemoteThread,
+        "ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),
     };

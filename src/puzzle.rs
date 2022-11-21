@@ -61,6 +61,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     let path_to_template = match order.execution {
         Execution::CreateThread => Path::new("templates/createThread/."),
         Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+        Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/.")
     };
 

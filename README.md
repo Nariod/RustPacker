@@ -55,6 +55,38 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - `generate --mtls 127.0.0.1:443 --format shellcode --windows --evasion`
 - You can now use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions, which are required for SGN to work.
 
+## Install Rustpacker
+
+### Podman/Docker setup
+Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
+From any internet-connected OS with either Podman or Docker installed:
+- `git clone https://github.com/Nariod/RustPacker.git`
+- `cd RustPacker/`
+- `podman build -t rustpacker -f Dockerfile`
+- Paste your shellcode file in the `shared` folder
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ct -e xor`
+
+For regular use, you can set an alias:
+- On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
+- Then: `rustpacker -f shared/calc.bin -i ct -e xor`
+
+### Manual install on Kali
+Install dependencies:
+- `sudo apt update && sudo apt upgrade -y`
+- `sudo apt install -y libssl-dev librust-openssl-dev musl-tools mingw-w64 cmake libxml2-dev`
+
+Install Rust:
+- `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh `
+- `source $HOME/.cargo/env`
+- `rustup target add x86_64-pc-windows-gnu`
+
+Run RustPacker:
+- `git clone https://github.com/Nariod/RustPacker.git`
+- `cd RustPacker/`
+- `cargo run -- -f shellcode.bin -i ct -e xor`
+
+### Use Rustpacker
+
 ## Todo
 - [X] Port createThread Rust template
 - [X] Port createRemoteThread Rust template
@@ -66,7 +98,7 @@ You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode usi
 - [ ] Add AES
 - [X] Add Sliver SGN support
 - [ ] Refactor code
-- [ ] Rewrite templates with Nt APIs
+- [X] Rewrite templates with Nt APIs
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Reduce cargo verbosity

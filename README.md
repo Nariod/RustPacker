@@ -20,11 +20,11 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ntcrt -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.bin -i ntcrt -e xor`
+- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor`
 
 ## Manual install on Kali
 Install dependencies:
@@ -64,12 +64,12 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ntcrt -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor`
 - Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.bin -i ntcrt -e xor`
+- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor`
 - The output binary alRetrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 ### Manual install on Kali
@@ -92,7 +92,7 @@ For now, you can choose from the following templates:
 - `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
 - `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
 - `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
-- sysCRT, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
+- `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
 
 ### Usage example
 If you want to pack your Sliver shellcode using the `ntCRT` template with XOR encryption:
@@ -124,7 +124,7 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [ ] Write detailed doc
 
 ## Credits
-- (memN0ps)[https://github.com/memN0ps]
+- [memN0ps](https://github.com/memN0ps)
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link

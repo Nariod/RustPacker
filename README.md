@@ -2,12 +2,12 @@
 Shellcode packer written in Rust.
 
 ## Current state
-Functional as it packs a binary file, but very basic as it only supports XOR encoding for now.
+Functional as it packs a binary file, still in WIP.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
 You can help by:
-- Review the code for mistakes / improvements
+- Reviewing the code for mistakes / improvements
 - Opening issues
 - Contacting me on Discord for a more in depth review (nariod#4621)
 
@@ -20,11 +20,11 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ct -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ntcrt -e xor`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.bin -i ct -e xor`
+- Then: `rustpacker -f shared/calc.bin -i ntcrt -e xor`
 
 ## Manual install on Kali
 Install dependencies:
@@ -39,7 +39,7 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shellcode.bin -i ct -e xor`
+- `cargo run -- -f shellcode.bin -i ntcrt -e xor`
 
 # Full documentation
 
@@ -64,11 +64,13 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ct -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.bin -i ntcrt -e xor`
+- Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.bin -i ct -e xor`
+- Then: `rustpacker -f shared/calc.bin -i ntcrt -e xor`
+- The output binary alRetrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 ### Manual install on Kali
 Install dependencies:
@@ -83,9 +85,23 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shellcode.bin -i ct -e xor`
+- `cargo run -- -f shellcode.bin -i ntcrt -e xor`
 
-### Use Rustpacker
+## Use Rustpacker
+For now, you can choose from the following templates:
+- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
+- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
+- `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
+- sysCRT, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
+
+### Usage example
+If you want to pack your Sliver shellcode using the `ntCRT` template with XOR encryption:
+- Generate your raw shellcode from Sliver
+- Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
+- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e xor`
+- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e xor`
+- Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder generated in `shared`
+
 
 ## Todo
 - [X] Port createThread Rust template
@@ -98,7 +114,7 @@ Run RustPacker:
 - [ ] Add AES
 - [X] Add Sliver SGN support
 - [ ] Refactor code
-- [X] Rewrite templates with Nt APIs
+- [X] Write ntCRT template with Nt APIs
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Reduce cargo verbosity

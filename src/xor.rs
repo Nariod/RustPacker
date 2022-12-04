@@ -19,18 +19,13 @@ pub fn meta_xor(input_path: &Path, export_path: &Path, key: u8) -> HashMap<Strin
 
     let mut result: HashMap<String, String> = HashMap::new();
 
-    let decryption_function = "
-    fn xor_decode(buf: &Vec<u8>, key: u8) -> Vec<u8> {
+    let decryption_function = 
+    "fn xor_decode(buf: &Vec<u8>, key: u8) -> Vec<u8> {
         buf.iter().map(|x| x ^ key).collect()
-    }
-    ".to_string();
+    }".to_string();
 
     let main = format!(
-        "
-    vec = xor_decode(&vec, {});
-    ",
-        key
-    );
+    "vec = xor_decode(&vec, {});", key);
 
     result.insert(String::from("decryption_function"), decryption_function);
     result.insert(String::from("main"), main);

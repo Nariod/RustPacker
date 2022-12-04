@@ -17,16 +17,17 @@ pub struct Order {
 
 #[derive(Debug)]
 pub enum Execution {
-    CreateRemoteThread,
-    CreateThread,
+    // CreateRemoteThread,
+    // CreateThread,
     SysCreateRemoteThread,
     NtCreateRemoteThread,
+    NtQueueUserAPC
 }
 
 #[derive(Debug)]
 pub enum Encryption {
     Xor,
-    //Aes,
+    Aes,
 }
 
 fn parser() -> ArgMatches {
@@ -48,8 +49,9 @@ fn parser() -> ArgMatches {
                 .short('i')
                 .required(true)
                 .value_parser([
-                    PossibleValue::new("ct").help("Create Thread"),
-                    PossibleValue::new("crt").help("Create Remote Thread"),
+                    // PossibleValue::new("ct").help("Create Thread"),
+                    // PossibleValue::new("crt").help("Create Remote Thread"),
+                    PossibleValue::new("ntapc").help("Self inject using APC low level APIs"),
                     PossibleValue::new("ntcrt").help("Create Remote Thread using low level APIs"),
                     PossibleValue::new("syscrt").help("Create Remote Thread using syscalls"),
                 ]),
@@ -59,9 +61,10 @@ fn parser() -> ArgMatches {
             Arg::with_name("Encryption / encoding method")
                 .takes_value(true)
                 .short('e')
+                .required(true)
                 .value_parser([
                     PossibleValue::new("xor").help("'Exclusive or' encoding"),
-                    //PossibleValue::new("aes").help("AES encryption"),
+                    PossibleValue::new("aes").help("AES 256 encryption"),
                 ]),
         )
         .get_matches();
@@ -78,10 +81,10 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     };
     let encryption: Option<Encryption>;
 
-    if let Some("xor") = args.value_of("Encryption / encoding method") {
-        encryption = Some(Encryption::Xor);
-    } else {
-        encryption = None;
+    match args.value_of("Encryption / encoding method") {
+        Some("xor") => encryption = Some(Encryption::Xor),
+        Some("aes") => encryption = Some(Encryption::Aes),
+        _ => panic!("Don't even know how this error exists."),
     }
 
     //let sandbox: Option<bool> = None;
@@ -89,8 +92,9 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
 
     let s = String::from_str(args.value_of("Execution technique").unwrap())?;
     let execution: Execution = match s.as_str() {
-        "ct" => Execution::CreateThread,
-        "crt" => Execution::CreateRemoteThread,
+        // "ct" => Execution::CreateThread,
+        // "crt" => Execution::CreateRemoteThread,
+        "ntapc" => Execution::NtQueueUserAPC,
         "ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),

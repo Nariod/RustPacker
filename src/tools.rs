@@ -38,3 +38,11 @@ pub fn random_u8() -> u8 {
     let random_number: u8 = rand::thread_rng().gen();
     random_number
 }
+
+pub fn random_aes_key() -> [u8;32] {
+    rand::thread_rng().gen::<[u8; 32]>()
+}
+
+pub fn random_aes_iv() -> [u8;16] {
+    rand::thread_rng().gen::<[u8; 16]>()
+}

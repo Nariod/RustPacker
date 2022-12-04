@@ -6,6 +6,7 @@ mod puzzle;
 mod shellcode_reader;
 mod tools;
 mod xor;
+mod aes;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();

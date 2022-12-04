@@ -89,10 +89,13 @@ Run RustPacker:
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
-- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
-- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
 - `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
 - `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
+
+### Deprecated templates
+These templates are no longer available with RustPacker:
+- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
+- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
 
 ### Usage example
 If you want to pack your Sliver shellcode using the `ntCRT` template with XOR encryption:
@@ -115,8 +118,10 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [X] Add Sliver SGN support
 - [ ] Refactor code
 - [X] Write ntCRT template with Nt APIs
+- [X] Rewrite templates using Nt APIs only
 - [X] Build dockerfile
 - [X] Strip output binaries
+- [ ] Add string encryption option with litcrypt
 - [ ] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
 - [ ] Add binary signing support
@@ -124,7 +129,8 @@ If you want to pack your Sliver shellcode using the `ntCRT` template with XOR en
 - [ ] Write detailed doc
 
 ## Credits
-- [memN0ps](https://github.com/memN0ps)
+- [memN0ps](https://github.com/memN0ps) for all his work
+- [trickster0](https://github.com/trickster0) for his [OffensiveRust](https://github.com/trickster0/OffensiveRust) repo
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link

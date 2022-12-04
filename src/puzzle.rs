@@ -59,8 +59,9 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     general_output_folder.push("shared");
 
     let path_to_template = match order.execution {
-        Execution::CreateThread => Path::new("templates/createThread/."),
-        Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+        // Execution::CreateThread => Path::new("templates/createThread/."),
+        // Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+        Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
         Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/.")
     };

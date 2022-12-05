@@ -1,6 +1,8 @@
 # RustPacker
 Template-based shellcode packer written in Rust.
 
+![SumRust](/img/sumRust.jpg?raw=true "You want ?")
+
 ## Current state
 Functional as it packs a binary file, still in WIP.
 

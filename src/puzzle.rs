@@ -121,8 +121,15 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{MAIN}}", main);
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_xor_as_string);
 
+            let mut path_to_cargo = to_main.clone();
+            path_to_cargo.pop();
+            path_to_cargo.pop();
+            path_to_cargo.push("Cargo.toml");
+            
+
             for (key, value) in to_be_replaced.iter() {
                 let _ = search_and_replace(&to_main, key, value);
+                let _ = search_and_replace(&path_to_cargo, key, value);
             }
         }
         Some(Encryption::Aes) => {

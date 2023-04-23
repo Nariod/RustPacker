@@ -23,7 +23,7 @@ pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
     Ok(absolute_path)
 }
 
-pub fn write_to_file(content: &Vec<u8>, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(path)?;
     file.write_all(content)?;
 

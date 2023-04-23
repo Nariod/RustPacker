@@ -4,11 +4,11 @@ use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
 use libaes::Cipher;
 use std::{collections::HashMap, path::Path};
 
-fn aes_256_encrypt(shellcode: &Vec<u8>, key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
+fn aes_256_encrypt(shellcode: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
     // thanks to https://github.com/memN0ps/arsenal-rs/blob/ee385df07805515da5ffc2a9900d51d24a47f9ab/obfuscate_shellcode-rs/src/main.rs
     let cipher = Cipher::new_256(key);
-    let encrypted = cipher.cbc_encrypt(iv, shellcode);
-    encrypted
+
+    cipher.cbc_encrypt(iv, shellcode)
 }
 
 pub fn meta_aes(

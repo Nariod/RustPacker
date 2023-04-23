@@ -167,7 +167,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{MAIN}}", main);
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_aes_as_string);
             to_be_replaced.insert("{{DEPENDENCIES}}", dependencies);
-            to_be_replaced.insert("{{IMPORTS}}", &imports);
+            to_be_replaced.insert("{{IMPORTS}}", imports);
 
             let mut path_to_cargo = to_main.clone();
             path_to_cargo.pop();

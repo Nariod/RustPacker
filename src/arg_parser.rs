@@ -79,13 +79,12 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         Ok(path) => path,
         Err(err) => panic!("{:?}", err),
     };
-    let encryption: Option<Encryption>;
 
-    match args.value_of("Encryption / encoding method") {
-        Some("xor") => encryption = Some(Encryption::Xor),
-        Some("aes") => encryption = Some(Encryption::Aes),
+    let encryption = match args.value_of("Encryption / encoding method") {
+        Some("xor") => Some(Encryption::Xor),
+        Some("aes") => Some(Encryption::Aes),
         _ => panic!("Don't even know how this error exists."),
-    }
+    };
 
     //let sandbox: Option<bool> = None;
     //let output: Option<String> = None;

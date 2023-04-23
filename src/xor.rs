@@ -3,7 +3,7 @@
 use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
 use std::{collections::HashMap, path::Path};
 
-fn xor_encode(shellcode: &Vec<u8>, key: u8) -> Vec<u8> {
+fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
     // thanks to https://github.com/memN0ps/arsenal-rs/blob/main/obfuscate_shellcode-rs/src/main.rs
     shellcode.iter().map(|x| x ^ key).collect()
 }

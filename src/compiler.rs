@@ -14,7 +14,7 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
     let path_to_cargo_folder = path_to_cargo_project.clone();
     path_to_cargo_project.push("Cargo.toml");
     let absolute_toml_path = path_to_cargo_project.absolutize()?;
-    set_current_dir(&path_to_cargo_folder)?; //needed to make sure cargo use the target .cargo/config file.. FFS
+    set_current_dir(path_to_cargo_folder)?; //needed to make sure cargo use the target .cargo/config file.. FFS
     let config: Config = Config::default()?;
     set_current_dir(original_wd)?; // set back to default working dir
     let ws = Workspace::new(&absolute_toml_path, &config)?;

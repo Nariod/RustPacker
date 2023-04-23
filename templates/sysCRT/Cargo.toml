@@ -6,10 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-ntapi = { version = "0.4.0", features = ["impl-default"] }
-sysinfo = "0.26.7"
-freshycalls_syswhispers = { path = "/home/nariod/Dev/mordor-rs/freshycalls_syswhispers",  features = ["_DIRECT_"] }
-winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default"] }
+rust_syscalls = {path = https://github.com/Nariod/rust_syscalls}, features = ["_INDIRECT_"]}
+sysinfo = "0.28"
+ntapi = { version = "0.4", features = ["impl-default"] }
+winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default"] }
+{{DEPENDENCIES}}
 
 [profile.release]
 strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

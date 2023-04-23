@@ -1,8 +1,10 @@
 // Module building the end-result Rust code
-use crate::arg_parser::{Encryption, Execution, Order};
-use crate::tools::{absolute_path, random_u8, path_to_string};
-use crate::xor::meta_xor;
 use crate::aes::meta_aes;
+use crate::arg_parser::{Encryption, Execution, Order};
+use crate::tools::random_aes_iv;
+use crate::tools::random_aes_key;
+use crate::tools::{absolute_path, path_to_string, random_u8};
+use crate::xor::meta_xor;
 use fs_extra::dir::{copy, CopyOptions};
 use random_string::generate;
 use std::collections::HashMap;
@@ -11,8 +13,6 @@ use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
-use crate::tools::random_aes_key;
-use crate::tools::random_aes_iv;
 
 fn search_and_replace(
     path_to_file: &Path,
@@ -66,7 +66,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         // Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
         Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
         Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
-        Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/.")
+        Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
     };
 
     let folder: PathBuf = match create_root_folder(&general_output_folder) {
@@ -125,7 +125,6 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             path_to_cargo.pop();
             path_to_cargo.pop();
             path_to_cargo.push("Cargo.toml");
-            
 
             for (key, value) in to_be_replaced.iter() {
                 let _ = search_and_replace(&to_main, key, value);
@@ -146,7 +145,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             let absolute_path_to_aes_as_string = path_to_string(&absolute_path_to_aes);
 
             let aes_args: HashMap<String, String> =
-            meta_aes(&order.shellcode_path, &path_to_aes, &key, &iv);
+                meta_aes(&order.shellcode_path, &path_to_aes, &key, &iv);
 
             let decryption_function = match aes_args.get("decryption_function") {
                 Some(content) => content,
@@ -169,7 +168,6 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_aes_as_string);
             to_be_replaced.insert("{{DEPENDENCIES}}", dependencies);
             to_be_replaced.insert("{{IMPORTS}}", &imports);
-            
 
             let mut path_to_cargo = to_main.clone();
             path_to_cargo.pop();
@@ -180,8 +178,6 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
                 let _ = search_and_replace(&to_main, key, value);
                 let _ = search_and_replace(&path_to_cargo, key, value);
             }
-
-
         }
         None => {
             for (key, value) in to_be_replaced.iter() {

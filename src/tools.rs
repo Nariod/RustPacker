@@ -39,10 +39,10 @@ pub fn random_u8() -> u8 {
     random_number
 }
 
-pub fn random_aes_key() -> [u8;32] {
+pub fn random_aes_key() -> [u8; 32] {
     rand::thread_rng().gen::<[u8; 32]>()
 }
 
-pub fn random_aes_iv() -> [u8;16] {
+pub fn random_aes_iv() -> [u8; 16] {
     rand::thread_rng().gen::<[u8; 16]>()
 }

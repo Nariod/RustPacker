@@ -21,7 +21,7 @@ pub enum Execution {
     // CreateThread,
     SysCreateRemoteThread,
     NtCreateRemoteThread,
-    NtQueueUserAPC
+    NtQueueUserAPC,
 }
 
 #[derive(Debug)]

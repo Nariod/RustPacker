@@ -123,7 +123,7 @@ You can help by:
 - [ ] Add string encryption option with litcrypt or other
 - [ ] Add option to choose the target process to inject into
 - [ ] Add sandbox evasion option
-- [ ] Reduce cargo verbosity
+- [X] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
 - [ ] Add binary signing support
 - [ ] Port ntCRT to sysCRT with syscalls

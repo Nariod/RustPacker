@@ -6,13 +6,13 @@ use crate::tools::random_aes_key;
 use crate::tools::{absolute_path, path_to_string, random_u8};
 use crate::xor::meta_xor;
 use fs_extra::dir::{copy, CopyOptions};
-use random_string::generate;
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn search_and_replace(
     path_to_file: &Path,
@@ -33,10 +33,9 @@ fn search_and_replace(
 }
 
 fn create_root_folder(general_output_folder: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let charset = "abcdefghijklmnopqrstuvwxyz";
-    let random = generate(12, charset);
+    let time = format!("{:?}",SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
     let prefix = "output_";
-    let result = [prefix, &random].join("");
+    let result = [prefix, &time].join("");
     println!("[+] Creating output folder: {}", &result);
     let mut result_path = general_output_folder.to_path_buf();
     result_path.push(result);

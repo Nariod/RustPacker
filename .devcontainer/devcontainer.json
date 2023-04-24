@@ -3,7 +3,7 @@
     // image being used
      "image": "mcr.microsoft.com/devcontainers/rust:latest",
      // install dependencies
-     "updateContentCommand": "apt update && apt upgrade -y && apt install -y g++-mingw-w64-x86-64 && rustup target add x86_64-pc-windows-gnu",
+     "updateContentCommand": "rustup target add x86_64-pc-windows-gnu",
      "customizations": {
          // install some vscode extensions
          "vscode": {

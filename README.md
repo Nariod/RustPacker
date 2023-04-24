@@ -1,7 +1,10 @@
 # RustPacker
 Template-based shellcode packer written in Rust. Made with <3 for pentesters.
 
-![SumRust](/img/sumRust.jpg?raw=true "You want ?")
+## But, does it bypass Windows Defender ?
+
+Yes! Here with the common metasploit calc exec payload on a Windows 11 host, using the ntCRT template and AES. Last test on 24/04/2023.
+![Windows Defender bypass](/img/WinDef%20bypass.png)
 
 # Quick start
 

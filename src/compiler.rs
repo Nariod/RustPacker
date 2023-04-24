@@ -6,10 +6,12 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
     let path_to_cargo_folder = path_to_cargo_project.clone();
     path_to_cargo_project.push("Cargo.toml");
     set_current_dir(path_to_cargo_folder)?;
-    let _ = Command::new("cargo")
+    let output = Command::new("cargo")
         .arg("build")
         .arg("--release")
         .output()?;
+
+    println!("{:?}", output);
 
     Ok(())
 }

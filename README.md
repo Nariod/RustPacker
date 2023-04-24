@@ -1,10 +1,7 @@
 # RustPacker
-Template-based shellcode packer written in Rust.
+Template-based shellcode packer written in Rust. Made with <3 for pentesters.
 
 ![SumRust](/img/sumRust.jpg?raw=true "You want ?")
-
-## Current state
-Functional as it packs a binary file, still in WIP.
 
 # Quick start
 
@@ -27,7 +24,7 @@ Install dependencies:
 - `sudo apt install -y libssl-dev librust-openssl-dev musl-tools mingw-w64 cmake libxml2-dev`
 
 Install Rust:
-- `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh `
+- https://www.rust-lang.org/tools/install
 - `source $HOME/.cargo/env`
 - `rustup target add x86_64-pc-windows-gnu`
 
@@ -73,7 +70,7 @@ Install dependencies:
 - `sudo apt install -y libssl-dev librust-openssl-dev musl-tools mingw-w64 cmake libxml2-dev`
 
 Install Rust:
-- `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh `
+- https://www.rust-lang.org/tools/install
 - `source $HOME/.cargo/env`
 - `rustup target add x86_64-pc-windows-gnu`
 
@@ -86,7 +83,7 @@ Run RustPacker:
 For now, you can choose from the following templates:
 - `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
 - `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
-- `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [mordor-rs](https://github.com/memN0ps/mordor-rs) project.
+- `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project.
 
 ### Deprecated templates
 These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
@@ -123,7 +120,7 @@ You can help by:
 - [X] Rewrite all templates using Nt APIs only
 - [X] Build dockerfile
 - [X] Strip output binaries
-- [ ] Add string encryption option with litcrypt
+- [ ] Add string encryption option with litcrypt or other
 - [ ] Add option to choose the target process to inject into
 - [ ] Add sandbox evasion option
 - [ ] Reduce cargo verbosity
@@ -131,7 +128,7 @@ You can help by:
 - [ ] Add binary signing support
 - [ ] Port ntCRT to sysCRT with syscalls
 - [ ] Port ntAPC to sysAPC with syscalls
-- [ ] Write detailed doc
+- [X] Write detailed doc
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

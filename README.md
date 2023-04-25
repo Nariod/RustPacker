@@ -1,9 +1,10 @@
 # RustPacker
-Template-based shellcode packer written in Rust. Made with <3 for pentesters.
+Template-based shellcode packer written in Rust, with indirect syscall support. Made with <3 for pentesters.
 
 ## But, does it bypass Windows Defender ?
 
 Yes! Here with the common metasploit calc exec payload on a Windows 11 host, using the ntCRT template and AES. Last test on 24/04/2023.
+
 ![Windows Defender bypass](/img/WinDef%20bypass.png)
 
 # Quick start
@@ -15,11 +16,11 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor`
+- Then: `rustpacker -f shared/calc.raw -i syscrt -e aes`
 
 ## Manual install on Kali
 Install dependencies:
@@ -84,9 +85,9 @@ Run RustPacker:
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
-- `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory,NtCreateThreadEx`.
+- `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`.
 - `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
-- `sysCRT`, AVAILABLE SOON. Will rely on direct syscalls using the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project.
+- `sysCRT`, which injects your shellcode in the `dllhost.exe` process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project.
 
 ### Deprecated templates
 These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
@@ -129,7 +130,7 @@ You can help by:
 - [X] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
 - [ ] Add binary signing support
-- [ ] Port ntCRT to sysCRT with syscalls
+- [X] Port ntCRT to sysCRT with syscalls
 - [ ] Port ntAPC to sysAPC with syscalls
 - [X] Write detailed doc
 

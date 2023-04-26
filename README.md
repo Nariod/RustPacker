@@ -48,7 +48,7 @@ You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 
 ### Sliver
 You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
-- `generate --mtls 127.0.0.1:443 --format shellcode --windows --evasion`
+- `generate --mtls 127.0.0.1:443 --format shellcode --os windows --evasion`
 - You can now use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions, which are required for SGN to work.
 
 ## Install Rustpacker

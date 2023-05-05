@@ -1,3 +1,4 @@
+#[allow(non_snake_case)]
 // The main module only calls the meta functions in each of the needed modules. Must be simple to read and very short.
 
 mod aes;

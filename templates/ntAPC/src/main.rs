@@ -1,4 +1,5 @@
 #![windows_subsystem = "windows"] 
+#[allow(non_snake_case)]
 
 use winapi::{
     um::{

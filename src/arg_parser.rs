@@ -55,7 +55,8 @@ fn parser() -> ArgMatches {
                     PossibleValue::new("ntapc").help("Self inject using APC low level APIs"),
                     PossibleValue::new("ntcrt").help("Create Remote Thread using low level APIs"),
                     PossibleValue::new("syscrt").help("Create Remote Thread using syscalls"),
-                    PossibleValue::new("wincrt").help("Create Remote Thread using the official Windows Crate"),
+                    PossibleValue::new("wincrt")
+                        .help("Create Remote Thread using the official Windows Crate"),
                 ]),
         )
         .arg(Arg::with_name("Sandbox checks").short('s'))

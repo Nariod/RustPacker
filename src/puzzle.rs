@@ -33,7 +33,10 @@ fn search_and_replace(
 }
 
 fn create_root_folder(general_output_folder: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let time = format!("{:?}",SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
+    let time = format!(
+        "{:?}",
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+    );
     let prefix = "output_";
     let result = [prefix, &time].join("");
     println!("[+] Creating output folder: {}", &result);

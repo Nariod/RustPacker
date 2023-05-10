@@ -7,6 +7,9 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
     path_to_cargo_project.push("Cargo.toml");
     set_current_dir(path_to_cargo_folder)?;
     let output = Command::new("cargo")
+        .env("CFLAGS", "-lrt")
+        .env("LDFLAGS", "-lrt")
+        .env("RUSTFLAGS", "-C target-feature=+crt-static")
         .arg("build")
         .arg("--release")
         .output()?;

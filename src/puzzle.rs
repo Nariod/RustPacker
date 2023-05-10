@@ -33,7 +33,10 @@ fn search_and_replace(
 }
 
 fn create_root_folder(general_output_folder: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let time = format!("{:?}",SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs());
+    let time = format!(
+        "{:?}",
+        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
+    );
     let prefix = "output_";
     let result = [prefix, &time].join("");
     println!("[+] Creating output folder: {}", &result);
@@ -66,6 +69,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
         Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
+        Execution::WinCreateRemoteThread => Path::new("templates/winCRT/."),
     };
 
     let folder: PathBuf = match create_root_folder(&general_output_folder) {

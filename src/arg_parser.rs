@@ -22,6 +22,7 @@ pub enum Execution {
     SysCreateRemoteThread,
     NtCreateRemoteThread,
     NtQueueUserAPC,
+    WinCreateRemoteThread,
 }
 
 #[derive(Debug)]
@@ -54,6 +55,8 @@ fn parser() -> ArgMatches {
                     PossibleValue::new("ntapc").help("Self inject using APC low level APIs"),
                     PossibleValue::new("ntcrt").help("Create Remote Thread using low level APIs"),
                     PossibleValue::new("syscrt").help("Create Remote Thread using syscalls"),
+                    PossibleValue::new("wincrt")
+                        .help("Create Remote Thread using the official Windows Crate"),
                 ]),
         )
         .arg(Arg::with_name("Sandbox checks").short('s'))
@@ -96,6 +99,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "ntapc" => Execution::NtQueueUserAPC,
         "ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
+        "wincrt" => Execution::WinCreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),
     };
 

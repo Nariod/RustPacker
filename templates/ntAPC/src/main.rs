@@ -20,7 +20,7 @@ use ntapi::ntmmapi::NtWriteVirtualMemory;
 use ntapi::ntmmapi::NtProtectVirtualMemory;
 use ntapi::ntpsapi::NtQueueApcThread;
 use ntapi::ntpsapi::NtTestAlert;
-use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
+//use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 
 
 use std::include_bytes;

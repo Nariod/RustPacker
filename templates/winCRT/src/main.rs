@@ -9,7 +9,7 @@ use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READWRITE, PAGE_RE
 use windows::Win32::System::Threading::CreateRemoteThread;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
-use windows::Win32::System::SystemInformation::GetPhysicallyInstalledSystemMemory;
+//use windows::Win32::System::SystemInformation::GetPhysicallyInstalledSystemMemory;
 use std::include_bytes;
 {{IMPORTS}}
 

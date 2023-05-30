@@ -22,7 +22,7 @@ use ntapi::ntmmapi::NtAllocateVirtualMemory;
 use ntapi::ntmmapi::NtWriteVirtualMemory;
 use ntapi::ntmmapi::NtProtectVirtualMemory;
 use ntapi::ntpsapi::NtCreateThreadEx;
-use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
+//use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 
 
 {{IMPORTS}}

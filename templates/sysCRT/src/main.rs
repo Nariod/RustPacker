@@ -18,7 +18,7 @@ use winapi::ctypes::c_void;
 use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
 use std::{ptr::null_mut};
 use ntapi::ntapi_base::CLIENT_ID;
-use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
+//use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 use winapi::shared::ntdef::NULL;
 
 {{IMPORTS}}

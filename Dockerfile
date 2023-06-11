@@ -1,4 +1,4 @@
-FROM rust:1.69
+FROM docker.io/library/rust:latest
 
 LABEL maintainer="Nariod"
 

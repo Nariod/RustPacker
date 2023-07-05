@@ -3,7 +3,7 @@ Template-based shellcode packer written in Rust, with indirect syscall support. 
 
 ## But, does it bypass Windows Defender ?
 
-Yes! Here with the common metasploit calc exec payload on a Windows 11 host, using the ntCRT template and AES. Last test on 24/04/2023.
+Yes! Here with the common metasploit calc exec payload on a Windows 11 host, using the ntCRT template and AES. Last test on 05/07/2023.
 
 ![Windows Defender bypass](/img/WinDef%20bypass.png)
 

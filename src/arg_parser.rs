@@ -11,6 +11,7 @@ pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
     pub encryption: Option<Encryption>,
+    pub format: Format,
     //sandbox: Option<bool>,
     //output: Option<String>,
 }
@@ -31,6 +32,12 @@ pub enum Encryption {
     Aes,
 }
 
+#[derive(Debug)]
+pub enum Format {
+    Exe,
+    Dll,
+}
+
 fn parser() -> ArgMatches {
     let args = Command::new("RustPacker")
         .author("by Nariod")
@@ -44,6 +51,16 @@ fn parser() -> ArgMatches {
                 .required(true),
         )
         .arg(Arg::with_name("Output file").takes_value(true).short('o'))
+        .arg(
+            Arg::with_name("Binary output format")
+                .takes_value(true)
+                .short('b')
+                .required(true)
+                .value_parser([
+                    PossibleValue::new("exe").help("EXE format"),
+                    PossibleValue::new("dll").help("DLL format"),
+                ]),
+        )
         .arg(
             Arg::with_name("Execution technique")
                 .takes_value(true)
@@ -103,10 +120,18 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         _ => panic!("Don't even know how this error exists."),
     };
 
+    let s = String::from_str(args.value_of("Binary output format").unwrap())?;
+    let format: Format = match s.as_str() {
+        "exe" => Format::Exe,
+        "dll" => Format::Dll,
+        _ => panic!("Don't even know how this error exists."),
+    };
+
     let result = Order {
         shellcode_path,
         execution,
         encryption,
+        format,
         //sandbox,
         //output,
     };

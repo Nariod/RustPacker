@@ -84,7 +84,6 @@ fn parser() -> ArgMatches {
                     "Target processes to inject into, defaults to 'dllhost.exe'. Case sensitive!",
                 ),
         )
-        .arg(Arg::with_name("Sandbox checks").short('s'))
         .arg(
             Arg::with_name("Encryption / encoding method")
                 .takes_value(true)

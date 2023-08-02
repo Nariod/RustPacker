@@ -153,6 +153,7 @@ You can help by:
 - [X] Support both EXE and DLL formats
 - [X] Add semaphore/mutex support to ensure only one instance of the shellcode is running
 - [X] Add support for custom process target injections
+- [ ] Remove the annoying snake case warnings
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

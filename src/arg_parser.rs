@@ -42,7 +42,7 @@ pub enum Format {
 fn parser() -> ArgMatches {
     let args = Command::new("RustPacker")
         .author("by Nariod")
-        .version("0.9")
+        .version("0.10")
         .about("Shellcode packer written in Rust.")
         .arg_required_else_help(true)
         .arg(

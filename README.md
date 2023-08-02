@@ -92,19 +92,19 @@ Run RustPacker:
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
-- `winCRT`, which injects your shellcode in the `dllhost.exe` process using the following high-level API calls: `OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `VirtualProtectEx`, `CreateRemoteThread`. Uses the official [Windows crates](https://crates.io/crates/windows).
-- `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`.
-- `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
-- `sysCRT`, which injects your shellcode in the `dllhost.exe` process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project for syscalls.
+- `winCRT`, which injects your shellcode in a remote process using the following high-level API calls: `OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `VirtualProtectEx`, `CreateRemoteThread`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the official [Windows crates](https://crates.io/crates/windows).
+- `ntCRT`, which injects your shellcode in a remote process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise.
+- `ntAPC`, which executes your shellcode in a new process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
+- `sysCRT`, which injects your shellcode in a remote process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project for syscalls.
 
-All the templates are compatible with either XOR or AES encryption, and can generate an EXE or a DLL file.
+All the templates are compatible with either XOR or AES encryption, and can generate an EXE or a DLL file. Templates that inject in remote processes are compatible with the `-t` option to target the process of your choice.
 
 ### Usage examples
-If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption, and retrieve an EXE file:
+If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption, target `notepad.exe`, and retrieve an EXE file:
 - Generate your raw shellcode from Sliver
 - Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
-- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe`
-- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe`
+- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe -t notepad.exe`
+- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe -t notepad.exe`
 - Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
 
 If you want to pack your Msfvenom shellcode using the `ntAPC` template with XOR encryption, and retrieve a DLL file:
@@ -152,6 +152,7 @@ You can help by:
 - [X] Write detailed doc
 - [X] Support both EXE and DLL formats
 - [X] Add semaphore/mutex support to ensure only one instance of the shellcode is running
+- [X] Add support for custom process target injections
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

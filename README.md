@@ -151,6 +151,7 @@ You can help by:
 - [ ] Port ntAPC to sysAPC with syscalls
 - [X] Write detailed doc
 - [X] Support both EXE and DLL formats
+- [X] Add semaphore/mutex support to ensure only one instance of the shellcode is running
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

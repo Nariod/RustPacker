@@ -105,6 +105,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_shellcode_path_as_string);
     to_be_replaced.insert("{{DLL_MAIN}}", "".to_string());
     to_be_replaced.insert("{{DLL_FORMAT}}", "".to_string());
+    to_be_replaced.insert("{{TARGET_PROCESS}}", order.target_process);
 
     match order.encryption {
         Some(Encryption::Xor) => {

@@ -12,6 +12,7 @@ pub struct Order {
     pub execution: Execution,
     pub encryption: Option<Encryption>,
     pub format: Format,
+    pub target_process: String,
     //sandbox: Option<bool>,
     //output: Option<String>,
 }
@@ -41,7 +42,7 @@ pub enum Format {
 fn parser() -> ArgMatches {
     let args = Command::new("RustPacker")
         .author("by Nariod")
-        .version("0.1")
+        .version("0.9")
         .about("Shellcode packer written in Rust.")
         .arg_required_else_help(true)
         .arg(
@@ -50,7 +51,6 @@ fn parser() -> ArgMatches {
                 .short('f')
                 .required(true),
         )
-        .arg(Arg::with_name("Output file").takes_value(true).short('o'))
         .arg(
             Arg::with_name("Binary output format")
                 .takes_value(true)
@@ -75,6 +75,14 @@ fn parser() -> ArgMatches {
                     PossibleValue::new("wincrt")
                         .help("Create Remote Thread using the official Windows Crate"),
                 ]),
+        )
+        .arg(
+            Arg::with_name("Target process")
+                .takes_value(true)
+                .short('t')
+                .help(
+                    "Target processes to inject into, defaults to 'dllhost.exe'. Case sensitive!",
+                ),
         )
         .arg(Arg::with_name("Sandbox checks").short('s'))
         .arg(
@@ -127,11 +135,17 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         _ => panic!("Don't even know how this error exists."),
     };
 
+    let target_process = match args.value_of("Target process") {
+        Some(name) => name.to_string(),
+        None => "dllhost.exe".to_string(),
+    };
+
     let result = Order {
         shellcode_path,
         execution,
         encryption,
         format,
+        target_process,
         //sandbox,
         //output,
     };

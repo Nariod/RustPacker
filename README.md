@@ -15,7 +15,6 @@ Yes! Here with the common metasploit calc exec payload on a Windows 11 host, usi
 
  - [Quick start](#quick-start)
     - [Podman/Docker setup](#podmandocker-setup)
-    - [Manual install on Kali](#manual-install-on-kali)
  - [Full documentation](#full-documentation)
     - [Create shellcode](#create-shellcode)
         - [Metasploit / MSFvenom](#metasploit--msfvenom)
@@ -38,27 +37,12 @@ From any internet-connected OS with either Podman or Docker installed:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
-- Paste your shellcode file in the `shared` folder
+- Paste your shellcode file in the `shared` folder, and create your first binary :
 - `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes -b exe`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
 - Then: `rustpacker -f shared/calc.raw -i syscrt -e aes -b exe`
-
-## Manual install on Kali
-Install dependencies:
-- `sudo apt update && sudo apt upgrade -y`
-- `sudo apt install -y libssl-dev librust-openssl-dev musl-tools mingw-w64 cmake libxml2-dev`
-
-Install Rust:
-- https://www.rust-lang.org/tools/install
-- `source $HOME/.cargo/env`
-- `rustup target add x86_64-pc-windows-gnu`
-
-Run RustPacker:
-- `git clone https://github.com/Nariod/RustPacker.git`
-- `cd RustPacker/`
-- `cargo run -- -f shared/calc.raw -i ntcrt -e xor -b exe`
 
 # Full documentation
 

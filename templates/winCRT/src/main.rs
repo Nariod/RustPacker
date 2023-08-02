@@ -92,3 +92,5 @@ fn main() {
         }
     }
 }
+
+{{DLL_MAIN}}

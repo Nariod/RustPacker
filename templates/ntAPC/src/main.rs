@@ -81,3 +81,5 @@ fn main() {
     {{MAIN}}
     enhance(vec.clone());
 }
+
+{{DLL_MAIN}}

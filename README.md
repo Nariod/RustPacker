@@ -39,11 +39,11 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes -b exe`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.raw -i syscrt -e aes`
+- Then: `rustpacker -f shared/calc.raw -i syscrt -e aes -b exe`
 
 ## Manual install on Kali
 Install dependencies:
@@ -58,7 +58,7 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shellcode.bin -i ntcrt -e xor`
+- `cargo run -- -f shared/calc.raw -i ntcrt -e xor -b exe`
 
 # Full documentation
 
@@ -83,12 +83,12 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor -b exe`
 - Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor`
+- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor -b exe`
 - The output binary alRetrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 ### Manual install on Kali
@@ -104,23 +104,31 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shellcode.bin -i ntcrt -e xor`
+- `cargo run -- -f shared/calc.raw -i ntcrt -e xor -b exe`
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
+- `winCRT`, which injects your shellcode in the `dllhost.exe` process using the following high-level API calls: `OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `VirtualProtectEx`, `CreateRemoteThread`. Uses the official [Windows crates](https://crates.io/crates/windows).
 - `ntCRT`, which injects your shellcode in the `dllhost.exe` process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`.
 - `ntAPC`, which executes your shellcode as a process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
-- `sysCRT`, which injects your shellcode in the `dllhost.exe` process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project.
+- `sysCRT`, which injects your shellcode in the `dllhost.exe` process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project for syscalls.
 
-All the templates are compatible with either XOR or AES encryption.
+All the templates are compatible with either XOR or AES encryption, and can generate an EXE or a DLL file.
 
 ### Usage examples
-If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption:
+If you want to pack your Sliver shellcode using the `ntCRT` template with AES encryption, and retrieve an EXE file:
 - Generate your raw shellcode from Sliver
 - Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
-- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
-- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes`
-- Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]` folder generated in `shared`, -> Release -> 
+- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe`
+- Using Podman/Docker with an alias: `rustpacker -f shared/AMAZING_SLIVER.bin -i ntcrt -e aes -b exe`
+- Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
+
+If you want to pack your Msfvenom shellcode using the `ntAPC` template with XOR encryption, and retrieve a DLL file:
+- Generate your raw shellcode from Msfvenom
+- Copy / paste your shellcode file in the `shared` folder of the Rustpacker project
+- Using Podman/Docker without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/msf.bin -i ntapc -e xor -b dll`
+- Using Podman/Docker with an alias: `rustpacker -f shared/msf.bin -i ntapc -e xor -b dll`
+- Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
 
 ### Deprecated templates
 These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
@@ -158,6 +166,7 @@ You can help by:
 - [X] Port ntCRT to sysCRT with syscalls
 - [ ] Port ntAPC to sysAPC with syscalls
 - [X] Write detailed doc
+- [X] Support both EXE and DLL formats
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

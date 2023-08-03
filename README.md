@@ -154,6 +154,7 @@ You can help by:
 - [ ] Add semaphore/mutex support to ensure only one instance of the shellcode is running
 - [X] Remove the annoying snake case warnings
 - [X] Bump Clap from v3 to v4
+- [ ] Implement Maldev Academy smart XOR
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

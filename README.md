@@ -39,6 +39,7 @@ From any internet-connected OS with either Podman or Docker installed:
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
 - Paste your shellcode file in the `shared` folder, and create your first binary :
 - `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes -b exe`
+- Retrieve the output binary along with the Rust source files in `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
@@ -73,7 +74,6 @@ From any internet-connected OS with either Podman or Docker installed:
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
 - Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor -b exe`
-- The output binary alRetrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 ### Manual install on Kali
 Install dependencies:

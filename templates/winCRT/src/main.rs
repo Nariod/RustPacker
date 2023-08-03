@@ -1,5 +1,5 @@
 #![windows_subsystem = "windows"]
-#[allow(non_snake_case)]
+#![allow(non_snake_case)]
 
 use sysinfo::{PidExt, ProcessExt, System, SystemExt};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;

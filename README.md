@@ -142,7 +142,7 @@ You can help by:
 - [X] Build dockerfile
 - [X] Strip output binaries
 - [ ] Add string encryption option with litcrypt or other
-- [ ] Add option to choose the target process to inject into
+- [X] Add option to choose the target process to inject into
 - [ ] Add sandbox evasion option
 - [X] Reduce cargo verbosity
 - [ ] Generate random name for generated binary
@@ -151,8 +151,7 @@ You can help by:
 - [ ] Port ntAPC to sysAPC with syscalls
 - [X] Write detailed doc
 - [X] Support both EXE and DLL formats
-- [X] Add semaphore/mutex support to ensure only one instance of the shellcode is running
-- [X] Add support for custom process target injections
+- [ ] Add semaphore/mutex support to ensure only one instance of the shellcode is running
 - [ ] Remove the annoying snake case warnings
 - [ ] Bump Clap from v3 to v4
 

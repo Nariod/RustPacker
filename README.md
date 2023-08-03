@@ -152,7 +152,7 @@ You can help by:
 - [X] Write detailed doc
 - [X] Support both EXE and DLL formats
 - [ ] Add semaphore/mutex support to ensure only one instance of the shellcode is running
-- [ ] Remove the annoying snake case warnings
+- [X] Remove the annoying snake case warnings
 - [X] Bump Clap from v3 to v4
 
 ## Credits

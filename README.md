@@ -153,7 +153,7 @@ You can help by:
 - [X] Support both EXE and DLL formats
 - [ ] Add semaphore/mutex support to ensure only one instance of the shellcode is running
 - [ ] Remove the annoying snake case warnings
-- [ ] Bump Clap from v3 to v4
+- [X] Bump Clap from v3 to v4
 
 ## Credits
 - [memN0ps](https://github.com/memN0ps) for all his work

@@ -108,7 +108,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     to_be_replaced.insert("{{TARGET_PROCESS}}", order.target_process);
 
     match order.encryption {
-        Some(Encryption::Xor) => {
+        Encryption::Xor => {
             let key = random_u8();
             let mut path_to_xor = to_main.clone();
             path_to_xor.pop();
@@ -133,7 +133,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{MAIN}}", main.to_string());
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_xor_as_string);
         }
-        Some(Encryption::Aes) => {
+        Encryption::Aes => {
             let key = random_aes_key();
             let iv = random_aes_iv();
 
@@ -171,7 +171,6 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{DEPENDENCIES}}", dependencies.to_string());
             to_be_replaced.insert("{{IMPORTS}}", imports.to_string());
         }
-        None => (),
     }
     match order.format {
         Format::Dll => {

@@ -14,8 +14,10 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
         .arg("--release")
         .output()?;
 
-    println!("{:?}", output);
-
+    if output.stderr.len() > 0 {
+        let error_message = String::from_utf8_lossy(&output.stderr);
+        Err(error_message)?
+    }
     Ok(())
 }
 

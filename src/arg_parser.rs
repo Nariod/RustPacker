@@ -147,13 +147,11 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
 }
 
 pub fn meta_arg_parser() -> Order {
-    println!("[+] Parsing arguments..");
     let args = parser();
     let order: Order = match args_checker(args) {
         Ok(content) => content,
         Err(err) => panic!("{:?}", err),
     };
-    println!("[+] Done parsing arguments!");
 
     order
 }

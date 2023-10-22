@@ -12,7 +12,7 @@ pub struct Order {
     pub encryption: Encryption,
     pub format: Format,
     pub target_process: String,
-    //sandbox: Option<bool>,
+    pub sandbox: bool,
     //output: Option<String>,
 }
 
@@ -77,6 +77,11 @@ fn parser() -> ArgMatches {
             ),
         )
         .arg(
+            Arg::new("Sandbox checks").short('s').help(
+                "Enable checks for sandboxes and debuggers.",
+            ),
+        )
+        .arg(
             Arg::new("Encryption / encoding method")
                 .short('e')
                 .required(true)
@@ -107,7 +112,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "aes" => Encryption::Aes,
         _ => panic!("Don't even know how this error exists."),
     };
-    //let sandbox: Option<bool> = None;
+    let sandbox: bool = false;
     //let output: Option<String> = None;
 
     let s = args.get_one::<String>("Execution technique").unwrap();
@@ -139,7 +144,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         encryption,
         format,
         target_process,
-        //sandbox,
+        sandbox,
         //output,
     };
 

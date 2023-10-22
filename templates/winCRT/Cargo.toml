@@ -8,7 +8,7 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-sysinfo = "0.28"
+sysinfo = "0.29"
 {{DEPENDENCIES}}
 
 [dependencies.windows]

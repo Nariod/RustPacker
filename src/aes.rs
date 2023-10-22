@@ -46,7 +46,7 @@ pub fn meta_aes(
     ",
         key, iv
     );
-    let dependencies = r#"libaes = "0.6.4""#.to_string();
+    let dependencies = r#"libaes = "0.7""#.to_string();
 
     let imports = "
     use libaes::Cipher;

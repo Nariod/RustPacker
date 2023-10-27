@@ -4,7 +4,7 @@ use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::tools::random_aes_iv;
 use crate::tools::random_aes_key;
 use crate::tools::{absolute_path, path_to_string, random_u8};
-use crate::xor::meta_xor;
+use crate::xor::XorEncryptor;
 use fs_extra::dir::{copy, CopyOptions};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -119,8 +119,8 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             };
             let absolute_path_to_xor_as_string = path_to_string(&absolute_path_to_xor);
 
-            let xor_args: HashMap<String, String> =
-                meta_xor(&order.shellcode_path, &path_to_xor, key);
+            let xor_args: HashMap<String, String> = XorEncryptor::meta_xor(&order.shellcode_path, &path_to_xor, key);
+
             let decryption_function = match xor_args.get("decryption_function") {
                 Some(content) => content,
                 None => panic!("I don't even know how this happened.."),

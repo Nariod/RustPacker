@@ -24,11 +24,9 @@ impl XorEncryptor {
 
         let mut result: HashMap<String, String> = HashMap::new();
 
-        let decryption_function = format!(
-            "fn xor_decode(buf: &Vec<u8>, key: u8) -> Vec<u8> {{
+        let decryption_function = "fn xor_decode(buf: &Vec<u8>, key: u8) -> Vec<u8> {{
                 buf.iter().map(|x| x ^ key).collect()
-            }}"
-        );
+            }}".to_string();
 
         let main = format!("vec = xor_decode(&vec, {});", key);
 

@@ -1,6 +1,6 @@
 // module dedicated to AES encrypt a binary input and give back the path of the encrypted file
 
-use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
+use crate::{tools::write_to_file, shellcode_reader::ShellcodeReader};
 use libaes::Cipher;
 use std::{collections::HashMap, path::Path};
 
@@ -21,7 +21,8 @@ pub fn meta_aes(
         "[+] AES encrypting shellcode with key {:?} and IV {:?}",
         key, iv
     );
-    let unencrypted = meta_vec_from_file(input_path);
+    let unencrypted = ShellcodeReader::meta_vec_from_file(input_path);
+
     let encrypted_content = aes_256_encrypt(&unencrypted, key, iv);
     match write_to_file(&encrypted_content, export_path) {
         Ok(()) => (),

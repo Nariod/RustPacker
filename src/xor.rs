@@ -1,5 +1,5 @@
 use std::{collections::HashMap, path::Path};
-use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
+use crate::{shellcode_reader::ShellcodeReader, tools::write_to_file};
 
 pub struct XorEncryptor;
 
@@ -15,7 +15,7 @@ impl XorEncryptor {
         key: u8,
     ) -> HashMap<String, String> {
         println!("[+] XORing shellcode with key {}..", key);
-        let unencrypted = meta_vec_from_file(input_path); // Replace with the appropriate function call
+        let unencrypted = ShellcodeReader::meta_vec_from_file(input_path); // Replace with the appropriate function call
         let encrypted_content = XorEncryptor::xor_encode(&unencrypted, key);
         match write_to_file(&encrypted_content, export_path) {
             Ok(()) => (),

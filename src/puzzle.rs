@@ -197,6 +197,22 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
 
                 true
             }
+            #[no_mangle]
+            pub extern "C" fn DllRegisterServer() {{
+                main()
+            }}
+            #[no_mangle]
+            pub extern "C" fn DllGetClassObject() {{
+                main()
+            }}
+            #[no_mangle]
+            pub extern "C" fn DllUnregisterServer() {{
+                main()
+            }}
+            #[no_mangle]
+            pub extern "C" fn Run() {{
+                main()
+            }}
             "#;
             to_be_replaced.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
 

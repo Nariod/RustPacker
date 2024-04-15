@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::{System};
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;

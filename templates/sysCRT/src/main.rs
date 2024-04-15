@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::{System};
 use std::include_bytes;
 use rust_syscalls::syscall;
 

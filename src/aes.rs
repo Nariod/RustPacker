@@ -31,11 +31,10 @@ pub fn meta_aes(
     let mut result: HashMap<String, String> = HashMap::new();
 
     let decryption_function =
-        "fn aes_256_decrypt(buf: &Vec<u8>, key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
+        "fn aes_256_decrypt(buf: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
         let cipher = Cipher::new_256(key);    
-        let decrypted = cipher.cbc_decrypt(iv, &buf);
-    
-        decrypted
+        
+        cipher.cbc_decrypt(iv, buf)
     }"
         .to_string();
 

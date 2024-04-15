@@ -1,7 +1,7 @@
 // Module that handles the CLI arguments and checks them for correct values.
 
 use clap::{Arg, ArgMatches, Command};
-use std::path::PathBuf;
+use std::{path::PathBuf, process::exit};
 
 use crate::tools::absolute_path;
 
@@ -16,6 +16,7 @@ pub struct Order {
     //output: Option<String>,
 }
 
+#[derive(PartialEq)]
 #[derive(Debug)]
 pub enum Execution {
     // CreateRemoteThread,
@@ -32,6 +33,7 @@ pub enum Encryption {
     Aes,
 }
 
+#[derive(PartialEq)]
 #[derive(Debug)]
 pub enum Format {
     Exe,
@@ -41,7 +43,7 @@ pub enum Format {
 fn parser() -> ArgMatches {
     Command::new("RustPacker")
         .author("by Nariod")
-        .version("0.10")
+        .version("2.0")
         .about("Shellcode packer written in Rust.")
         .arg_required_else_help(true)
         .arg(Arg::new("Path to shellcode file").short('f').required(true))
@@ -62,13 +64,13 @@ fn parser() -> ArgMatches {
                     // PossibleValue::new("ct").help("Create Thread"),
                     // PossibleValue::new("crt").help("Create Remote Thread"),
                     clap::builder::PossibleValue::new("ntapc")
-                        .help("Self inject using APC low level APIs"),
+                        .help("Self inject using APC low level APIs. Compatible with both exe and dll formats."),
                     clap::builder::PossibleValue::new("ntcrt")
-                        .help("Create Remote Thread using low level APIs"),
+                        .help("Create Remote Thread using low level APIs. Compatible with exe format only."),
                     clap::builder::PossibleValue::new("syscrt")
-                        .help("Create Remote Thread using syscalls"),
+                        .help("Create Remote Thread using syscalls. Compatible with exe format only."),
                     clap::builder::PossibleValue::new("wincrt")
-                        .help("Create Remote Thread using the official Windows Crate"),
+                        .help("Create Remote Thread using the official Windows Crate. Compatible with exe format only."),
                 ]),
         )
         .arg(
@@ -128,6 +130,8 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         _ => panic!("Don't even know how this error exists."),
     };
 
+
+
     let target_process = match args.get_one::<String>("Target process") {
         Some(name) => name.to_string(),
         None => "dllhost.exe".to_string(),
@@ -142,6 +146,11 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         //sandbox,
         //output,
     };
+
+    if result.format == Format::Dll && result.execution != Execution::NtQueueUserAPC {
+        println!("[-] DLL format is incompatible with remote injection techniques. Use the ntAPC template for DLL compatibility.");
+        exit(0);
+    }
 
     Ok(result)
 }

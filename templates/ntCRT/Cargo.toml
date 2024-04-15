@@ -8,7 +8,7 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-sysinfo = "0.29"
+sysinfo = "0.30"
 ntapi = { version = "0.4", features = ["impl-default"] }
 winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default"] }
 {{DEPENDENCIES}}

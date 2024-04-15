@@ -10,6 +10,6 @@ mod xor;
 
 fn main() {
     let order = arg_parser::meta_arg_parser();
-    let mut output_folder = puzzle::meta_puzzle(order);
-    compiler::meta_compiler(&mut output_folder);
+    let mut output_folder = puzzle::meta_puzzle(order.clone());
+    compiler::meta_compiler(order, &mut output_folder);
 }

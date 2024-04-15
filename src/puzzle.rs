@@ -68,9 +68,9 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         // Execution::CreateThread => Path::new("templates/createThread/."),
         // Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
         Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
-        Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
+        //Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
-        Execution::WinCreateRemoteThread => Path::new("templates/winCRT/."),
+        //Execution::WinCreateRemoteThread => Path::new("templates/winCRT/."),
     };
 
     let folder: PathBuf = match create_root_folder(&general_output_folder) {

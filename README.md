@@ -92,8 +92,6 @@ Run RustPacker:
 
 ## Use Rustpacker
 For now, you can choose from the following templates:
-- `winCRT`, which injects your shellcode in a remote process using the following high-level API calls: `OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `VirtualProtectEx`, `CreateRemoteThread`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the official [Windows crates](https://crates.io/crates/windows).
-- `ntCRT`, which injects your shellcode in a remote process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise.
 - `ntAPC`, which executes your shellcode in a new process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
 - `sysCRT`, which injects your shellcode in a remote process using indirect syscalls to the following low-level API: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project for syscalls.
 
@@ -118,6 +116,8 @@ If you want to pack your Msfvenom shellcode using the `ntAPC` template with XOR 
 These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
 - `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
 - `crt`, which injects your shellcode in the `dllhost.exe` process using the following API calls: `OpenProcess, VirtualAllocEx, WriteProcessMemory, VirtualProtectEx, CreateRemoteThread`.
+- `winCRT`, which injects your shellcode in a remote process using the following high-level API calls: `OpenProcess`, `VirtualAllocEx`, `WriteProcessMemory`, `VirtualProtectEx`, `CreateRemoteThread`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the official [Windows crates](https://crates.io/crates/windows).
+- `ntCRT`, which injects your shellcode in a remote process using the following low-level API calls: `NtOpenProcess, NtAllocateVirtualMemory, NtWriteVirtualMemory, NtProtectVirtualMemory, NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise.
 
 ## Are you a Rust developer?
 If you have some experience with Rust, you're more than welcome to help !

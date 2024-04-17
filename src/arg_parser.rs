@@ -31,6 +31,7 @@ pub enum Execution {
     //WinCreateRemoteThread,
     SysCreateRemoteThread,
     NtQueueUserAPC,
+    Fiber,
 }
 
 #[derive(Debug, Clone)]
@@ -70,6 +71,8 @@ fn parser() -> ArgMatches {
                     // PossibleValue::new("crt").help("Create Remote Thread"),
                     clap::builder::PossibleValue::new("ntapc")
                         .help("Self inject using APC low level APIs. Compatible with both exe and dll formats."),
+                    clap::builder::PossibleValue::new("fiber")
+                        .help("Self inject using Fibers. Compatible with both exe and dll formats."),
                     clap::builder::PossibleValue::new("syscrt")
                         .help("Create Remote Thread using syscalls. Compatible with exe format only."),
                 ]),
@@ -129,6 +132,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         //"ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
         //"wincrt" => Execution::WinCreateRemoteThread,
+        "fiber" => Execution::Fiber,
         _ => panic!("Don't even know how this error exists."),
     };
 

@@ -168,8 +168,8 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         //output,
     };
 
-    if result.format == Format::Dll && result.execution != Execution::NtQueueUserAPC {
-        println!("[-] DLL format is incompatible with remote injection techniques. Use the ntAPC template for DLL compatibility.");
+    if result.format == Format::Dll && result.execution != Execution::NtQueueUserAPC && result.execution != Execution::Fiber {
+        println!("[-] DLL format is incompatible with remote injection techniques. Use the ntAPC or Fiber templates for DLL compatibility.");
         exit(0);
     }
 

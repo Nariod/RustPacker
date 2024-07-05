@@ -19,3 +19,9 @@ opt-level = "z"
 codegen-units = 1
 panic = "abort"
 lto = true
+
+[build]
+target = "x86_64-pc-windows-gnu"
+
+[term]
+quiet = true

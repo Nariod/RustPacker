@@ -12,11 +12,13 @@ fn compiler(path_to_cargo_project: &mut PathBuf) -> Result<(), Box<dyn std::erro
         .env("RUSTFLAGS", "-C target-feature=+crt-static")
         .arg("build")
         .arg("--release")
+        .args(["--target", "x86_64-pc-windows-gnu"])
         .output()?;
 
     if !output.stderr.is_empty() {
         let error_message = String::from_utf8_lossy(&output.stderr);
-        Err(error_message)?
+        println!("{}", error_message);
+        //Err(error_message)?
     }
     Ok(())
 }

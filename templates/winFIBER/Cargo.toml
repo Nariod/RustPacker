@@ -1,0 +1,29 @@
+[package]
+name = "winFIBER"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+{{DLL_FORMAT}}
+
+[dependencies]
+{{DEPENDENCIES}}
+
+
+[dependencies.windows-sys]
+version = "0"
+
+features = [
+    "Win32_System_Memory",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+]
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

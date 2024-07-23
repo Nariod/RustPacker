@@ -96,7 +96,8 @@ For now, you can choose from the following templates:
 - `ntCRT`, which injects your shellcode in a remote process using the following low-level API calls: `NtOpenProcess`, `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise.
 - `ntAPC`, which executes your shellcode in a new process using the following low-levels API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtQueueApcThread`, `NtTestAlert`.
 - `sysCRT`, which injects your shellcode in a remote process using indirect syscalls to the following low-level API: `NtOpenProcess`, `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtCreateThreadEx`. You can supply the target process with `-t`, defaults to `dllhost.exe` otherwise. Uses the [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) project for syscalls.
-- `winFIBER`, which executes your shellcode in a new process using the following high-level API calls: `VirtualAlloc`, `WriteProcessMemory`, `VirtualProtect`, `CreateFiber`, `ConvertThreadToFiber`, `ConvertThreadToFiber`. Uses the official [Windows crates](https://crates.io/crates/windows). Thanks to [Maldev Academy](https://maldevacademy.com/) for the execution sequence with fibers !
+- `winFIBER`, which executes your shellcode in a new process using the following high-level API calls: `VirtualAlloc`, `WriteProcessMemory`, `VirtualProtect`, `CreateFiber`, `ConvertThreadToFiber`, `SwitchToFiber`. Uses the official [Windows crates](https://crates.io/crates/windows). Thanks to [Maldev Academy](https://maldevacademy.com/) for the execution sequence with fibers !
+- `ntFIBER`, which executes your shellcode in a new process using the following low API calls: `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `CreateFiberEx`, `ConvertThreadToFiber`, `SwitchToFiber`. Uses the official [Windows crates](https://crates.io/crates/windows). Thanks to [Maldev Academy](https://maldevacademy.com/) for the execution sequence with fibers !
 
 All the templates are compatible with either XOR or AES encryption, and can generate an EXE or a DLL file. Templates that inject in remote processes are compatible with the `-t` option to target the process of your choice.
 
@@ -164,7 +165,7 @@ You can help by:
 - Rust discord
 - StackOverflow
 - https://github.com/postrequest/link
-- [Maldev Academy](https://maldevacademy.com/) for the Fibers shellcode execution template
+- [Maldev Academy](https://maldevacademy.com/) for the Fibers shellcode execution method
 - [craiyon](https://www.craiyon.com/) for the Rustpacker logo
 
 ## Legal disclaimer

@@ -1,0 +1,31 @@
+[package]
+name = "ntFIBER"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+{{DLL_FORMAT}}
+
+[dependencies]
+ntapi = { version = "0.4", features = ["impl-default"] }
+winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default"] }
+{{DEPENDENCIES}}
+
+
+[dependencies.windows-sys]
+version = "0"
+
+features = [
+    "Win32_System_Memory",
+    "Win32_Foundation",
+    "Win32_Security",
+    "Win32_System_Threading",
+]
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

@@ -72,6 +72,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
         Execution::WinCreateRemoteThread => Path::new("templates/winCRT/."),
         Execution::WinFiber => Path::new("templates/winFIBER/."),
+        Execution::NtFiber => Path::new("templates/ntFIBER/."),
     };
 
     let folder: PathBuf = match create_root_folder(&general_output_folder) {

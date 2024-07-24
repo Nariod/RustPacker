@@ -26,6 +26,7 @@ pub enum Execution {
     WinCreateRemoteThread,
     WinFiber,
     NtFiber,
+    SysFiber,
 }
 
 #[derive(Debug)]
@@ -68,13 +69,15 @@ fn parser() -> ArgMatches {
                     clap::builder::PossibleValue::new("ntcrt")
                         .help("Create Remote Thread using low level APIs"),
                     clap::builder::PossibleValue::new("syscrt")
-                        .help("Create Remote Thread using syscalls"),
+                        .help("Create Remote Thread using indirect syscalls"),
                     clap::builder::PossibleValue::new("wincrt")
                         .help("Create Remote Thread using the official Windows Crate"),
                     clap::builder::PossibleValue::new("winfiber")
                         .help("Self execute using Fibers and the official Windows Crate"),
                     clap::builder::PossibleValue::new("ntfiber")
                         .help("Self execute using Fibers and low level APIs"),
+                    clap::builder::PossibleValue::new("sysfiber")
+                        .help("Self execute using Fibers and indirect syscalls"),
                 ]),
         )
         .arg(
@@ -126,6 +129,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "wincrt" => Execution::WinCreateRemoteThread,
         "winfiber" => Execution::WinFiber,
         "ntfiber" => Execution::NtFiber,
+        "sysfiber" => Execution::SysFiber,
         _ => panic!("Don't even know how this error exists."),
     };
 

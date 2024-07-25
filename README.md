@@ -13,22 +13,23 @@ Yes! Here with the common metasploit calc exec payload on a Windows 11 host, usi
 
 # Summary
 
- - [Quick start](#quick-start)
-    - [Podman/Docker setup](#podmandocker-setup)
- - [Full documentation](#full-documentation)
-    - [Create shellcode](#create-shellcode)
-        - [Metasploit / MSFvenom](#metasploit--msfvenom)
-        - [Sliver](#sliver)
-    - [Install Rustpacker](#install-rustpacker)
-        - [Podman/Docker setup](#podmandocker-setup-1)
-        - [Manual install on Kali](#manual-install-on-kali-1)
-    - [Use Rustpacker](#use-rustpacker)
-        - [Usage examples](#usage-examples)
-        - [Deprecated templates](#deprecated-templates)
-    - [Are you a Rust developer?](#are-you-a-rust-developer)
-    - [Todo](#todo)
-    - [Credits](#credits)
-    - [Legal disclaimer](#legal-disclaimer)
+- [Summary](#summary)
+- [Quick start](#quick-start)
+  - [Podman/Docker setup](#podmandocker-setup)
+- [Full documentation](#full-documentation)
+  - [Create shellcode](#create-shellcode)
+    - [Metasploit / MSFvenom](#metasploit--msfvenom)
+    - [Sliver](#sliver)
+  - [Install Rustpacker](#install-rustpacker)
+    - [Podman/Docker setup](#podmandocker-setup-1)
+    - [Manual install on Kali](#manual-install-on-kali)
+  - [Use Rustpacker](#use-rustpacker)
+    - [Usage examples](#usage-examples)
+    - [Deprecated templates](#deprecated-templates)
+  - [Are you a Rust developer?](#are-you-a-rust-developer)
+  - [Todo](#todo)
+  - [Credits](#credits)
+  - [Legal disclaimer](#legal-disclaimer)
 
 # Quick start
 ## Podman/Docker setup
@@ -117,6 +118,11 @@ If you want to pack your Msfvenom shellcode using the `ntAPC` template with XOR 
 - Using Podman/Docker with an alias: `rustpacker -f shared/msf.bin -i ntapc -e xor -b dll`
 - Retrieve the output binary along with the Rust source files in the `output_[RANDOM_NAME]`: `target/x86_64-pc-windows-gnu/release/`
 
+If you want to specify a custom output directory and filename for the resulting binary:
+- Add the `-o` option followed by the desired output directory path.
+- Example without alias: `podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker -f shared/msf.bin -i ntapc -e xor -b dll -o shared/my_file.dll`
+- Example with alias: `rustpacker -f shared/msf.bin -i ntapc -e xor -b dll -o shared/my_file.dll`
+
 ### Deprecated templates
 These templates are no longer available with RustPacker, but can be found in `RustPacker/templates/OLD/`:
 - `ct`, which executes your shellcode by spawning a process using the following API calls: `VirtualAlloc, VirtualProtect, CreateThread, WaitForSingleObject`. 
@@ -148,7 +154,7 @@ You can help by:
 - [X] Add option to choose the target process to inject into
 - [ ] Add sandbox evasion option
 - [X] Reduce cargo verbosity
-- [ ] Generate random name for generated binary
+- [X] Generate random name for generated binary
 - [ ] Add binary signing support
 - [X] Port ntCRT to sysCRT with syscalls
 - [ ] Port ntAPC to sysAPC with syscalls

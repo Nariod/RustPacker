@@ -25,5 +25,8 @@ fn main() -> io::Result<()> {
     // Create the folders if they do not exist for the output
     tools::process_output(&order, &output_folder_path)?;
 
+    // Generate a random filename for the source binary
+    tools::rename_source_binary(&order, &output_folder_path)?;
+
     Ok(())
 }

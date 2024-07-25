@@ -48,6 +48,17 @@ pub fn random_aes_iv() -> [u8; 16] {
     rand::thread_rng().gen::<[u8; 16]>()
 }
 
+// Function to retrieve the source binary filename
+pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Path) -> PathBuf {
+    let source_binary_filename = format!(
+        "target/x86_64-pc-windows-gnu/release/{}.{}",
+        order.execution, order.format
+    );
+    let mut source_binary = output_folder.to_path_buf();
+    source_binary.push(source_binary_filename);
+    source_binary
+}
+
 // Function to process the output and manage folders
 pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -> io::Result<()> {
     if let Some(output_path) = &order.output {
@@ -75,12 +86,7 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
         output_folder_path.clone()
     };
 
-    let source_binary_filename = format!(
-        "target/x86_64-pc-windows-gnu/release/{}.{}",
-        order.execution, order.format
-    );
-    let mut source_binary = output_folder.clone();
-    source_binary.push(source_binary_filename);
+    let source_binary = get_source_binary_filename(order, &output_folder);
 
     if !source_binary.exists() {
         eprintln!("Source file does not exist: {:?}", source_binary);
@@ -121,8 +127,50 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
             eprintln!("Failed to copy the file: {:?}", e);
             return Err(e);
         }
-        println!("[+] Your binary has been written here : {:?}", output_path);
+        println!("[+] Your binary has been written here: {:?}", output_path);
     }
+
+    Ok(())
+}
+
+// Function to generate a random filename with the given format
+pub fn generate_random_filename(order: &arg_parser::Order) -> String {
+    let mut rng = rand::thread_rng();
+    let random_string: String = (0..8)
+        .map(|_| rng.sample(rand::distributions::Alphanumeric))
+        .map(char::from)
+        .collect();
+    format!("{}.{}", random_string, order.format)
+}
+
+// Function to rename the source binary to a random name
+pub fn rename_source_binary(
+    order: &arg_parser::Order,
+    output_folder_path: &Path,
+) -> io::Result<()> {
+    let source_binary = get_source_binary_filename(order, output_folder_path);
+
+    if !source_binary.exists() {
+        eprintln!("Source file does not exist: {:?}", source_binary);
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "Source file does not exist",
+        ));
+    }
+
+    let random_filename = generate_random_filename(order);
+    let mut new_path = output_folder_path.to_path_buf();
+    new_path.push("target/x86_64-pc-windows-gnu/release/");
+    new_path.push(random_filename);
+
+    // Ensure the target directory exists before renaming
+    if !new_path.parent().unwrap().exists() {
+        fs::create_dir_all(new_path.parent().unwrap())?;
+    }
+
+    fs::rename(&source_binary, &new_path)?;
+
+    println!("[+] Source binary has been renamed to: {:?}", new_path);
 
     Ok(())
 }

@@ -1,8 +1,8 @@
 // Module that handles the CLI arguments and checks them for correct values.
 
 use clap::{Arg, ArgMatches, Command};
-use std::path::PathBuf;
 use std::fmt;
+use std::path::PathBuf;
 
 use crate::tools::absolute_path;
 

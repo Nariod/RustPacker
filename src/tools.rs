@@ -59,7 +59,7 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
         }
     }
 
-    let is_file = fs::metadata(&output_folder_path)
+    let is_file = fs::metadata(output_folder_path)
         .map(|metadata| metadata.is_file())
         .unwrap_or(false);
 
@@ -117,11 +117,11 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
             }
         }
 
-        if let Err(e) = fs::copy(&source_binary, &output_path) {
+        if let Err(e) = fs::copy(&source_binary, output_path) {
             eprintln!("Failed to copy the file: {:?}", e);
             return Err(e);
         }
-        println!("[+] Your binary have been written here : {:?}",output_path);
+        println!("[+] Your binary have been written here : {:?}", output_path);
     }
 
     Ok(())

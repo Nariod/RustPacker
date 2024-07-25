@@ -121,7 +121,7 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
             eprintln!("Failed to copy the file: {:?}", e);
             return Err(e);
         }
-        println!("[+] Your binary have been written here : {:?}", output_path);
+        println!("[+] Your binary has been written here : {:?}", output_path);
     }
 
     Ok(())

@@ -8,8 +8,22 @@ mod shellcode_reader;
 mod tools;
 mod xor;
 
-fn main() {
+use std::env;
+use std::io;
+
+fn main() -> io::Result<()> {
+    // Save the current working directory
+    let current_dir = env::current_dir()?;
+
     let order = arg_parser::meta_arg_parser();
-    let mut output_folder = puzzle::meta_puzzle(order);
-    compiler::meta_compiler(&mut output_folder);
+    let output_folder_path = puzzle::meta_puzzle(order.clone()); // Clone order to avoid moving it
+    compiler::meta_compiler(&mut output_folder_path.clone());
+
+    // Change back to the original working directory
+    env::set_current_dir(current_dir)?;
+
+    // Create the folders if they do not exist for the output
+    tools::process_output(&order, &output_folder_path)?;
+
+    Ok(())
 }

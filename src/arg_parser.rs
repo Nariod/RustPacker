@@ -1,11 +1,12 @@
 // Module that handles the CLI arguments and checks them for correct values.
 
 use clap::{Arg, ArgMatches, Command};
+use std::fmt;
 use std::path::PathBuf;
 
 use crate::tools::absolute_path;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Order {
     pub shellcode_path: PathBuf,
     pub execution: Execution,
@@ -13,13 +14,11 @@ pub struct Order {
     pub format: Format,
     pub target_process: String,
     //sandbox: Option<bool>,
-    //output: Option<String>,
+    pub output: Option<PathBuf>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Execution {
-    // CreateRemoteThread,
-    // CreateThread,
     SysCreateRemoteThread,
     NtCreateRemoteThread,
     NtQueueUserAPC,
@@ -29,16 +28,41 @@ pub enum Execution {
     SysFiber,
 }
 
-#[derive(Debug)]
+impl fmt::Display for Execution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Execution::SysCreateRemoteThread => "sysCRT",
+            Execution::NtCreateRemoteThread => "ntCRT",
+            Execution::NtQueueUserAPC => "ntAPC",
+            Execution::WinCreateRemoteThread => "winCRT",
+            Execution::WinFiber => "winFIBER",
+            Execution::NtFiber => "ntFIBER",
+            Execution::SysFiber => "sysFIBER",
+        };
+        write!(f, "{}", s)
+    }
+}
+
+#[derive(Debug, Clone)]
 pub enum Encryption {
     Xor,
     Aes,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Format {
     Exe,
     Dll,
+}
+
+impl fmt::Display for Format {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Format::Exe => "exe",
+            Format::Dll => "dll",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 fn parser() -> ArgMatches {
@@ -94,6 +118,12 @@ fn parser() -> ArgMatches {
                     clap::builder::PossibleValue::new("aes").help("AES 256 encryption"),
                 ]),
         )
+        .arg(
+            Arg::new("Output path")
+                .short('o')
+                .required(false)
+                .help("Optional output path for the resulting binary"),
+        )
         .get_matches()
 }
 
@@ -117,7 +147,6 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         _ => panic!("Don't even know how this error exists."),
     };
     //let sandbox: Option<bool> = None;
-    //let output: Option<String> = None;
 
     let s = args.get_one::<String>("Execution technique").unwrap();
     let execution: Execution = match s.as_str() {
@@ -145,6 +174,17 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         None => "dllhost.exe".to_string(),
     };
 
+    let output = match args.get_one::<String>("Output path") {
+        Some(path) => {
+            let relative_output_path: PathBuf = [path.clone()].iter().collect();
+            match absolute_path(relative_output_path) {
+                Ok(path) => Some(path),
+                Err(err) => panic!("{:?}", err),
+            }
+        }
+        None => None,
+    };
+
     let result = Order {
         shellcode_path,
         execution,
@@ -152,7 +192,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         format,
         target_process,
         //sandbox,
-        //output,
+        output,
     };
 
     Ok(result)

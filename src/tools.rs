@@ -2,6 +2,7 @@
 
 use crate::arg_parser;
 use path_clean::PathClean;
+use rand::distr::Alphanumeric;
 use rand::Rng;
 use std::env;
 use std::fs::{self, File};
@@ -36,16 +37,16 @@ pub fn path_to_string(input: &Path) -> String {
 }
 
 pub fn random_u8() -> u8 {
-    let random_number: u8 = rand::thread_rng().gen();
+    let random_number: u8 = rand::random();
     random_number
 }
 
 pub fn random_aes_key() -> [u8; 32] {
-    rand::thread_rng().gen::<[u8; 32]>()
+    rand::random::<[u8; 32]>()
 }
 
 pub fn random_aes_iv() -> [u8; 16] {
-    rand::thread_rng().gen::<[u8; 16]>()
+    rand::random::<[u8; 16]>()
 }
 
 // Function to retrieve the source binary filename
@@ -135,11 +136,8 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -
 
 // Function to generate a random filename with the given format
 pub fn generate_random_filename(order: &arg_parser::Order) -> String {
-    let mut rng = rand::thread_rng();
-    let random_string: String = (0..8)
-        .map(|_| rng.sample(rand::distributions::Alphanumeric))
-        .map(char::from)
-        .collect();
+    let mut rng = rand::rng();
+    let random_string: String = (0..8).map(|_| rng.sample(Alphanumeric) as char).collect();
     format!("{}.{}", random_string, order.format)
 }
 

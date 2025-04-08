@@ -245,5 +245,5 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
     }
 
     println!("[+] Done assembling Rust code!");
-    return Path::new(&folder).to_path_buf();
+    Path::new(&folder).to_path_buf()
 }

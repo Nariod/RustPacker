@@ -193,8 +193,8 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
                 -> bool
             {
                 match call_reason {
-                    DLL_PROCESS_ATTACH => main(),
-                    DLL_PROCESS_DETACH => main(),
+                    DLL_PROCESS_ATTACH => (),
+                    DLL_PROCESS_DETACH => (),
                     _ => ()
                 }
 

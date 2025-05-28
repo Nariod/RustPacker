@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
     libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy the project files into the container
+# Copy the entire project directory into the container
 COPY . .
 
 # Build the project

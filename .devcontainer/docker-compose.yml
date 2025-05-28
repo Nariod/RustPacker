@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  rustpacker-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - ../:/workspace:cached
+      - ../shared:/workspace/shared:cached
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/target
+    environment:
+      - CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER=x86_64-w64-mingw32-gcc
+      - CC_x86_64_pc_windows_gnu=x86_64-w64-mingw32-gcc  
+      - CXX_x86_64_pc_windows_gnu=x86_64-w64-mingw32-g++
+      - AR_x86_64_pc_windows_gnu=x86_64-w64-mingw32-ar
+      - PKG_CONFIG_ALLOW_CROSS=1
+    working_dir: /workspace
+    command: sleep infinity
+    user: vscode
+
+volumes:
+  cargo-cache:
+  target-cache:

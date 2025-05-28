@@ -1,19 +1,72 @@
 {
-    "name": "RustPacker Dev Container",
-     "image": "mcr.microsoft.com/devcontainers/rust:latest",
-    "build": {
-        "dockerfile": "Dockerfile"
+  "name": "RustPacker Development Environment",
+  "image": "mcr.microsoft.com/devcontainers/rust:1-1-bullseye",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true,
+      "username": "automatic",
+      "uid": "automatic",
+      "gid": "automatic"
     },
-     "updateContentCommand": "rustup target add x86_64-pc-windows-gnu",
-    "settings": {
-        "terminal.integrated.shell.linux": "/bin/bash"
-    },
-    "customizations": {
-         "vscode": {
-             "extensions": [
-                "rust-lang.rust"
-             ]
-         }
-    },
-    "postCreateCommand": "cargo build"
-  }
+    "ghcr.io/devcontainers/features/git:1": {
+      "ppa": true,
+      "version": "latest"
+    }
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "serayuzgur.crates",
+        "tamasfe.even-better-toml",
+        "formulahendry.code-runner",
+        "ms-vscode.hexeditor",
+        "ms-vscode.vscode-json"
+      ],
+      "settings": {
+        "rust-analyzer.cargo.target": "x86_64-pc-windows-gnu",
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.cargo.features": "all",
+        "terminal.integrated.defaultProfile.linux": "zsh"
+      }
+    }
+  },
+
+  "onCreateCommand": [
+    "bash",
+    "-c",
+    "echo 'Setting up RustPacker development environment...' && .devcontainer/setup.sh"
+  ],
+
+  "postCreateCommand": [
+    "bash",
+    "-c", 
+    "echo 'RustPacker DevContainer setup complete! 🦀'"
+  ],
+
+  "mounts": [
+    "source=${localWorkspaceFolder}/shared,target=/workspace/shared,type=bind,consistency=cached"
+  ],
+
+  "containerEnv": {
+    "CARGO_TARGET_X86_64_PC_WINDOWS_GNU_LINKER": "x86_64-w64-mingw32-gcc",
+    "CC_x86_64_pc_windows_gnu": "x86_64-w64-mingw32-gcc",
+    "CXX_x86_64_pc_windows_gnu": "x86_64-w64-mingw32-g++",
+    "AR_x86_64_pc_windows_gnu": "x86_64-w64-mingw32-ar",
+    "PKG_CONFIG_ALLOW_CROSS": "1"
+  },
+
+  "forwardPorts": [],
+  
+  "portsAttributes": {},
+
+  "remoteUser": "vscode",
+  
+  "workspaceFolder": "/workspace"
+}

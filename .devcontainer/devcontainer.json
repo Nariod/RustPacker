@@ -1,15 +1,19 @@
 {
-    "name": "RustPacker",
-    // image being used
+    "name": "RustPacker Dev Container",
      "image": "mcr.microsoft.com/devcontainers/rust:latest",
-     // install dependencies
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
      "updateContentCommand": "rustup target add x86_64-pc-windows-gnu",
-     "customizations": {
-         // install some vscode extensions
+    "settings": {
+        "terminal.integrated.shell.linux": "/bin/bash"
+    },
+    "customizations": {
          "vscode": {
              "extensions": [
-                 "rust-lang.rust-analyzer"
+                "rust-lang.rust"
              ]
          }
-     }
+    },
+    "postCreateCommand": "cargo build"
   }

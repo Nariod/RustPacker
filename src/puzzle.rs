@@ -5,6 +5,7 @@ use crate::tools::random_aes_iv;
 use crate::tools::random_aes_key;
 use crate::tools::{absolute_path, path_to_string, random_u8};
 use crate::xor::meta_xor;
+use crate::sandbox::meta_sandbox;
 use fs_extra::dir::{copy, CopyOptions};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -175,6 +176,26 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{IMPORTS}}", imports.to_string());
         }
     }
+    if order.sandbox != "None" {
+        // if sandbox is not None, we need to add the sandbox function and imports
+        let sandbox_args: HashMap<String, String> = meta_sandbox(order.sandbox.clone());
+        let sandbox_function = match sandbox_args.get("sandbox_function") {
+            Some(content) => content,
+            None => panic!("I don't even know how this happened.."),
+        };
+        to_be_replaced.insert("{{SANDBOX}}", sandbox_function.to_string());
+
+        let sandbox_imports = match sandbox_args.get("sandbox_import") {
+            Some(content) => content,
+            None => panic!("I don't even know how this happened.."),
+        };
+        to_be_replaced.insert("{{SANDBOX_IMPORTS}}", sandbox_imports.to_string());
+    } else {
+        // if sandbox is None, we need to remove the sandbox function and imports
+        to_be_replaced.insert("{{SANDBOX}}", "".to_string());
+        to_be_replaced.insert("{{SANDBOX_IMPORTS}}", "".to_string());
+    }
+
     match order.format {
         Format::Dll => {
             let dll_cargo_conf = r#"
@@ -243,7 +264,7 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         let _ = search_and_replace(&to_main, key, value);
         let _ = search_and_replace(&path_to_cargo, key, value);
     }
-
+    
     println!("[+] Done assembling Rust code!");
     Path::new(&folder).to_path_buf()
 }

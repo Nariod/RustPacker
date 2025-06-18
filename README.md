@@ -142,6 +142,7 @@ OPTIONS:
     -e, --encryption <TYPE>     Encryption method [xor|aes]
     -b, --binary <TYPE>         Output binary type [exe|dll]
     -t, --target <PROCESS>      Target process name (for injection templates)
+    -s, --sandbox <DOMAIN>      Sandbox Domain Pinning (detonate only on specified domain)
     -o, --output <PATH>         Custom output path and filename
     -h, --help                  Print help information
     -V, --version               Print version information

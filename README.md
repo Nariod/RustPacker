@@ -181,6 +181,7 @@ Contributions are welcome! Here's how you can help:
 - [x] Indirect syscalls support
 - [x] EXE and DLL output formats
 - [x] Docker containerization
+- [x] Domain pining, thanks to [m4r1u5-p0p](https://github.com/m4r1u5-p0p) !
 - [ ] String encryption (litcrypt)
 - [ ] Sandbox evasion techniques
 - [ ] Binary signing support

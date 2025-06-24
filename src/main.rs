@@ -7,6 +7,7 @@ mod puzzle;
 mod shellcode_reader;
 mod tools;
 mod xor;
+mod sandbox;
 
 use std::env;
 use std::io;

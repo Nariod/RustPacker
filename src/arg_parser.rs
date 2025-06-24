@@ -13,7 +13,7 @@ pub struct Order {
     pub encryption: Encryption,
     pub format: Format,
     pub target_process: String,
-    //sandbox: Option<bool>,
+    pub sandbox: String,
     pub output: Option<PathBuf>,
 }
 
@@ -124,6 +124,12 @@ fn parser() -> ArgMatches {
                 .required(false)
                 .help("Optional output path for the resulting binary"),
         )
+        .arg(
+            Arg::new("Sandbox Check")
+                .short('s')
+                .required(false)
+                .help("Sandbox check. Domain Pinning to the provided domain name"),
+        )
         .get_matches()
 }
 
@@ -146,7 +152,10 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "aes" => Encryption::Aes,
         _ => panic!("Don't even know how this error exists."),
     };
-    //let sandbox: Option<bool> = None;
+    let sandbox: String = match args.get_one::<String>("Sandbox Check") {
+        Some(domainName) => domainName.to_string(),
+        None => "None".to_string(),
+    };
 
     let s = args.get_one::<String>("Execution technique").unwrap();
     let execution: Execution = match s.as_str() {
@@ -184,14 +193,14 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         }
         None => None,
     };
-
+    
     let result = Order {
         shellcode_path,
         execution,
         encryption,
         format,
         target_process,
-        //sandbox,
+        sandbox,
         output,
     };
 

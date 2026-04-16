@@ -47,6 +47,7 @@ impl fmt::Display for Execution {
 pub enum Encryption {
     Xor,
     Aes,
+    Uuid,
 }
 
 #[derive(Debug, Clone)]
@@ -116,6 +117,7 @@ fn parser() -> ArgMatches {
                 .value_parser([
                     clap::builder::PossibleValue::new("xor").help("'Exclusive or' encoding"),
                     clap::builder::PossibleValue::new("aes").help("AES 256 encryption"),
+                    clap::builder::PossibleValue::new("uuid").help("UUID-based shellcode encoding"),
                 ]),
         )
         .arg(
@@ -150,6 +152,7 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
     let encryption: Encryption = match s.as_str() {
         "xor" => Encryption::Xor,
         "aes" => Encryption::Aes,
+        "uuid" => Encryption::Uuid,
         _ => panic!("Don't even know how this error exists."),
     };
     let sandbox: String = match args.get_one::<String>("Sandbox Check") {

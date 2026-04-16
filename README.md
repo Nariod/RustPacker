@@ -11,7 +11,7 @@ RustPacker is a template-based shellcode packer designed for penetration testers
 ### ✨ Key Features
 
 - **Multiple Injection Templates**: Choose from various injection techniques (CRT, APC, Fibers, etc.)
-- **Encryption Support**: XOR and AES-256 encryption for payload obfuscation
+- **Encryption Support**: XOR, AES-256 encryption, and UUID encoding for payload obfuscation
 - **Syscall Evasion**: Indirect syscalls to bypass EDR/AV detection
 - **Flexible Output**: Generate both EXE and DLL files
 - **Sandbox Evasion**: Domain pinning to prevent detonation in analysis environments
@@ -65,7 +65,7 @@ Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 Required:
   -f <FILE>         Path to the raw shellcode file
   -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber
-  -e <ENCRYPTION>   Encryption method: xor, aes
+  -e <ENCRYPTION>   Encryption method: xor, aes, uuid
   -b <FORMAT>       Output binary format: exe, dll
 
 Optional:
@@ -109,6 +109,11 @@ rustpacker -f shared/payload.raw -i ntapc -e xor -b dll
 rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```
 
+**UUID encoding (shellcode hidden as UUID strings):**
+```bash
+rustpacker -f shared/payload.raw -i ntcrt -e uuid -b exe -t notepad.exe
+```
+
 **With domain pinning (only detonates on MYDOMAIN):**
 ```bash
 rustpacker -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
@@ -147,7 +152,7 @@ These templates execute shellcode within the current process. No target process 
 RustPacker implements several evasion techniques:
 
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
-- **Payload Encryption**: XOR encoding or AES-256-CBC encryption
+- **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
 - **Process Injection**: Hide execution in legitimate processes
 - **Domain Pinning**: Only detonate on a specific domain (sandbox evasion)
 - **Template Variety**: Multiple execution methods to avoid static signatures
@@ -195,7 +200,7 @@ Contributions are welcome! Here's how you can help:
 ### Development Roadmap
 
 - [x] Multiple injection templates
-- [x] XOR and AES encryption
+- [x] XOR, AES, and UUID encryption/encoding
 - [x] Indirect syscalls support
 - [x] EXE and DLL output formats
 - [x] Docker containerization

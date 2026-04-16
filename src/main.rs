@@ -6,6 +6,7 @@ mod compiler;
 mod puzzle;
 mod shellcode_reader;
 mod tools;
+mod uuid_enc;
 mod xor;
 mod sandbox;
 

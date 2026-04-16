@@ -172,3 +172,92 @@ pub fn rename_source_binary(
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_write_to_file_and_read_back() {
+        let dir = std::env::temp_dir().join("rustpacker_test_tools_write");
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("test_output.bin");
+        let content: Vec<u8> = vec![0xCA, 0xFE, 0xBA, 0xBE];
+
+        write_to_file(&content, &path).unwrap();
+        let read_back = fs::read(&path).unwrap();
+        assert_eq!(read_back, content);
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+
+    #[test]
+    fn test_path_to_string_contains_path() {
+        let path = Path::new("/tmp/test/shellcode.bin");
+        let result = path_to_string(path);
+        assert!(result.contains("shellcode.bin"));
+    }
+
+    #[test]
+    fn test_absolute_path_already_absolute() {
+        let path = Path::new("/tmp/test");
+        let result = absolute_path(path).unwrap();
+        assert!(result.is_absolute());
+        assert_eq!(result, Path::new("/tmp/test"));
+    }
+
+    #[test]
+    fn test_absolute_path_relative() {
+        let result = absolute_path("some_relative_path").unwrap();
+        assert!(result.is_absolute());
+        assert!(result.to_string_lossy().contains("some_relative_path"));
+    }
+
+    #[test]
+    fn test_random_u8_returns_value() {
+        let _val = random_u8();
+    }
+
+    #[test]
+    fn test_random_aes_key_length() {
+        let key = random_aes_key();
+        assert_eq!(key.len(), 32);
+    }
+
+    #[test]
+    fn test_random_aes_iv_length() {
+        let iv = random_aes_iv();
+        assert_eq!(iv.len(), 16);
+    }
+
+    #[test]
+    fn test_generate_random_filename_format() {
+        let order = arg_parser::Order {
+            shellcode_path: PathBuf::from("/tmp/test.bin"),
+            execution: arg_parser::Execution::NtCreateRemoteThread,
+            encryption: arg_parser::Encryption::Xor,
+            format: arg_parser::Format::Exe,
+            target_process: "dllhost.exe".to_string(),
+            sandbox: "None".to_string(),
+            output: None,
+        };
+        let filename = generate_random_filename(&order);
+        assert!(filename.ends_with(".exe"));
+        assert_eq!(filename.len(), 12); // 8 random chars + ".exe"
+    }
+
+    #[test]
+    fn test_get_source_binary_filename() {
+        let order = arg_parser::Order {
+            shellcode_path: PathBuf::from("/tmp/test.bin"),
+            execution: arg_parser::Execution::NtCreateRemoteThread,
+            encryption: arg_parser::Encryption::Xor,
+            format: arg_parser::Format::Dll,
+            target_process: "dllhost.exe".to_string(),
+            sandbox: "None".to_string(),
+            output: None,
+        };
+        let path = get_source_binary_filename(&order, Path::new("/output"));
+        assert!(path.to_string_lossy().contains("ntCRT.dll"));
+    }
+}

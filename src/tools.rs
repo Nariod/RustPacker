@@ -44,10 +44,6 @@ pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-pub fn quoted_path(input: &Path) -> String {
-    format!("{:?}", &input)
-}
-
 pub fn random_u8() -> u8 {
     rand::random()
 }
@@ -139,13 +135,6 @@ mod tests {
         assert_eq!(read_back, content);
 
         fs::remove_dir_all(&dir).unwrap();
-    }
-
-    #[test]
-    fn test_quoted_path_contains_path() {
-        let path = Path::new("/tmp/test/shellcode.bin");
-        let result = quoted_path(path);
-        assert!(result.contains("shellcode.bin"));
     }
 
     #[test]

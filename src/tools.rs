@@ -1,5 +1,3 @@
-// Module embedding various useful functions
-
 use crate::arg_parser;
 use path_clean::PathClean;
 use rand::distr::Alphanumeric;
@@ -10,6 +8,20 @@ use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+
+#[derive(Debug, Clone)]
+pub struct EncryptionOutput {
+    pub decryption_function: String,
+    pub main: String,
+    pub dependencies: Option<String>,
+    pub imports: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SandboxOutput {
+    pub sandbox_function: String,
+    pub sandbox_import: String,
+}
 
 pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
     // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
@@ -32,13 +44,12 @@ pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
-pub fn path_to_string(input: &Path) -> String {
+pub fn quoted_path(input: &Path) -> String {
     format!("{:?}", &input)
 }
 
 pub fn random_u8() -> u8 {
-    let random_number: u8 = rand::random();
-    random_number
+    rand::random()
 }
 
 pub fn random_aes_key() -> [u8; 32] {
@@ -49,99 +60,46 @@ pub fn random_aes_iv() -> [u8; 16] {
     rand::random::<[u8; 16]>()
 }
 
-// Function to retrieve the source binary filename
 pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Path) -> PathBuf {
-    let source_binary_filename = format!(
+    output_folder.join(format!(
         "target/x86_64-pc-windows-gnu/release/{}.{}",
         order.execution, order.format
-    );
-    let mut source_binary = output_folder.to_path_buf();
-    source_binary.push(source_binary_filename);
-    source_binary
+    ))
 }
 
-// Function to process the output and manage folders
-pub fn process_output(order: &arg_parser::Order, output_folder_path: &PathBuf) -> io::Result<()> {
-    if let Some(output_path) = &order.output {
-        let output_path = Path::new(output_path);
-        if let Some(parent) = output_path.parent() {
-            if !parent.exists() {
-                fs::create_dir_all(parent)?;
-            }
+pub fn process_output(order: &arg_parser::Order, output_folder_path: &Path) -> io::Result<()> {
+    let output_path = match &order.output {
+        Some(p) => p,
+        None => return Ok(()),
+    };
+
+    if let Some(parent) = output_path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent)?;
         }
     }
 
-    let is_file = fs::metadata(output_folder_path)
-        .map(|metadata| metadata.is_file())
-        .unwrap_or(false);
+    let source_binary = get_source_binary_filename(order, output_folder_path);
 
-    let output_folder = if is_file {
-        output_folder_path
-            .parent()
-            .unwrap_or_else(|| {
-                eprintln!("Error: Output path is a file but has no parent directory.");
-                Path::new("")
-            })
-            .to_path_buf()
-    } else {
-        output_folder_path.clone()
-    };
-
-    let source_binary = get_source_binary_filename(order, &output_folder);
-
-    if !source_binary.exists() {
-        eprintln!("Source file does not exist: {:?}", source_binary);
+    if !source_binary.is_file() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            "Source file does not exist",
+            format!("Source file does not exist: {:?}", source_binary),
         ));
     }
 
-    if let Some(output_path) = &order.output {
-        let output_path = Path::new(output_path);
-
-        if !source_binary.exists() || !source_binary.is_file() {
-            eprintln!(
-                "Source file does not exist or is not a file: {:?}",
-                source_binary
-            );
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "Source file does not exist or is not a file",
-            ));
-        }
-
-        if let Some(parent) = output_path.parent() {
-            if !parent.exists() || !parent.is_dir() {
-                eprintln!(
-                    "Destination directory does not exist or is not a directory: {:?}",
-                    parent
-                );
-                return Err(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    "Destination directory does not exist or is not a directory",
-                ));
-            }
-        }
-
-        if let Err(e) = fs::copy(&source_binary, output_path) {
-            eprintln!("Failed to copy the file: {:?}", e);
-            return Err(e);
-        }
-        println!("[+] Your binary has been written here: {:?}", output_path);
-    }
+    fs::copy(&source_binary, output_path)?;
+    println!("[+] Your binary has been written here: {:?}", output_path);
 
     Ok(())
 }
 
-// Function to generate a random filename with the given format
 pub fn generate_random_filename(order: &arg_parser::Order) -> String {
     let mut rng = rand::rng();
     let random_string: String = (0..8).map(|_| rng.sample(Alphanumeric) as char).collect();
     format!("{}.{}", random_string, order.format)
 }
 
-// Function to rename the source binary to a random name
 pub fn rename_source_binary(
     order: &arg_parser::Order,
     output_folder_path: &Path,
@@ -149,25 +107,17 @@ pub fn rename_source_binary(
     let source_binary = get_source_binary_filename(order, output_folder_path);
 
     if !source_binary.exists() {
-        eprintln!("Source file does not exist: {:?}", source_binary);
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            "Source file does not exist",
+            format!("Source file does not exist: {:?}", source_binary),
         ));
     }
 
     let random_filename = generate_random_filename(order);
-    let mut new_path = output_folder_path.to_path_buf();
-    new_path.push("target/x86_64-pc-windows-gnu/release/");
-    new_path.push(random_filename);
-
-    // Ensure the target directory exists before renaming
-    if !new_path.parent().unwrap().exists() {
-        fs::create_dir_all(new_path.parent().unwrap())?;
-    }
+    let release_dir = output_folder_path.join("target/x86_64-pc-windows-gnu/release");
+    let new_path = release_dir.join(random_filename);
 
     fs::rename(&source_binary, &new_path)?;
-
     println!("[+] Source binary has been renamed to: {:?}", new_path);
 
     Ok(())
@@ -192,9 +142,9 @@ mod tests {
     }
 
     #[test]
-    fn test_path_to_string_contains_path() {
+    fn test_quoted_path_contains_path() {
         let path = Path::new("/tmp/test/shellcode.bin");
-        let result = path_to_string(path);
+        let result = quoted_path(path);
         assert!(result.contains("shellcode.bin"));
     }
 
@@ -238,7 +188,7 @@ mod tests {
             encryption: arg_parser::Encryption::Xor,
             format: arg_parser::Format::Exe,
             target_process: "dllhost.exe".to_string(),
-            sandbox: "None".to_string(),
+            sandbox: None,
             output: None,
         };
         let filename = generate_random_filename(&order);
@@ -254,7 +204,7 @@ mod tests {
             encryption: arg_parser::Encryption::Xor,
             format: arg_parser::Format::Dll,
             target_process: "dllhost.exe".to_string(),
-            sandbox: "None".to_string(),
+            sandbox: None,
             output: None,
         };
         let path = get_source_binary_filename(&order, Path::new("/output"));

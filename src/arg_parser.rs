@@ -1,5 +1,3 @@
-// Module that handles the CLI arguments and checks them for correct values.
-
 use clap::{Arg, ArgMatches, Command};
 use std::fmt;
 use std::path::PathBuf;
@@ -13,7 +11,7 @@ pub struct Order {
     pub encryption: Encryption,
     pub format: Format,
     pub target_process: String,
-    pub sandbox: String,
+    pub sandbox: Option<String>,
     pub output: Option<PathBuf>,
 }
 
@@ -48,6 +46,17 @@ pub enum Encryption {
     Xor,
     Aes,
     Uuid,
+}
+
+impl fmt::Display for Encryption {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            Encryption::Xor => "xor",
+            Encryption::Aes => "aes",
+            Encryption::Uuid => "uuid",
+        };
+        write!(f, "{}", s)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -135,35 +144,33 @@ fn parser() -> ArgMatches {
         .get_matches()
 }
 
-fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
+fn args_checker(args: ArgMatches) -> Order {
     let sp: String = args
         .get_one::<String>("Path to shellcode file")
         .unwrap()
         .clone();
-    let relative_shellcode_path: PathBuf = [sp].iter().collect();
-    let shellcode_path = match absolute_path(relative_shellcode_path) {
-        Ok(path) => path,
-        Err(err) => panic!("{:?}", err),
-    };
+    let shellcode_path = absolute_path(PathBuf::from(sp)).expect("Invalid shellcode path");
 
-    let s = args
+    let encryption: Encryption = match args
         .get_one::<String>("Encryption / encoding method")
-        .unwrap();
-    let encryption: Encryption = match s.as_str() {
+        .unwrap()
+        .as_str()
+    {
         "xor" => Encryption::Xor,
         "aes" => Encryption::Aes,
         "uuid" => Encryption::Uuid,
-        _ => panic!("Don't even know how this error exists."),
-    };
-    let sandbox: String = match args.get_one::<String>("Sandbox Check") {
-        Some(domainName) => domainName.to_string(),
-        None => "None".to_string(),
+        _ => unreachable!("clap validates encryption values"),
     };
 
-    let s = args.get_one::<String>("Execution technique").unwrap();
-    let execution: Execution = match s.as_str() {
-        // "ct" => Execution::CreateThread,
-        // "crt" => Execution::CreateRemoteThread,
+    let sandbox: Option<String> = args
+        .get_one::<String>("Sandbox Check")
+        .map(|s| s.to_string());
+
+    let execution: Execution = match args
+        .get_one::<String>("Execution technique")
+        .unwrap()
+        .as_str()
+    {
         "ntapc" => Execution::NtQueueUserAPC,
         "ntcrt" => Execution::NtCreateRemoteThread,
         "syscrt" => Execution::SysCreateRemoteThread,
@@ -171,33 +178,29 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         "winfiber" => Execution::WinFiber,
         "ntfiber" => Execution::NtFiber,
         "sysfiber" => Execution::SysFiber,
-        _ => panic!("Don't even know how this error exists."),
+        _ => unreachable!("clap validates execution values"),
     };
 
-    let s = args.get_one::<String>("Binary output format").unwrap();
-    let format: Format = match s.as_str() {
+    let format: Format = match args
+        .get_one::<String>("Binary output format")
+        .unwrap()
+        .as_str()
+    {
         "exe" => Format::Exe,
         "dll" => Format::Dll,
-        _ => panic!("Don't even know how this error exists."),
+        _ => unreachable!("clap validates format values"),
     };
 
-    let target_process = match args.get_one::<String>("Target process") {
-        Some(name) => name.to_string(),
-        None => "dllhost.exe".to_string(),
-    };
+    let target_process = args
+        .get_one::<String>("Target process")
+        .map(|s| s.to_string())
+        .unwrap_or_else(|| "dllhost.exe".to_string());
 
-    let output = match args.get_one::<String>("Output path") {
-        Some(path) => {
-            let relative_output_path: PathBuf = [path.clone()].iter().collect();
-            match absolute_path(relative_output_path) {
-                Ok(path) => Some(path),
-                Err(err) => panic!("{:?}", err),
-            }
-        }
-        None => None,
-    };
-    
-    let result = Order {
+    let output = args.get_one::<String>("Output path").map(|path| {
+        absolute_path(PathBuf::from(path)).expect("Invalid output path")
+    });
+
+    Order {
         shellcode_path,
         execution,
         encryption,
@@ -205,17 +208,10 @@ fn args_checker(args: ArgMatches) -> Result<Order, Box<dyn std::error::Error>> {
         target_process,
         sandbox,
         output,
-    };
-
-    Ok(result)
+    }
 }
 
-pub fn meta_arg_parser() -> Order {
+pub fn parse_args() -> Order {
     let args = parser();
-    let order: Order = match args_checker(args) {
-        Ok(content) => content,
-        Err(err) => panic!("{:?}", err),
-    };
-
-    order
+    args_checker(args)
 }

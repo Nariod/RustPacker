@@ -1,5 +1,6 @@
-use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
-use std::{collections::HashMap, path::Path};
+use crate::shellcode_reader::read_shellcode;
+use crate::tools::{write_to_file, EncryptionOutput};
+use std::path::Path;
 
 fn bytes_to_uuid(chunk: &[u8; 16]) -> String {
     format!(
@@ -29,17 +30,12 @@ fn uuid_encode(shellcode: &[u8]) -> String {
         .join("\n")
 }
 
-pub fn meta_uuid(input_path: &Path, export_path: &Path) -> HashMap<String, String> {
+pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     println!("[+] UUID encoding shellcode..");
-    let unencrypted = meta_vec_from_file(input_path);
+    let unencrypted = read_shellcode(input_path);
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
-    match write_to_file(encoded.as_bytes(), export_path) {
-        Ok(()) => (),
-        Err(err) => panic!("{:?}", err),
-    }
-
-    let mut result: HashMap<String, String> = HashMap::new();
+    write_to_file(encoded.as_bytes(), export_path).expect("Failed to write UUID output");
 
     let decryption_function = "fn hex_to_byte(h: u8, l: u8) -> u8 {
         fn val(c: u8) -> u8 {
@@ -73,11 +69,13 @@ pub fn meta_uuid(input_path: &Path, export_path: &Path) -> HashMap<String, Strin
 
     let main = format!("vec = uuid_decode(&vec);\n    vec.truncate({});", original_len);
 
-    result.insert(String::from("decryption_function"), decryption_function);
-    result.insert(String::from("main"), main);
-
     println!("[+] Done UUID encoding shellcode!");
-    result
+    EncryptionOutput {
+        decryption_function,
+        main,
+        dependencies: None,
+        imports: None,
+    }
 }
 
 #[cfg(test)]

@@ -32,3 +32,49 @@ pub fn meta_xor(input_path: &Path, export_path: &Path, key: u8) -> HashMap<Strin
     println!("[+] Done XORing shellcode!");
     result
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+
+    #[test]
+    fn test_xor_encode_roundtrip() {
+        let original: Vec<u8> = vec![0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8, 0xc0];
+        let key: u8 = 0x42;
+        let encoded = xor_encode(&original, key);
+        let decoded = xor_encode(&encoded, key);
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_xor_encode_with_zero_key() {
+        let original: Vec<u8> = vec![0xfc, 0x48, 0x83];
+        let encoded = xor_encode(&original, 0);
+        assert_eq!(encoded, original);
+    }
+
+    #[test]
+    fn test_xor_encode_empty() {
+        let original: Vec<u8> = vec![];
+        let encoded = xor_encode(&original, 0xAB);
+        assert!(encoded.is_empty());
+    }
+
+    #[test]
+    fn test_meta_xor_returns_expected_keys() {
+        let dir = std::env::temp_dir().join("rustpacker_test_xor");
+        fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("test_shellcode.bin");
+        let output = dir.join("output.xor");
+        fs::write(&input, &[0xfc, 0x48, 0x83]).unwrap();
+
+        let result = meta_xor(&input, &output, 0x42);
+
+        assert!(result.contains_key("decryption_function"));
+        assert!(result.contains_key("main"));
+        assert!(output.exists());
+
+        fs::remove_dir_all(&dir).unwrap();
+    }
+}

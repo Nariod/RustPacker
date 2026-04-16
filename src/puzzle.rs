@@ -4,6 +4,7 @@ use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::tools::random_aes_iv;
 use crate::tools::random_aes_key;
 use crate::tools::{absolute_path, path_to_string, random_u8};
+use crate::uuid_enc::meta_uuid;
 use crate::xor::meta_xor;
 use crate::sandbox::meta_sandbox;
 use fs_extra::dir::{copy, CopyOptions};
@@ -174,6 +175,30 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
             to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_aes_as_string);
             to_be_replaced.insert("{{DEPENDENCIES}}", dependencies.to_string());
             to_be_replaced.insert("{{IMPORTS}}", imports.to_string());
+        }
+        Encryption::Uuid => {
+            let mut path_to_uuid = to_main.clone();
+            path_to_uuid.pop();
+            path_to_uuid.push("input.uuid");
+            let absolute_path_to_uuid = match absolute_path(&path_to_uuid) {
+                Ok(path) => path,
+                Err(err) => panic!("{:?}", err),
+            };
+            let absolute_path_to_uuid_as_string = path_to_string(&absolute_path_to_uuid);
+
+            let uuid_args: HashMap<String, String> =
+                meta_uuid(&order.shellcode_path, &path_to_uuid);
+            let decryption_function = match uuid_args.get("decryption_function") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            let main = match uuid_args.get("main") {
+                Some(content) => content,
+                None => panic!("I don't even know how this happened.."),
+            };
+            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
+            to_be_replaced.insert("{{MAIN}}", main.to_string());
+            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_uuid_as_string);
         }
     }
     if order.sandbox != "None" {

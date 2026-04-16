@@ -3,7 +3,7 @@
 use crate::arg_parser;
 use path_clean::PathClean;
 use rand::distr::Alphanumeric;
-use rand::Rng;
+use rand::RngExt;
 use std::env;
 use std::fs::{self, File};
 use std::io;

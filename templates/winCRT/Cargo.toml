@@ -8,11 +8,11 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-sysinfo = "0.29"
+sysinfo = "0.38"
 {{DEPENDENCIES}}
 
 [dependencies.windows]
-version = "0"
+version = "0.62"
 features = [
     "Win32_UI_Input_Pointer",
     "Win32_Foundation",

@@ -45,7 +45,7 @@ pub fn meta_sandbox(expected_domain: String) -> HashMap<String, String>{
         );
         imports = "use winapi::um::sysinfoapi::{GetComputerNameExW, ComputerNameDnsDomain}; \n".to_string();
     } else {
-        sandbox_function = format!("");
+        sandbox_function = String::new();
         imports = "".to_string();
     }
     result.insert(String::from("sandbox_function"), sandbox_function);

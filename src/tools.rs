@@ -57,9 +57,20 @@ pub fn random_aes_iv() -> [u8; 16] {
 }
 
 pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Path) -> PathBuf {
+    let binary_name = format!("{}.{}", order.execution, order.format);
+    let candidates = [
+        "target/x86_64-pc-windows-msvc/release",
+        "target/x86_64-pc-windows-gnu/release",
+    ];
+    for dir in candidates {
+        let path = output_folder.join(dir).join(&binary_name);
+        if path.exists() {
+            return path;
+        }
+    }
     output_folder.join(format!(
-        "target/x86_64-pc-windows-gnu/release/{}.{}",
-        order.execution, order.format
+        "target/x86_64-pc-windows-gnu/release/{}",
+        binary_name
     ))
 }
 
@@ -110,7 +121,9 @@ pub fn rename_source_binary(
     }
 
     let random_filename = generate_random_filename(order);
-    let release_dir = output_folder_path.join("target/x86_64-pc-windows-gnu/release");
+    let release_dir = source_binary
+        .parent()
+        .expect("Source binary has no parent directory");
     let new_path = release_dir.join(random_filename);
 
     fs::rename(&source_binary, &new_path)?;

@@ -8,8 +8,7 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-ntapi = { version = "0.4", features = ["impl-default"] }
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default"] }
+winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi"] }
 {{DEPENDENCIES}}
 
 

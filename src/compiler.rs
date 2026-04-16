@@ -102,15 +102,29 @@ fn compile_in_container(
     Ok(())
 }
 
+fn local_build_target() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "x86_64-pc-windows-msvc"
+    } else {
+        BUILD_TARGET
+    }
+}
+
 fn compile_locally(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
+    let target = local_build_target();
     let manifest = path_to_cargo_folder.join("Cargo.toml");
-    let output = Command::new("cargo")
-        .env("CFLAGS", "-lrt")
-        .env("LDFLAGS", "-lrt")
+    let mut cmd = Command::new("cargo");
+
+    if cfg!(not(target_os = "windows")) {
+        cmd.env("CFLAGS", "-lrt");
+        cmd.env("LDFLAGS", "-lrt");
+    }
+
+    let output = cmd
         .env("RUSTFLAGS", "-C target-feature=+crt-static")
         .args(["build", "--release", "--manifest-path"])
         .arg(&manifest)
-        .args(["--target", BUILD_TARGET])
+        .args(["--target", target])
         .output()?;
 
     if !output.status.success() {

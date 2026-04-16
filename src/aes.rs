@@ -1,34 +1,26 @@
-// module dedicated to AES encrypt a binary input and give back the path of the encrypted file
-
-use crate::{shellcode_reader::meta_vec_from_file, tools::write_to_file};
+use crate::shellcode_reader::read_shellcode;
+use crate::tools::{write_to_file, EncryptionOutput};
 use libaes::Cipher;
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 fn aes_256_encrypt(shellcode: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
-    // thanks to https://github.com/memN0ps/arsenal-rs/blob/ee385df07805515da5ffc2a9900d51d24a47f9ab/obfuscate_shellcode-rs/src/main.rs
     let cipher = Cipher::new_256(key);
-
     cipher.cbc_encrypt(iv, shellcode)
 }
 
-pub fn meta_aes(
+pub fn encrypt_aes(
     input_path: &Path,
     export_path: &Path,
     key: &[u8; 32],
     iv: &[u8; 16],
-) -> HashMap<String, String> {
+) -> EncryptionOutput {
     println!(
         "[+] AES encrypting shellcode with key {:?} and IV {:?}",
         key, iv
     );
-    let unencrypted = meta_vec_from_file(input_path);
+    let unencrypted = read_shellcode(input_path);
     let encrypted_content = aes_256_encrypt(&unencrypted, key, iv);
-    match write_to_file(&encrypted_content, export_path) {
-        Ok(()) => (),
-        Err(err) => panic!("{:?}", err),
-    }
-
-    let mut result: HashMap<String, String> = HashMap::new();
+    write_to_file(&encrypted_content, export_path).expect("Failed to write AES output");
 
     let decryption_function =
         "fn aes_256_decrypt(buf: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
@@ -44,20 +36,14 @@ pub fn meta_aes(
     ",
         key, iv
     );
-    let dependencies = r#"libaes = "0.7""#.to_string();
-
-    let imports = "
-    use libaes::Cipher;
-    "
-    .to_string();
-
-    result.insert(String::from("decryption_function"), decryption_function);
-    result.insert(String::from("main"), main);
-    result.insert(String::from("dependencies"), dependencies);
-    result.insert(String::from("imports"), imports);
 
     println!("[+] Done AES encrypting shellcode!");
-    result
+    EncryptionOutput {
+        decryption_function,
+        main,
+        dependencies: Some(r#"libaes = "0.7""#.to_string()),
+        imports: Some("use libaes::Cipher;".to_string()),
+    }
 }
 
 #[cfg(test)]
@@ -81,7 +67,7 @@ mod tests {
     }
 
     #[test]
-    fn test_meta_aes_returns_expected_keys() {
+    fn test_encrypt_aes_returns_expected_fields() {
         let dir = std::env::temp_dir().join("rustpacker_test_aes");
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("test_shellcode.bin");
@@ -91,12 +77,12 @@ mod tests {
 
         let key: [u8; 32] = [0x01; 32];
         let iv: [u8; 16] = [0x02; 16];
-        let result = meta_aes(&input, &output, &key, &iv);
+        let result = encrypt_aes(&input, &output, &key, &iv);
 
-        assert!(result.contains_key("decryption_function"));
-        assert!(result.contains_key("main"));
-        assert!(result.contains_key("dependencies"));
-        assert!(result.contains_key("imports"));
+        assert!(!result.decryption_function.is_empty());
+        assert!(!result.main.is_empty());
+        assert!(result.dependencies.is_some());
+        assert!(result.imports.is_some());
         assert!(output.exists());
 
         fs::remove_dir_all(&dir).unwrap();

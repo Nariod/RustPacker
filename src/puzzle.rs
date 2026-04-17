@@ -92,7 +92,7 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
     let include_path = format!("\"{}\"", filename);
 
     let output = match order.encryption {
-        Encryption::Xor => encrypt_xor(&order.shellcode_path, &path, random_u8()),
+        Encryption::Xor => encrypt_xor(&order.shellcode_path, &path, non_zero_random_key()),
         Encryption::Aes => {
             encrypt_aes(&order.shellcode_path, &path, &random_aes_key(), &random_aes_iv())
         }
@@ -147,10 +147,13 @@ fn apply_dll_format(
     replacements.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
 
     let dll_main_fn = r#"
+    const DLL_PROCESS_ATTACH: u32 = 1;
+    const DLL_PROCESS_DETACH: u32 = 0;
+
     #[no_mangle]
     #[allow(non_snake_case, unused_variables, unreachable_patterns)]
     extern "system" fn DllMain(
-        dll_module: u32,
+        dll_module: usize,
         call_reason: u32,
         _: *mut ())
         -> bool

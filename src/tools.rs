@@ -152,10 +152,14 @@ mod tests {
 
     #[test]
     fn test_absolute_path_already_absolute() {
-        let path = Path::new("/tmp/test");
+        let path = if cfg!(windows) {
+            Path::new("C:\\tmp\\test")
+        } else {
+            Path::new("/tmp/test")
+        };
         let result = absolute_path(path).unwrap();
         assert!(result.is_absolute());
-        assert_eq!(result, Path::new("/tmp/test"));
+        assert_eq!(result, path);
     }
 
     #[test]

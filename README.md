@@ -140,15 +140,6 @@ podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacke
   -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
 ```
 
-### Troubleshooting (Windows)
-
-| Issue | Solution |
-|-------|----------|
-| `podman: command not found` | Ensure Podman Desktop is running and `podman` is in your PATH |
-| `docker: command not found` | Ensure Docker Desktop is running |
-| Container build fails | Check that your container runtime's VM/WSL is started |
-| Permission errors on volume mounts | Run your terminal as Administrator, or check Docker Desktop file sharing settings |
-
 ## 📖 Command Line Options
 
 ```
@@ -222,7 +213,7 @@ rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
 
 ### Process Injection Templates
 
-These templates inject shellcode into a remote process. Use `-t <process_name>` to specify the target (default: `dllhost.exe`). The target process name is **case sensitive**.
+These templates inject shellcode into a remote process. Use `-t <process_name>` to specify the target (default: `dllhost.exe`).
 
 | Template | API Level | Indirect Syscalls | Dynamic API | Description |
 |----------|-----------|:-----------------:|:-----------:|-------------|
@@ -320,8 +311,9 @@ Contributions are welcome! Here's how you can help:
 - [x] Indirect syscalls for fiber templates
 - [x] Cross-platform support (Linux, Windows, macOS)
 - [ ] String encryption (litcrypt)
-- [ ] Binary signing support
-- [ ] Mutex/Semaphore support
+- [ ] Check DLL support for all templates
+- [ ] Add EarlyCascade injection template
+- [ ] Add DLL proxying support
 
 ## 🙏 Acknowledgments
 

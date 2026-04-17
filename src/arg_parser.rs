@@ -13,6 +13,7 @@ pub struct Order {
     pub target_process: String,
     pub sandbox: Option<String>,
     pub output: Option<PathBuf>,
+    pub proxy_dll: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone)]
@@ -25,6 +26,18 @@ pub enum Execution {
     NtFiber,
     SysFiber,
     EarlyCascade,
+}
+
+impl Execution {
+    pub fn is_self_injection(&self) -> bool {
+        matches!(
+            self,
+            Execution::NtQueueUserAPC
+                | Execution::WinFiber
+                | Execution::NtFiber
+                | Execution::SysFiber
+        )
+    }
 }
 
 impl fmt::Display for Execution {
@@ -145,6 +158,12 @@ fn parser() -> ArgMatches {
                 .required(false)
                 .help("Sandbox check. Domain Pinning to the provided domain name"),
         )
+        .arg(
+            Arg::new("DLL Proxy")
+                .short('p')
+                .required(false)
+                .help("Path to legitimate DLL to proxy. Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)"),
+        )
         .get_matches()
 }
 
@@ -205,6 +224,23 @@ fn args_checker(args: ArgMatches) -> Order {
         absolute_path(PathBuf::from(path)).expect("Invalid output path")
     });
 
+    let proxy_dll = args.get_one::<String>("DLL Proxy").map(|path| {
+        absolute_path(PathBuf::from(path)).expect("Invalid proxy DLL path")
+    });
+
+    if proxy_dll.is_some() {
+        if !matches!(format, Format::Dll) {
+            eprintln!("[-] Error: DLL proxying (-p) requires DLL output format (-b dll)");
+            std::process::exit(1);
+        }
+        if !execution.is_self_injection() {
+            eprintln!(
+                "[-] Error: DLL proxying (-p) only works with self-injection templates: ntapc, winfiber, ntfiber, sysfiber"
+            );
+            std::process::exit(1);
+        }
+    }
+
     Order {
         shellcode_path,
         execution,
@@ -213,6 +249,7 @@ fn args_checker(args: ArgMatches) -> Order {
         target_process,
         sandbox,
         output,
+        proxy_dll,
     }
 }
 

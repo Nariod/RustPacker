@@ -1,6 +1,8 @@
 mod aes;
 mod arg_parser;
 mod compiler;
+mod dll_proxy;
+mod pe_parser;
 mod puzzle;
 mod shellcode_reader;
 mod tools;

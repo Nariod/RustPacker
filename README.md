@@ -314,6 +314,7 @@ Contributions are welcome! Here's how you can help:
 - [ ] Check DLL support for all templates
 - [ ] Add EarlyCascade injection template
 - [ ] Add DLL proxying support
+- prepare integration with mythic c2
 
 ## 🙏 Acknowledgments
 

@@ -196,6 +196,7 @@ mod tests {
             target_process: "dllhost.exe".to_string(),
             sandbox: None,
             output: None,
+            proxy_dll: None,
         };
         let filename = generate_random_filename(&order);
         assert!(filename.ends_with(".exe"));
@@ -212,6 +213,7 @@ mod tests {
             target_process: "dllhost.exe".to_string(),
             sandbox: None,
             output: None,
+            proxy_dll: None,
         };
         let path = get_source_binary_filename(&order, Path::new("/output"));
         assert!(path.to_string_lossy().contains("ntCRT.dll"));

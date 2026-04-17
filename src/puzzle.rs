@@ -75,6 +75,7 @@ fn template_path_for_execution(execution: &Execution) -> &'static Path {
         Execution::WinFiber => Path::new("templates/winFIBER/."),
         Execution::NtFiber => Path::new("templates/ntFIBER/."),
         Execution::SysFiber => Path::new("templates/sysFIBER/."),
+        Execution::EarlyCascade => Path::new("templates/ntEarlyCascade/."),
     }
 }
 

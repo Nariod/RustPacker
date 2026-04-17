@@ -24,6 +24,7 @@ pub enum Execution {
     WinFiber,
     NtFiber,
     SysFiber,
+    EarlyCascade,
 }
 
 impl fmt::Display for Execution {
@@ -36,6 +37,7 @@ impl fmt::Display for Execution {
             Execution::WinFiber => "winFIBER",
             Execution::NtFiber => "ntFIBER",
             Execution::SysFiber => "sysFIBER",
+            Execution::EarlyCascade => "ntEarlyCascade",
         };
         write!(f, "{}", s)
     }
@@ -112,6 +114,8 @@ fn parser() -> ArgMatches {
                         .help("Self execute using Fibers and low level APIs"),
                     clap::builder::PossibleValue::new("sysfiber")
                         .help("Self execute using Fibers and indirect syscalls"),
+                    clap::builder::PossibleValue::new("earlycascade")
+                        .help("EarlyCascade injection via shim engine callback hijacking"),
                 ]),
         )
         .arg(
@@ -178,6 +182,7 @@ fn args_checker(args: ArgMatches) -> Order {
         "winfiber" => Execution::WinFiber,
         "ntfiber" => Execution::NtFiber,
         "sysfiber" => Execution::SysFiber,
+        "earlycascade" => Execution::EarlyCascade,
         _ => unreachable!("clap validates execution values"),
     };
 

@@ -147,7 +147,7 @@ Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 
 Required:
   -f <FILE>         Path to the raw shellcode file
-  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber
+  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade
   -e <ENCRYPTION>   Encryption method: xor, aes, uuid
   -b <FORMAT>       Output binary format: exe, dll
 
@@ -220,6 +220,7 @@ These templates inject shellcode into a remote process. Use `-t <process_name>` 
 | `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
 | `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
 | `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
+| `earlycascade` | Low (winapi) | ❌ | ❌ | EarlyCascade injection via shim engine callback hijacking |
 
 ### Self-Execution Templates
 
@@ -312,12 +313,13 @@ Contributions are welcome! Here's how you can help:
 - [x] Cross-platform support (Linux, Windows, macOS)
 - [ ] String encryption (litcrypt)
 - [ ] Check DLL support for all templates
-- [ ] Add EarlyCascade injection template
+- [x] Add EarlyCascade injection template
 - [ ] Add DLL proxying support
 - prepare integration with mythic c2
 
 ## 🙏 Acknowledgments
 
+- [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
 - [memN0ps](https://github.com/memN0ps) - Inspiration and guidance
 - [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) - Syscall implementation
 - [trickster0](https://github.com/trickster0) - OffensiveRust repository

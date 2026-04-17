@@ -162,7 +162,7 @@ fn parser() -> ArgMatches {
             Arg::new("DLL Proxy")
                 .short('p')
                 .required(false)
-                .help("Path to legitimate DLL to proxy. Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)"),
+                .help("Path to legitimate DLL to proxy (place it in shared/ for container mode). Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)"),
         )
         .get_matches()
 }

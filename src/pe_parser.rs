@@ -129,10 +129,14 @@ pub fn parse_exports(dll_path: &Path) -> Result<Vec<DllExport>, String> {
 }
 
 pub fn dll_stem(dll_path: &Path) -> String {
-    dll_path
-        .file_stem()
-        .and_then(|s| s.to_str())
-        .unwrap_or("original")
+    let s = dll_path
+        .to_str()
+        .unwrap_or("original");
+    let filename = s.rsplit(|c| c == '/' || c == '\\').next().unwrap_or(s);
+    filename
+        .strip_suffix(".dll")
+        .or_else(|| filename.strip_suffix(".DLL"))
+        .unwrap_or(filename)
         .to_string()
 }
 

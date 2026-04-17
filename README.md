@@ -4,85 +4,209 @@
 <br>
 </h1>
 
-## 🎯 Overview
+<p align="center">
+  <strong>Turn raw shellcode into evasive Windows binaries — in one command, from any OS.</strong><br>
+  <em>Designed for authorized penetration testers and red team operators.</em>
+</p>
 
-RustPacker is a template-based shellcode packer designed for penetration testers and red team operators. It converts raw shellcode into Windows executables or DLLs using various injection techniques and evasion methods.
+---
+
+## 🤔 New here? Start with this section
+
+### What is RustPacker?
+
+**Shellcode** is a small blob of machine code that a C2 framework (Metasploit, Sliver, Cobalt Strike…) generates as a payload. By itself it's just bytes — it needs a *loader* to run it on a target Windows machine.
+
+**RustPacker is that loader generator.** It takes your shellcode, wraps it in a Rust program that handles:
+- **Encryption** — so the payload looks like random bytes on disk and in memory
+- **Injection** — so the code is mapped into a Windows process and executed
+- **Evasion** — so EDR/AV sensors are less likely to catch it
+
+The result is a `.exe` or `.dll` that you deliver to your target during an authorized engagement.
+
+> **Glossary for newcomers**
+> | Term | Meaning |
+> |------|---------|
+> | Shellcode | Raw machine-code payload produced by a C2 framework |
+> | Loader / Packer | Program that decrypts and executes shellcode at runtime |
+> | EDR / AV | Endpoint Detection & Response / Anti-Virus — security sensors on the target host |
+> | Injection | Technique used to map and run code inside a Windows process |
+> | Syscall | Direct call to the Windows kernel, bypassing user-mode hooks placed by EDRs |
+> | C2 Framework | Command & Control software used to manage implants (Metasploit, Sliver, etc.) |
 
 ### ✨ Key Features
 
-- **Multiple Injection Templates**: Choose from various injection techniques (CRT, APC, Fibers, etc.)
-- **Encryption Support**: XOR, AES-256 encryption, and UUID encoding for payload obfuscation
-- **Syscall Evasion**: Indirect syscalls to bypass EDR/AV detection
-- **Flexible Output**: Generate both EXE and DLL files
-- **Sandbox Evasion**: Domain pinning to prevent detonation in analysis environments
-- **Cross-Platform Build**: Works on Linux, Windows, and macOS with Podman or Docker
-- **Framework Compatible**: Works with Metasploit, Sliver, and custom shellcode
+- **Multiple Injection Templates** — CRT, APC, Fibers, EarlyCascade…
+- **Encryption** — XOR, AES-256, UUID encoding
+- **Syscall Evasion** — indirect syscalls to bypass EDR user-mode hooks
+- **EXE & DLL output** — including DLL proxying / side-loading
+- **Sandbox Evasion** — domain pinning prevents detonation in analysis sandboxes
+- **Cross-Platform Build** — works on Linux, Windows, macOS via Podman or Docker
 
-## 🚀 Quick Start
+---
 
-### Prerequisites
+## ⚙️ How It Works
 
-You need **one** of the following container runtimes installed:
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  YOUR HOST (any OS)                                                   │
+│                                                                       │
+│  shellcode.raw  ──►  RustPacker  ──►  Rust project (generated)       │
+│                         │                                             │
+│                   encrypt + embed                                     │
+│                   shellcode bytes                                     │
+│                         │                                             │
+│                         ▼                                             │
+│            ┌─────────────────────────┐                               │
+│            │  Container (Linux)      │                               │
+│            │  cargo build            │                               │
+│            │  x86_64-pc-windows-gnu  │                               │
+│            └────────────┬────────────┘                               │
+│                         │                                             │
+│                         ▼                                             │
+│              payload.exe  /  payload.dll                             │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-| Platform | Podman (Recommended) | Docker |
-|----------|---------------------|--------|
-| **Linux** | `sudo dnf install podman` or `sudo apt install podman` | [Install Docker Engine](https://docs.docker.com/engine/install/) |
-| **Windows** | [Podman Desktop](https://podman-desktop.io/) | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
-| **macOS** | `brew install podman && podman machine init && podman machine start` | [Docker Desktop](https://www.docker.com/products/docker-desktop/) |
+RustPacker works in two stages:
 
-### Full Container Mode (Recommended)
+1. **Assembly (on your host):** Reads your shellcode, encrypts it, and generates a complete Rust project from the selected template.
+2. **Compilation (in a container):** Automatically detects Podman or Docker and cross-compiles the project to a Windows PE binary using mingw inside a Linux container. Falls back to local `cargo build` if no container runtime is available.
 
-No Rust toolchain needed — everything runs inside the container:
+You can work from **any OS** — the heavy lifting always happens inside a reproducible Linux container.
+
+---
+
+## 🚀 Quick Start (Linux — Recommended Path)
+
+> **Other platforms:** see the [macOS instructions](#macos) or the Windows accordion below.
+
+### Step 1 — Install Podman
 
 ```bash
-# Clone and build the all-in-one container
+# Ubuntu / Debian
+sudo apt install podman
+
+# Fedora / RHEL
+sudo dnf install podman
+```
+
+Verify: `podman --version`
+
+### Step 2 — Clone & Build the Container
+
+```bash
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-
 podman build -t rustpacker -f Dockerfile
 ```
 
-Place your shellcode in the `shared/` folder and run:
+This step is done **once**. The image is then cached locally.
+
+### Step 3 — Your First Build
+
+1. Generate a test shellcode with msfvenom (a harmless `MessageBox` popup — safe to use on your own machine):
 
 ```bash
-# Linux / macOS
-podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker \
-  -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
-
-# Windows (PowerShell)
-podman run --rm -v ${PWD}/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker `
-  -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
-
-# Windows (cmd.exe)
-podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker ^
-  -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
+msfvenom -p windows/x64/messagebox TEXT="RustPacker works!" TITLE="Test" -f raw -o shared/test.raw
 ```
 
-The compiled binary is located in `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/` with a randomized filename:
+2. Pack it:
+
+```bash
+podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker \
+  -f shared/test.raw -i ntcrt -e aes -b exe -t notepad.exe
+```
+
+3. Find your binary:
 
 ```
 [+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
 ```
 
+The compiled `.exe` is inside `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/`.
+
 ### Create an Alias for Convenience
 
-**Linux / macOS (bash/zsh):**
+Add this to your `~/.bashrc` or `~/.zshrc` to avoid typing the full `podman run` command every time:
+
 ```bash
 alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
+```
 
+Then use it directly:
+
+```bash
 rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```
 
-**Windows (PowerShell):**
-```powershell
-function rustpacker { podman run --rm -v "${PWD}/shared:/usr/src/RustPacker/shared:z" rustpacker RustPacker @args }
+<details>
+<summary>🪟 Windows setup instructions</summary>
 
-rustpacker -f shared\payload.raw -i syscrt -e aes -b exe -t explorer.exe
+### Step 1: Install a Container Runtime
+
+**Option A — Podman Desktop (Recommended):**
+1. Download and install [Podman Desktop](https://podman-desktop.io/)
+2. Launch Podman Desktop and follow the guided setup to initialize a Podman machine
+3. Verify: `podman --version`
+
+**Option B — Docker Desktop:**
+1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
+2. Enable WSL 2 backend during installation (recommended)
+3. Verify: `docker --version`
+
+### Step 2: Clone & Build
+
+```powershell
+git clone https://github.com/Nariod/RustPacker.git
+cd RustPacker
+podman build -t rustpacker -f Dockerfile
 ```
 
-### Alternative: Native Mode (Rust toolchain required)
+### Step 3: Pack Shellcode
 
-If you already have Rust installed, you can run RustPacker directly. It will **automatically detect** Podman or Docker and use a container for cross-compilation:
+```powershell
+# Place your shellcode in the shared folder
+copy C:\path\to\payload.raw shared\
+
+# PowerShell
+podman run --rm -v ${PWD}/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker `
+  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+
+# cmd.exe
+podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker ^
+  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+```
+
+**PowerShell alias:**
+```powershell
+function rustpacker { podman run --rm -v "${PWD}/shared:/usr/src/RustPacker/shared:z" rustpacker RustPacker @args }
+```
+
+</details>
+
+<details>
+<summary id="macos">🍎 macOS setup instructions</summary>
+
+```bash
+brew install podman
+podman machine init
+podman machine start
+
+git clone https://github.com/Nariod/RustPacker.git
+cd RustPacker/
+podman build -t rustpacker -f Dockerfile
+
+alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
+rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+```
+
+</details>
+
+<details>
+<summary>🦀 Alternative: Native Mode (Rust toolchain required)</summary>
+
+If you already have Rust installed, you can run RustPacker directly without building the container first. It will **automatically detect** Podman or Docker and use a container only for cross-compilation:
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
@@ -96,49 +220,48 @@ cargo run -- -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
 cargo run -- -f shared\your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
 ```
 
-The first run builds the `rustpacker-builder` image (once only). Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
+The first run builds the `rustpacker-builder` image once. Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
 
-## 🖥️ Windows Setup Guide
+</details>
 
-### Step 1: Install a Container Runtime
+---
 
-**Option A — Podman Desktop (Recommended):**
-1. Download and install [Podman Desktop](https://podman-desktop.io/)
-2. Launch Podman Desktop and follow the guided setup to initialize a Podman machine
-3. Verify installation: `podman --version`
+## 🛠️ Choosing a Template
 
-**Option B — Docker Desktop:**
-1. Download and install [Docker Desktop](https://www.docker.com/products/docker-desktop/)
-2. Enable WSL 2 backend during installation (recommended)
-3. Verify installation: `docker --version`
+Not sure which `-i` value to use? Answer these two questions:
 
-### Step 2: Clone the Repository
+| I want to… | Recommended template |
+|------------|---------------------|
+| Inject into **another process** (e.g. notepad, explorer) | `ntcrt` (stealthy) or `syscrt` (max evasion) |
+| Run inside the **current process** (self-injection) | `ntapc` or `ntfiber` |
+| Run as a **DLL** that fires on load | `ntapc`, `winfiber`, `ntfiber`, or `sysfiber` |
+| Maximum **syscall evasion** | `syscrt` (remote) or `sysfiber` (self) |
+| Minimal dependencies, quick test | `wincrt` (remote) or `winfiber` (self) |
+| Shim engine / EarlyCascade technique | `earlycascade` |
 
-```powershell
-git clone https://github.com/Nariod/RustPacker.git
-cd RustPacker
-```
+### Process Injection Templates (use with `-t <process>`)
 
-### Step 3: Build the Container Image
+These inject shellcode into a remote process. Default target: `dllhost.exe`.
 
-```powershell
-podman build -t rustpacker -f Dockerfile
-```
+| Template | API Level | Indirect Syscalls | Dynamic API | Description |
+|----------|-----------|:-----------------:|:-----------:|-------------|
+| `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
+| `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
+| `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
+| `earlycascade` | Low (winapi) | ❌ | ❌ | EarlyCascade injection via shim engine callback hijacking |
 
-### Step 4: Generate and Pack Shellcode
+### Self-Execution Templates (no `-t` needed)
 
-```powershell
-# Place your shellcode in the shared folder
-copy C:\path\to\payload.raw shared\
+These execute shellcode within the current process.
 
-# Pack with AES encryption and remote thread injection (PowerShell)
-podman run --rm -v ${PWD}/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker `
-  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+| Template | API Level | Indirect Syscalls | Dynamic API | Description |
+|----------|-----------|:-----------------:|:-----------:|-------------|
+| `ntapc` | Low (ntapi) | ❌ | ✅ | Queue APC to current thread via dynamic NT API resolution |
+| `winfiber` | High (windows-sys) | ❌ | ❌ | Fiber-based execution via Windows API |
+| `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | Fiber-based execution via dynamic NT API resolution |
+| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | Fiber-based execution via indirect syscalls |
 
-# Pack with AES encryption and remote thread injection (cmd.exe)
-podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker ^
-  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
-```
+---
 
 ## 📖 Command Line Options
 
@@ -159,6 +282,8 @@ Optional:
   -h                Print help
   -V                Print version
 ```
+
+---
 
 ## 📋 Usage Examples
 
@@ -224,29 +349,7 @@ The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) 
 
 > **Note:** The `-p` path must be accessible from within the container. Since only `shared/` is volume-mounted, always place the DLL to proxy inside `shared/`.
 
-## 🛠️ Available Templates
-
-### Process Injection Templates
-
-These templates inject shellcode into a remote process. Use `-t <process_name>` to specify the target (default: `dllhost.exe`).
-
-| Template | API Level | Indirect Syscalls | Dynamic API | Description |
-|----------|-----------|:-----------------:|:-----------:|-------------|
-| `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
-| `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
-| `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
-| `earlycascade` | Low (winapi) | ❌ | ❌ | EarlyCascade injection via shim engine callback hijacking |
-
-### Self-Execution Templates
-
-These templates execute shellcode within the current process. No target process needed.
-
-| Template | API Level | Indirect Syscalls | Dynamic API | Description |
-|----------|-----------|:-----------------:|:-----------:|-------------|
-| `ntapc` | Low (ntapi) | ❌ | ✅ | Queue APC to current thread via dynamic NT API resolution |
-| `winfiber` | High (windows-sys) | ❌ | ❌ | Fiber-based execution via Windows API |
-| `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | Fiber-based execution via dynamic NT API resolution |
-| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | Fiber-based execution via indirect syscalls |
+---
 
 ## 🔒 Detection Evasion
 
@@ -264,14 +367,7 @@ RustPacker implements several evasion techniques:
 
 > ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
 
-## ⚙️ How It Works
-
-RustPacker uses a two-stage approach:
-
-1. **Assembly (runs on your host):** Reads your shellcode, encrypts it, and generates a complete Rust project from the selected template with all placeholders filled in.
-2. **Compilation (runs in a container):** Automatically detects Podman or Docker and cross-compiles the generated project to a Windows PE binary inside a Linux container with mingw. Falls back to local `cargo build` if no container runtime is available.
-
-This means you can work from **any OS** — the heavy lifting (cross-compilation with mingw) always happens inside a reproducible Linux container.
+---
 
 ## ⚙️ Local Installation (Without Containers)
 
@@ -300,12 +396,16 @@ cargo run -- -f shared/payload.raw -i ntcrt -e xor -b exe -t explorer.exe
 
 > When no container runtime is detected, RustPacker falls back to local compilation automatically.
 
+---
+
 ## 🐳 Why Podman over Docker?
 
 We recommend using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/):
 - Rootless containers by default
 - No daemon running as root
 - Better security isolation
+
+---
 
 ## 🤝 Contributing
 
@@ -332,6 +432,8 @@ Contributions are welcome! Here's how you can help:
 - [x] Add DLL proxying support
 - prepare integration with mythic c2
 
+---
+
 ## 🙏 Acknowledgments
 
 - [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
@@ -340,6 +442,8 @@ Contributions are welcome! Here's how you can help:
 - [trickster0](https://github.com/trickster0) - OffensiveRust repository
 - [Maldev Academy](https://maldevacademy.com/) - Fiber execution techniques
 - [craiyon](https://www.craiyon.com/) - Logo generation
+
+---
 
 ## 📄 License & Legal Notice
 

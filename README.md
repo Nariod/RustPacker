@@ -45,38 +45,6 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 ---
 
-## ⚙️ How It Works
-
-```
-┌──────────────────────────────────────────────────────────────────────┐
-│  YOUR HOST (any OS)                                                   │
-│                                                                       │
-│  shellcode.raw  ──►  RustPacker  ──►  Rust project (generated)       │
-│                         │                                             │
-│                   encrypt + embed                                     │
-│                   shellcode bytes                                     │
-│                         │                                             │
-│                         ▼                                             │
-│            ┌─────────────────────────┐                               │
-│            │  Container (Linux)      │                               │
-│            │  cargo build            │                               │
-│            │  x86_64-pc-windows-gnu  │                               │
-│            └────────────┬────────────┘                               │
-│                         │                                             │
-│                         ▼                                             │
-│              payload.exe  /  payload.dll                             │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-RustPacker works in two stages:
-
-1. **Assembly (on your host):** Reads your shellcode, encrypts it, and generates a complete Rust project from the selected template.
-2. **Compilation (in a container):** Automatically detects Podman or Docker and cross-compiles the project to a Windows PE binary using mingw inside a Linux container. Falls back to local `cargo build` if no container runtime is available.
-
-You can work from **any OS** — the heavy lifting always happens inside a reproducible Linux container.
-
----
-
 ## 🚀 Quick Start (Linux — Recommended Path)
 
 > **Other platforms:** see the [macOS instructions](#macos) or the Windows accordion below.

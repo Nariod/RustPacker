@@ -24,16 +24,6 @@
 
 The result is a `.exe` or `.dll` that you deliver to your target during an authorized engagement.
 
-> **Glossary for newcomers**
-> | Term | Meaning |
-> |------|---------|
-> | Shellcode | Raw machine-code payload produced by a C2 framework |
-> | Loader / Packer | Program that decrypts and executes shellcode at runtime |
-> | EDR / AV | Endpoint Detection & Response / Anti-Virus — security sensors on the target host |
-> | Injection | Technique used to map and run code inside a Windows process |
-> | Syscall | Direct call to the Windows kernel, bypassing user-mode hooks placed by EDRs |
-> | C2 Framework | Command & Control software used to manage implants (Metasploit, Sliver, etc.) |
-
 ### ✨ Key Features
 
 - **Multiple Injection Templates** — CRT, APC, Fibers, EarlyCascade…
@@ -195,8 +185,6 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 ---
 
 ## 🛠️ Choosing a Template
-
-Not sure which `-i` value to use? Answer these two questions:
 
 | I want to… | Recommended template |
 |------------|---------------------|
@@ -398,7 +386,6 @@ Contributions are welcome! Here's how you can help:
 - [ ] Check DLL support for all templates
 - [x] Add EarlyCascade injection template
 - [x] Add DLL proxying support
-- prepare integration with mythic c2
 
 ---
 

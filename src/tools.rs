@@ -56,6 +56,20 @@ pub fn random_aes_iv() -> [u8; 16] {
     rand::random::<[u8; 16]>()
 }
 
+fn can_use_litcrypt_literal(value: &str) -> bool {
+    value.chars().all(|c| c.is_ascii_graphic() || c == ' ')
+        && !value.contains('"')
+        && !value.contains('\\')
+}
+
+pub fn litcrypt_string_expr(value: &str) -> String {
+    if can_use_litcrypt_literal(value) {
+        format!("lc!(\"{}\")", value)
+    } else {
+        format!("{:?}.to_string()", value)
+    }
+}
+
 pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Path) -> PathBuf {
     let binary_name = format!("{}.{}", order.execution, order.format);
     let candidates = [
@@ -184,6 +198,19 @@ mod tests {
     fn test_random_aes_iv_length() {
         let iv = random_aes_iv();
         assert_eq!(iv.len(), 16);
+    }
+
+    #[test]
+    fn test_litcrypt_string_expr_wraps_simple_value() {
+        assert_eq!(litcrypt_string_expr("notepad.exe"), "lc!(\"notepad.exe\")");
+    }
+
+    #[test]
+    fn test_litcrypt_string_expr_falls_back_for_escaped_value() {
+        assert_eq!(
+            litcrypt_string_expr(r#"C:\Program Files\app.exe"#),
+            r#""C:\\Program Files\\app.exe".to_string()"#
+        );
     }
 
     #[test]

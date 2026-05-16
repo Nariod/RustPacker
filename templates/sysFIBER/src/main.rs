@@ -1,6 +1,8 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
+{{LITCRYPT_SETUP}}
+
 use std::ptr::null_mut;
 use std::time::Instant;
 

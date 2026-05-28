@@ -393,6 +393,7 @@ Contributions are welcome! Here's how you can help:
 ## 🙏 Acknowledgments
 
 - [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
+- [0xWerz](https://github.com/0xWerz) - String encryption implementation
 - [memN0ps](https://github.com/memN0ps) - Inspiration and guidance
 - [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) - Syscall implementation
 - [trickster0](https://github.com/trickster0) - OffensiveRust repository

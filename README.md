@@ -315,6 +315,7 @@ RustPacker implements several evasion techniques:
 - **Dynamic API Resolution** (`nt*` templates): NT API functions are resolved at runtime via `GetProcAddress` with XOR-obfuscated function names (random key per build). This removes suspicious ntdll imports from the PE import table.
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
 - **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
+- **String Encryption**: Runtime literals in generated loaders are wrapped with litcrypt to reduce static string exposure
 - **Process Injection**: Hide execution in legitimate processes
 - **Domain Pinning**: Only detonate on a specific domain (sandbox evasion)
 - **Silent Failures**: No descriptive error messages in the binary — all failures exit silently to avoid IoC string detection
@@ -382,7 +383,7 @@ Contributions are welcome! Here's how you can help:
 - [x] Domain pinning, thanks to [m4r1u5-p0p](https://github.com/m4r1u5-p0p) !
 - [x] Indirect syscalls for fiber templates
 - [x] Cross-platform support (Linux, Windows, macOS)
-- [ ] String encryption (litcrypt)
+- [x] String encryption (litcrypt)
 - [ ] Check DLL support for all templates
 - [x] Add EarlyCascade injection template
 - [x] Add DLL proxying support

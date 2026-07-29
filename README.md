@@ -63,7 +63,7 @@ This step is done **once**. The image is then cached locally.
 
 ### Step 3 — Your First Build
 
-1. Generate a test shellcode with msfvenom (a harmless `MessageBox` popup — safe to use on your own machine):
+1. Generate a test shellcode with msfvenom (a harmless `MessageBox` popup):
 
 ```bash
 msfvenom -p windows/x64/messagebox TEXT="RustPacker works!" TITLE="Test" -f raw -o shared/test.raw

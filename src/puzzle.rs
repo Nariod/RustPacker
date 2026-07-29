@@ -63,7 +63,7 @@ fn search_and_replace(
 fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let folder_name = format!("output_{}", timestamp);
-    println!("[+] Creating output folder: {}", &folder_name);
+    println!("[+] Creating output folder: {}", folder_name);
 
     let result_path = parent.join(folder_name);
     fs::create_dir(&result_path)?;
@@ -324,7 +324,7 @@ fn apply_proxy(order: &Order, folder: &Path) {
     let insert_at = proxy_module_insert_offset(&existing);
     let updated = format!(
         "{}\n#[allow(non_upper_case_globals, non_snake_case)]\nmod proxy;\n{}",
-        &existing[..insert_at].trim_end(),
+        existing[..insert_at].trim_end(),
         &existing[insert_at..]
     );
     fs::write(&lib_rs_path, updated).expect("Failed to update lib.rs with mod proxy");

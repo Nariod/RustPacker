@@ -220,13 +220,13 @@ fn args_checker(args: ArgMatches) -> Order {
         .map(|s| s.to_string())
         .unwrap_or_else(|| "dllhost.exe".to_string());
 
-    let output = args.get_one::<String>("Output path").map(|path| {
-        absolute_path(PathBuf::from(path)).expect("Invalid output path")
-    });
+    let output = args
+        .get_one::<String>("Output path")
+        .map(|path| absolute_path(PathBuf::from(path)).expect("Invalid output path"));
 
-    let proxy_dll = args.get_one::<String>("DLL Proxy").map(|path| {
-        absolute_path(PathBuf::from(path)).expect("Invalid proxy DLL path")
-    });
+    let proxy_dll = args
+        .get_one::<String>("DLL Proxy")
+        .map(|path| absolute_path(PathBuf::from(path)).expect("Invalid proxy DLL path"));
 
     if proxy_dll.is_some() {
         if !matches!(format, Format::Dll) {

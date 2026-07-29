@@ -4,11 +4,11 @@ mod compiler;
 mod dll_proxy;
 mod pe_parser;
 mod puzzle;
+mod sandbox;
 mod shellcode_reader;
 mod tools;
 mod uuid_enc;
 mod xor;
-mod sandbox;
 
 use std::io;
 

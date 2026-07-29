@@ -13,7 +13,12 @@ fn read_u16(data: &[u8], offset: usize) -> u16 {
 }
 
 fn read_u32(data: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([data[offset], data[offset + 1], data[offset + 2], data[offset + 3]])
+    u32::from_le_bytes([
+        data[offset],
+        data[offset + 1],
+        data[offset + 2],
+        data[offset + 3],
+    ])
 }
 
 fn rva_to_offset(sections: &[(u32, u32, u32)], rva: u32) -> Option<usize> {
@@ -108,7 +113,7 @@ pub fn parse_exports(dll_path: &Path) -> Result<Vec<DllExport>, String> {
     let export_end_rva = export_rva + export_size;
     let mut exports = Vec::new();
 
-    for i in 0..num_functions {
+    for (i, _name) in name_for_index.iter().enumerate().take(num_functions) {
         let func_rva = read_u32(&data, addr_table_off + i * 4);
         if func_rva == 0 {
             continue;
@@ -129,10 +134,8 @@ pub fn parse_exports(dll_path: &Path) -> Result<Vec<DllExport>, String> {
 }
 
 pub fn dll_stem(dll_path: &Path) -> String {
-    let s = dll_path
-        .to_str()
-        .unwrap_or("original");
-    let filename = s.rsplit(|c| c == '/' || c == '\\').next().unwrap_or(s);
+    let s = dll_path.to_str().unwrap_or("original");
+    let filename = s.rsplit(['/', '\\']).next().unwrap_or(s);
     filename
         .strip_suffix(".dll")
         .or_else(|| filename.strip_suffix(".DLL"))
@@ -155,22 +158,26 @@ mod tests {
         buf[0x3C] = pe_offset as u8;
 
         let pe = pe_offset as usize;
-        buf[pe] = 0x50;     // P
+        buf[pe] = 0x50; // P
         buf[pe + 1] = 0x45; // E
         buf[pe + 2] = 0x00;
         buf[pe + 3] = 0x00;
 
         // COFF header
-        buf[pe + 4] = 0x64; buf[pe + 5] = 0x86; // Machine: x86_64
-        buf[pe + 6] = 0x01; buf[pe + 7] = 0x00; // 1 section
+        buf[pe + 4] = 0x64;
+        buf[pe + 5] = 0x86; // Machine: x86_64
+        buf[pe + 6] = 0x01;
+        buf[pe + 7] = 0x00; // 1 section
         let opt_header_size: u16 = 112 + 16 * 16;
         buf[pe + 20] = (opt_header_size & 0xFF) as u8;
         buf[pe + 21] = (opt_header_size >> 8) as u8;
-        buf[pe + 22] = 0x22; buf[pe + 23] = 0x20; // DLL characteristics
+        buf[pe + 22] = 0x22;
+        buf[pe + 23] = 0x20; // DLL characteristics
 
         // Optional header
         let opt = pe + 24;
-        buf[opt] = 0x0B; buf[opt + 1] = 0x02; // PE32+ magic
+        buf[opt] = 0x0B;
+        buf[opt + 1] = 0x02; // PE32+ magic
 
         let section_rva: u32 = 0x1000;
         let section_raw: u32 = 0x400; // after all headers
@@ -243,8 +250,7 @@ mod tests {
 
         // Export directory RVA and size
         let export_total_size = string_cursor as u32;
-        buf[export_dir_offset..export_dir_offset + 4]
-            .copy_from_slice(&section_rva.to_le_bytes());
+        buf[export_dir_offset..export_dir_offset + 4].copy_from_slice(&section_rva.to_le_bytes());
         buf[export_dir_offset + 4..export_dir_offset + 8]
             .copy_from_slice(&export_total_size.to_le_bytes());
 
@@ -262,7 +268,11 @@ mod tests {
 
     #[test]
     fn test_parse_named_exports() {
-        let pe = build_minimal_pe_dll(&["GetFileVersionInfoA", "GetFileVersionInfoW", "VerQueryValueW"]);
+        let pe = build_minimal_pe_dll(&[
+            "GetFileVersionInfoA",
+            "GetFileVersionInfoW",
+            "VerQueryValueW",
+        ]);
         let path = write_temp_dll("named_exports.dll", &pe);
         let exports = parse_exports(&path).unwrap();
 
@@ -302,7 +312,10 @@ mod tests {
 
     #[test]
     fn test_dll_stem() {
-        assert_eq!(dll_stem(Path::new("C:\\Windows\\System32\\version.dll")), "version");
+        assert_eq!(
+            dll_stem(Path::new("C:\\Windows\\System32\\version.dll")),
+            "version"
+        );
         assert_eq!(dll_stem(Path::new("/tmp/mylib.dll")), "mylib");
         assert_eq!(dll_stem(Path::new("test")), "test");
     }

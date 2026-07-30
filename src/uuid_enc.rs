@@ -2,6 +2,7 @@ use crate::shellcode_reader::read_shellcode;
 use crate::tools::{random_u8, write_to_file, EncryptionOutput};
 use std::path::Path;
 
+/// Generate a non-zero random XOR key
 fn random_xor_key() -> u8 {
     loop {
         let k = random_u8();
@@ -11,6 +12,13 @@ fn random_xor_key() -> u8 {
     }
 }
 
+/// Convert 16 bytes to UUID string format
+/// 
+/// # Arguments
+/// * `chunk` - 16 bytes to convert
+/// 
+/// # Returns
+/// UUID string representation
 fn bytes_to_uuid(chunk: &[u8; 16]) -> String {
     format!(
         "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
@@ -22,6 +30,13 @@ fn bytes_to_uuid(chunk: &[u8; 16]) -> String {
     )
 }
 
+/// Encode shellcode as UUID strings
+/// 
+/// # Arguments
+/// * `shellcode` - The shellcode bytes to encode
+/// 
+/// # Returns
+/// String containing UUID-encoded shellcode
 fn uuid_encode(shellcode: &[u8]) -> String {
     let mut padded = shellcode.to_vec();
     let remainder = padded.len() % 16;
@@ -39,15 +54,27 @@ fn uuid_encode(shellcode: &[u8]) -> String {
         .join("\n")
 }
 
+/// Encrypt shellcode using UUID encoding
+/// 
+/// # Arguments
+/// * `input_path` - Path to the input shellcode file
+/// * `export_path` - Path to save the UUID encoded shellcode
+/// 
+/// # Returns
+/// `EncryptionOutput` containing decryption function and main logic
 pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     println!("[+] UUID encoding shellcode..");
-    let unencrypted = read_shellcode(input_path);
+    
+    let unencrypted = read_shellcode(input_path)
+        .expect("Failed to read shellcode for UUID encoding");
+    
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
 
     let xor_key = random_xor_key();
     let masked: Vec<u8> = encoded.bytes().map(|b| b ^ xor_key).collect();
-    write_to_file(&masked, export_path).expect("Failed to write UUID output");
+    write_to_file(&masked, export_path)
+        .expect("Failed to write UUID output");
 
     let decryption_function = "fn unmask(buf: &mut Vec<u8>, key: u8) {
         for b in buf.iter_mut() {

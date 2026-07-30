@@ -8,6 +8,16 @@ fn aes_256_encrypt(shellcode: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
     cipher.cbc_encrypt(iv, shellcode)
 }
 
+/// Encrypt shellcode using AES-256-CBC
+/// 
+/// # Arguments
+/// * `input_path` - Path to the input shellcode file
+/// * `export_path` - Path to save the encrypted shellcode
+/// * `key` - AES key (32 bytes)
+/// * `iv` - Initialization vector (16 bytes)
+/// 
+/// # Returns
+/// `EncryptionOutput` containing decryption function and main logic
 pub fn encrypt_aes(
     input_path: &Path,
     export_path: &Path,
@@ -18,9 +28,13 @@ pub fn encrypt_aes(
         "[+] AES encrypting shellcode with key {:?} and IV {:?}",
         key, iv
     );
-    let unencrypted = read_shellcode(input_path);
+    
+    let unencrypted = read_shellcode(input_path)
+        .expect("Failed to read shellcode for AES encryption");
+    
     let encrypted_content = aes_256_encrypt(&unencrypted, key, iv);
-    write_to_file(&encrypted_content, export_path).expect("Failed to write AES output");
+    write_to_file(&encrypted_content, export_path)
+        .expect("Failed to write AES output");
 
     let decryption_function =
         "fn aes_256_decrypt(buf: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
@@ -30,10 +44,7 @@ pub fn encrypt_aes(
         .to_string();
 
     let main = format!(
-        "let key: [u8;32] = {:?};
-    let iv: [u8;16] = {:?};   
-    vec = aes_256_decrypt(&vec, &key, &iv);
-    ",
+        "let key: [u8;32] = {:?};\n    let iv: [u8;16] = {:?};  \n    vec = aes_256_decrypt(&vec, &key, &iv);\n    ",
         key, iv
     );
 

@@ -1,34 +1,82 @@
-use clap::{Arg, ArgMatches, Command};
+use clap::{Parser, ValueEnum};
 use std::fmt;
 use std::path::PathBuf;
 
 use crate::tools::absolute_path;
 
-#[derive(Debug, Clone)]
+/// Main configuration structure for RustPacker
+#[derive(Parser, Debug, Clone)]
+#[command(name = "RustPacker")]
+#[command(author = "by Nariod")]
+#[command(version = "2.0.0")]
+#[command(about = "Shellcode packer written in Rust.", long_about = None)]
+#[command(arg_required_else_help = true)]
 pub struct Order {
+    /// Path to the raw shellcode file
+    #[arg(short, long, value_name = "FILE")]
     pub shellcode_path: PathBuf,
-    pub execution: Execution,
-    pub encryption: Encryption,
+
+    /// Binary output format: exe or dll
+    #[arg(short, long, value_name = "FORMAT")]
     pub format: Format,
+
+    /// Execution technique / injection template
+    #[arg(short, long, value_name = "TEMPLATE")]
+    pub execution: Execution,
+
+    /// Encryption method: xor, aes, uuid
+    #[arg(short, long, value_name = "ENCRYPTION")]
+    pub encryption: Encryption,
+
+    /// Target process to inject into (default: dllhost.exe, CRT templates only)
+    #[arg(short, long, default_value_t = String::from("dllhost.exe"))]
     pub target_process: String,
+
+    /// Sandbox check: Domain Pinning to the provided domain name
+    #[arg(short, long)]
     pub sandbox: Option<String>,
+
+    /// Optional output path for the resulting binary
+    #[arg(short, long)]
     pub output: Option<PathBuf>,
+
+    /// Path to legitimate DLL to proxy (place it in shared/ for container mode). 
+    /// Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)
+    #[arg(short, long)]
     pub proxy_dll: Option<PathBuf>,
 }
 
-#[derive(Debug, Clone)]
+/// Execution techniques available for shellcode injection
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Execution {
-    SysCreateRemoteThread,
-    NtCreateRemoteThread,
+    /// Self inject using APC low level APIs
+    #[value(alias = "ntapc")]
     NtQueueUserAPC,
+    /// Create Remote Thread using low level APIs
+    #[value(alias = "ntcrt")]
+    NtCreateRemoteThread,
+    /// Create Remote Thread using indirect syscalls
+    #[value(alias = "syscrt")]
+    SysCreateRemoteThread,
+    /// Create Remote Thread using the official Windows Crate
+    #[value(alias = "wincrt")]
     WinCreateRemoteThread,
+    /// Self execute using Fibers and the official Windows Crate
+    #[value(alias = "winfiber")]
     WinFiber,
+    /// Self execute using Fibers and low level APIs
+    #[value(alias = "ntfiber")]
     NtFiber,
+    /// Self execute using Fibers and indirect syscalls
+    #[value(alias = "sysfiber")]
     SysFiber,
+    /// EarlyCascade injection via shim engine callback hijacking
+    #[value(alias = "earlycascade")]
     EarlyCascade,
 }
 
 impl Execution {
+    /// Check if this execution method uses self-injection
     pub fn is_self_injection(&self) -> bool {
         matches!(
             self,
@@ -56,10 +104,14 @@ impl fmt::Display for Execution {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Encryption methods available for shellcode
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Encryption {
+    /// XOR encoding
     Xor,
+    /// AES 256 encryption
     Aes,
+    /// UUID-based shellcode encoding
     Uuid,
 }
 
@@ -74,9 +126,12 @@ impl fmt::Display for Encryption {
     }
 }
 
-#[derive(Debug, Clone)]
+/// Output binary format
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum Format {
+    /// EXE format
     Exe,
+    /// DLL format
     Dll,
 }
 
@@ -90,150 +145,29 @@ impl fmt::Display for Format {
     }
 }
 
-fn parser() -> ArgMatches {
-    Command::new("RustPacker")
-        .author("by Nariod")
-        .version("0.10")
-        .about("Shellcode packer written in Rust.")
-        .arg_required_else_help(true)
-        .arg(Arg::new("Path to shellcode file").short('f').required(true))
-        .arg(
-            Arg::new("Binary output format")
-                .short('b')
-                .required(true)
-                .value_parser([
-                    clap::builder::PossibleValue::new("exe").help("EXE format"),
-                    clap::builder::PossibleValue::new("dll").help("DLL format"),
-                ]),
-        )
-        .arg(
-            Arg::new("Execution technique")
-                .short('i')
-                .required(true)
-                .value_parser([
-                    // PossibleValue::new("ct").help("Create Thread"),
-                    // PossibleValue::new("crt").help("Create Remote Thread"),
-                    clap::builder::PossibleValue::new("ntapc")
-                        .help("Self inject using APC low level APIs"),
-                    clap::builder::PossibleValue::new("ntcrt")
-                        .help("Create Remote Thread using low level APIs"),
-                    clap::builder::PossibleValue::new("syscrt")
-                        .help("Create Remote Thread using indirect syscalls"),
-                    clap::builder::PossibleValue::new("wincrt")
-                        .help("Create Remote Thread using the official Windows Crate"),
-                    clap::builder::PossibleValue::new("winfiber")
-                        .help("Self execute using Fibers and the official Windows Crate"),
-                    clap::builder::PossibleValue::new("ntfiber")
-                        .help("Self execute using Fibers and low level APIs"),
-                    clap::builder::PossibleValue::new("sysfiber")
-                        .help("Self execute using Fibers and indirect syscalls"),
-                    clap::builder::PossibleValue::new("earlycascade")
-                        .help("EarlyCascade injection via shim engine callback hijacking"),
-                ]),
-        )
-        .arg(
-            Arg::new("Target process").short('t').help(
-                "Target processes to inject into, defaults to 'dllhost.exe'. Case sensitive!",
-            ),
-        )
-        .arg(
-            Arg::new("Encryption / encoding method")
-                .short('e')
-                .required(true)
-                .value_parser([
-                    clap::builder::PossibleValue::new("xor").help("'Exclusive or' encoding"),
-                    clap::builder::PossibleValue::new("aes").help("AES 256 encryption"),
-                    clap::builder::PossibleValue::new("uuid").help("UUID-based shellcode encoding"),
-                ]),
-        )
-        .arg(
-            Arg::new("Output path")
-                .short('o')
-                .required(false)
-                .help("Optional output path for the resulting binary"),
-        )
-        .arg(
-            Arg::new("Sandbox Check")
-                .short('s')
-                .required(false)
-                .help("Sandbox check. Domain Pinning to the provided domain name"),
-        )
-        .arg(
-            Arg::new("DLL Proxy")
-                .short('p')
-                .required(false)
-                .help("Path to legitimate DLL to proxy (place it in shared/ for container mode). Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)"),
-        )
-        .get_matches()
-}
+/// Parse command line arguments and validate them
+pub fn parse_args() -> Order {
+    let mut order = Order::parse();
+    
+    // Convert relative paths to absolute
+    order.shellcode_path = absolute_path(order.shellcode_path)
+        .expect("Invalid shellcode path");
+    
+    if let Some(ref path) = order.output {
+        order.output = Some(absolute_path(path).expect("Invalid output path"));
+    }
+    
+    if let Some(ref path) = order.proxy_dll {
+        order.proxy_dll = Some(absolute_path(path).expect("Invalid proxy DLL path"));
+    }
 
-fn args_checker(args: ArgMatches) -> Order {
-    let sp: String = args
-        .get_one::<String>("Path to shellcode file")
-        .unwrap()
-        .clone();
-    let shellcode_path = absolute_path(PathBuf::from(sp)).expect("Invalid shellcode path");
-
-    let encryption: Encryption = match args
-        .get_one::<String>("Encryption / encoding method")
-        .unwrap()
-        .as_str()
-    {
-        "xor" => Encryption::Xor,
-        "aes" => Encryption::Aes,
-        "uuid" => Encryption::Uuid,
-        _ => unreachable!("clap validates encryption values"),
-    };
-
-    let sandbox: Option<String> = args
-        .get_one::<String>("Sandbox Check")
-        .map(|s| s.to_string());
-
-    let execution: Execution = match args
-        .get_one::<String>("Execution technique")
-        .unwrap()
-        .as_str()
-    {
-        "ntapc" => Execution::NtQueueUserAPC,
-        "ntcrt" => Execution::NtCreateRemoteThread,
-        "syscrt" => Execution::SysCreateRemoteThread,
-        "wincrt" => Execution::WinCreateRemoteThread,
-        "winfiber" => Execution::WinFiber,
-        "ntfiber" => Execution::NtFiber,
-        "sysfiber" => Execution::SysFiber,
-        "earlycascade" => Execution::EarlyCascade,
-        _ => unreachable!("clap validates execution values"),
-    };
-
-    let format: Format = match args
-        .get_one::<String>("Binary output format")
-        .unwrap()
-        .as_str()
-    {
-        "exe" => Format::Exe,
-        "dll" => Format::Dll,
-        _ => unreachable!("clap validates format values"),
-    };
-
-    let target_process = args
-        .get_one::<String>("Target process")
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| "dllhost.exe".to_string());
-
-    let output = args
-        .get_one::<String>("Output path")
-        .map(|path| absolute_path(PathBuf::from(path)).expect("Invalid output path"));
-
-    let proxy_dll = args
-        .get_one::<String>("DLL Proxy")
-        .map(|path| absolute_path(PathBuf::from(path)).expect("Invalid proxy DLL path"));
-
-    if proxy_dll.is_some() {
-        if !matches!(format, Format::Dll) {
+    // Validate proxy DLL requirements
+    if order.proxy_dll.is_some() {
+        if !matches!(order.format, Format::Dll) {
             eprintln!("[-] Error: DLL proxying (-p) requires DLL output format (-b dll)");
             std::process::exit(1);
         }
-        if !execution.is_self_injection() {
+        if !order.execution.is_self_injection() {
             eprintln!(
                 "[-] Error: DLL proxying (-p) only works with self-injection templates: ntapc, winfiber, ntfiber, sysfiber"
             );
@@ -241,19 +175,44 @@ fn args_checker(args: ArgMatches) -> Order {
         }
     }
 
-    Order {
-        shellcode_path,
-        execution,
-        encryption,
-        format,
-        target_process,
-        sandbox,
-        output,
-        proxy_dll,
-    }
+    order
 }
 
-pub fn parse_args() -> Order {
-    let args = parser();
-    args_checker(args)
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_execution_is_self_injection() {
+        assert!(Execution::NtQueueUserAPC.is_self_injection());
+        assert!(Execution::WinFiber.is_self_injection());
+        assert!(Execution::NtFiber.is_self_injection());
+        assert!(Execution::SysFiber.is_self_injection());
+        
+        assert!(!Execution::NtCreateRemoteThread.is_self_injection());
+        assert!(!Execution::SysCreateRemoteThread.is_self_injection());
+        assert!(!Execution::WinCreateRemoteThread.is_self_injection());
+        assert!(!Execution::EarlyCascade.is_self_injection());
+    }
+
+    #[test]
+    fn test_execution_display() {
+        assert_eq!(format!("{}", Execution::SysCreateRemoteThread), "sysCRT");
+        assert_eq!(format!("{}", Execution::NtCreateRemoteThread), "ntCRT");
+        assert_eq!(format!("{}", Execution::NtQueueUserAPC), "ntAPC");
+        assert_eq!(format!("{}", Execution::EarlyCascade), "ntEarlyCascade");
+    }
+
+    #[test]
+    fn test_encryption_display() {
+        assert_eq!(format!("{}", Encryption::Xor), "xor");
+        assert_eq!(format!("{}", Encryption::Aes), "aes");
+        assert_eq!(format!("{}", Encryption::Uuid), "uuid");
+    }
+
+    #[test]
+    fn test_format_display() {
+        assert_eq!(format!("{}", Format::Exe), "exe");
+        assert_eq!(format!("{}", Format::Dll), "dll");
+    }
 }

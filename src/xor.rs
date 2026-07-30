@@ -2,15 +2,36 @@ use crate::shellcode_reader::read_shellcode;
 use crate::tools::{write_to_file, EncryptionOutput};
 use std::path::Path;
 
+/// XOR encode shellcode with the given key
+/// 
+/// # Arguments
+/// * `shellcode` - The shellcode bytes to encode
+/// * `key` - The XOR key to use
+/// 
+/// # Returns
+/// The XOR encoded shellcode
 fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
     shellcode.iter().map(|x| x ^ key).collect()
 }
 
+/// Encrypt shellcode using XOR encoding
+/// 
+/// # Arguments
+/// * `input_path` - Path to the input shellcode file
+/// * `export_path` - Path to save the XOR encoded shellcode
+/// * `key` - XOR key to use for encoding
+/// 
+/// # Returns
+/// `EncryptionOutput` containing decryption function and main logic
 pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> EncryptionOutput {
     println!("[+] XORing shellcode with key {}..", key);
-    let unencrypted = read_shellcode(input_path);
+    
+    let unencrypted = read_shellcode(input_path)
+        .expect("Failed to read shellcode for XOR encryption");
+    
     let encrypted_content = xor_encode(&unencrypted, key);
-    write_to_file(&encrypted_content, export_path).expect("Failed to write XOR output");
+    write_to_file(&encrypted_content, export_path)
+        .expect("Failed to write XOR output");
 
     let decryption_function = "fn xor_decode(buf: &[u8], key: u8) -> Vec<u8> {
         buf.iter().map(|x| x ^ key).collect()

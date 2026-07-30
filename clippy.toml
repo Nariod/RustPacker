@@ -1,0 +1,33 @@
+# Clippy configuration for RustPacker
+# This file configures linting rules for the project
+
+# Enable all lints by default
+all-targets = true
+all-features = true
+
+# Deny warnings in CI
+warnings-as-errors = ["clippy::all"]
+
+# Specific lint configurations
+[clippy]
+# Allow some common patterns in offensive security tools
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+
+# Disable some lints that are too strict for this use case
+disabled-lints = [
+    # We use a lot of unsafe code for Windows API interactions
+    "clippy::not_unsafe_ptr_arg_deref",
+    # We have some complex match statements
+    "clippy::match_same_arms",
+]
+
+# Enable additional lints
+enabled-lints = [
+    "clippy::pedantic",
+    "clippy::nursery",
+]
+
+# Thresholds
+too-many-lines-threshold = 200
+fn-params-threshold = 8

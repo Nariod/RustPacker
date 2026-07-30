@@ -1,0 +1,47 @@
+# rustfmt configuration for RustPacker
+
+# Basic configuration
+edition = "2021"
+version = "Two"
+
+# Formatting options
+max_width = 100
+tab_spaces = 4
+newline_style = "Unix"
+use_small_heurristics = "Max"
+
+# Import configuration
+imports_granularity = "Crate"
+group_imports = "StdExternalCrate"
+reorder_imports = true
+reorder_modules = true
+
+# Indentation
+indent_style = "Block"
+fn_call_width = 60
+attr_fn_like_width = 70
+struct_lit_width = 18
+struct_variant_width = 35
+array_width = 60
+chain_width = 60
+single_line_if_else_max_width = 60
+
+# Comments
+wrap_comments = true
+format_code_in_doc_comments = true
+format_macro_matchers = true
+format_macro_bodies = true
+
+# Other
+blank_lines_upper_bound = 2
+blank_lines_lower_bound = 1
+trailing_comma = "Vertical"
+match_block_trailing_comma = true
+force_explicit_abi = true
+condense_wildcard_suffixes = false
+format_string_lit = true
+
+# Disable some formatting for generated code
+ignore = [
+    "src/puzzle.rs",  # Contains generated template code
+]

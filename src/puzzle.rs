@@ -17,11 +17,11 @@ use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Obfuscate API function name using XOR with a key
-/// 
+///
 /// # Arguments
 /// * `name` - The API function name to obfuscate
 /// * `key` - The XOR key to use
-/// 
+///
 /// # Returns
 /// Obfuscated string representation of the API name
 fn obfuscate_api_name(name: &str, key: u8) -> String {
@@ -44,10 +44,10 @@ const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
 
 /// Build the dependencies string for Cargo.toml
-/// 
+///
 /// # Arguments
 /// * `template_dependencies` - Optional additional dependencies from the encryption method
-/// 
+///
 /// # Returns
 /// Complete dependencies string
 fn build_dependencies(template_dependencies: Option<String>) -> String {
@@ -60,12 +60,12 @@ fn build_dependencies(template_dependencies: Option<String>) -> String {
 }
 
 /// Search and replace text in a file
-/// 
+///
 /// # Arguments
 /// * `path_to_file` - Path to the file to modify
 /// * `search` - Text to search for
 /// * `replace` - Text to replace with
-/// 
+///
 /// # Returns
 /// Result indicating success or failure
 fn search_and_replace(
@@ -86,10 +86,10 @@ fn search_and_replace(
 }
 
 /// Create a timestamped output folder
-/// 
+///
 /// # Arguments
 /// * `parent` - Parent directory
-/// 
+///
 /// # Returns
 /// Path to the created output folder
 fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
@@ -104,11 +104,11 @@ fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Erro
 }
 
 /// Copy a template directory to the output location
-/// 
+///
 /// # Arguments
 /// * `source` - Source template directory
 /// * `dest` - Destination directory
-/// 
+///
 /// # Returns
 /// Result indicating success or failure
 fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
@@ -122,10 +122,10 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
 }
 
 /// Get the template path for a given execution method
-/// 
+///
 /// # Arguments
 /// * `execution` - The execution method
-/// 
+///
 /// # Returns
 /// Path to the template directory
 fn template_path_for_execution(execution: &Execution) -> &'static Path {
@@ -142,10 +142,10 @@ fn template_path_for_execution(execution: &Execution) -> &'static Path {
 }
 
 /// Get the encrypted filename based on encryption method
-/// 
+///
 /// # Arguments
 /// * `encryption` - The encryption method
-/// 
+///
 /// # Returns
 /// Filename for the encrypted shellcode
 fn encrypted_filename(encryption: &Encryption) -> &'static str {
@@ -157,11 +157,11 @@ fn encrypted_filename(encryption: &Encryption) -> &'static str {
 }
 
 /// Build the encrypted shellcode output
-/// 
+///
 /// # Arguments
 /// * `order` - The configuration order
 /// * `src_dir` - Source directory for the output
-/// 
+///
 /// # Returns
 /// Tuple of (EncryptionOutput, include_path)
 fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, String) {
@@ -184,11 +184,11 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
 }
 
 /// Build all replacements for the template
-/// 
+///
 /// # Arguments
 /// * `order` - The configuration order
 /// * `src_dir` - Source directory for the output
-/// 
+///
 /// # Returns
 /// HashMap of replacements to apply to the template
 fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
@@ -256,12 +256,12 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
 }
 
 /// Apply DLL format to the template
-/// 
+///
 /// # Arguments
 /// * `replacements` - HashMap of replacements to update
 /// * `main_rs_path` - Path to the main.rs file
 /// * `is_proxy` - Whether this is a proxy DLL
-/// 
+///
 /// # Returns
 /// Path to the target file (lib.rs for DLL, main.rs for EXE)
 fn apply_dll_format(
@@ -350,7 +350,7 @@ fn apply_dll_format(
 }
 
 /// Apply all replacements to the template files
-/// 
+///
 /// # Arguments
 /// * `replacements` - HashMap of replacements to apply
 /// * `main_path` - Path to the main source file
@@ -365,10 +365,10 @@ fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, ca
 }
 
 /// Find the position to insert the proxy module
-/// 
+///
 /// # Arguments
 /// * `existing` - Existing file content
-/// 
+///
 /// # Returns
 /// Byte offset where to insert the proxy module
 fn proxy_module_insert_offset(existing: &str) -> usize {
@@ -394,7 +394,7 @@ fn proxy_module_insert_offset(existing: &str) -> usize {
 }
 
 /// Apply proxy DLL configuration
-/// 
+///
 /// # Arguments
 /// * `order` - The configuration order
 /// * `folder` - Output folder path
@@ -434,10 +434,10 @@ fn apply_proxy(order: &Order, folder: &Path) {
 }
 
 /// Main function to assemble the Rust code for the loader
-/// 
+///
 /// # Arguments
 /// * `order` - The configuration order
-/// 
+///
 /// # Returns
 /// Path to the output folder containing the generated Rust code
 pub fn assemble(order: Order) -> PathBuf {

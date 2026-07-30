@@ -13,28 +13,39 @@ fn random_xor_key() -> u8 {
 }
 
 /// Convert 16 bytes to UUID string format
-/// 
+///
 /// # Arguments
 /// * `chunk` - 16 bytes to convert
-/// 
+///
 /// # Returns
 /// UUID string representation
 fn bytes_to_uuid(chunk: &[u8; 16]) -> String {
     format!(
         "{:02x}{:02x}{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}-{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-        chunk[0], chunk[1], chunk[2], chunk[3],
-        chunk[4], chunk[5],
-        chunk[6], chunk[7],
-        chunk[8], chunk[9],
-        chunk[10], chunk[11], chunk[12], chunk[13], chunk[14], chunk[15]
+        chunk[0],
+        chunk[1],
+        chunk[2],
+        chunk[3],
+        chunk[4],
+        chunk[5],
+        chunk[6],
+        chunk[7],
+        chunk[8],
+        chunk[9],
+        chunk[10],
+        chunk[11],
+        chunk[12],
+        chunk[13],
+        chunk[14],
+        chunk[15]
     )
 }
 
 /// Encode shellcode as UUID strings
-/// 
+///
 /// # Arguments
 /// * `shellcode` - The shellcode bytes to encode
-/// 
+///
 /// # Returns
 /// String containing UUID-encoded shellcode
 fn uuid_encode(shellcode: &[u8]) -> String {
@@ -55,26 +66,25 @@ fn uuid_encode(shellcode: &[u8]) -> String {
 }
 
 /// Encrypt shellcode using UUID encoding
-/// 
+///
 /// # Arguments
 /// * `input_path` - Path to the input shellcode file
 /// * `export_path` - Path to save the UUID encoded shellcode
-/// 
+///
 /// # Returns
 /// `EncryptionOutput` containing decryption function and main logic
 pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     println!("[+] UUID encoding shellcode..");
-    
-    let unencrypted = read_shellcode(input_path)
-        .expect("Failed to read shellcode for UUID encoding");
-    
+
+    let unencrypted =
+        read_shellcode(input_path).expect("Failed to read shellcode for UUID encoding");
+
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
 
     let xor_key = random_xor_key();
     let masked: Vec<u8> = encoded.bytes().map(|b| b ^ xor_key).collect();
-    write_to_file(&masked, export_path)
-        .expect("Failed to write UUID output");
+    write_to_file(&masked, export_path).expect("Failed to write UUID output");
 
     let decryption_function = "fn unmask(buf: &mut Vec<u8>, key: u8) {
         for b in buf.iter_mut() {

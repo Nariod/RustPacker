@@ -40,7 +40,7 @@ pub struct Order {
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 
-    /// Path to legitimate DLL to proxy (place it in shared/ for container mode). 
+    /// Path to legitimate DLL to proxy (place it in shared/ for container mode).
     /// Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)
     #[arg(short, long)]
     pub proxy_dll: Option<PathBuf>,
@@ -148,15 +148,14 @@ impl fmt::Display for Format {
 /// Parse command line arguments and validate them
 pub fn parse_args() -> Order {
     let mut order = Order::parse();
-    
+
     // Convert relative paths to absolute
-    order.shellcode_path = absolute_path(order.shellcode_path)
-        .expect("Invalid shellcode path");
-    
+    order.shellcode_path = absolute_path(order.shellcode_path).expect("Invalid shellcode path");
+
     if let Some(ref path) = order.output {
         order.output = Some(absolute_path(path).expect("Invalid output path"));
     }
-    
+
     if let Some(ref path) = order.proxy_dll {
         order.proxy_dll = Some(absolute_path(path).expect("Invalid proxy DLL path"));
     }
@@ -188,7 +187,7 @@ mod tests {
         assert!(Execution::WinFiber.is_self_injection());
         assert!(Execution::NtFiber.is_self_injection());
         assert!(Execution::SysFiber.is_self_injection());
-        
+
         assert!(!Execution::NtCreateRemoteThread.is_self_injection());
         assert!(!Execution::SysCreateRemoteThread.is_self_injection());
         assert!(!Execution::WinCreateRemoteThread.is_self_injection());

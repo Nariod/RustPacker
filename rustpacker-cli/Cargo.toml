@@ -1,0 +1,21 @@
+[package]
+name = "rustpacker-cli"
+version = "2.0.0"
+edition = "2021"
+authors = ["Nariod"]
+description = "CLI for RustPacker - shellcode loader generator"
+license = "MIT"
+
+[[bin]]
+name = "RustPacker"
+path = "src/main.rs"
+
+[dependencies]
+rustpacker-core = { path = "../rustpacker-core" }
+
+[profile.release]
+strip = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

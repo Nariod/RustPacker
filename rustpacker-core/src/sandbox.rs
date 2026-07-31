@@ -1,4 +1,9 @@
-use crate::tools::{litcrypt_string_expr, SandboxOutput};
+use crate::obfuscation::obfuscate_string_for_template;
+
+pub struct SandboxOutput {
+    pub sandbox_function: String,
+    pub sandbox_import: String,
+}
 
 pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
     if expected_domain.is_empty() {
@@ -8,7 +13,6 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
         };
     }
 
-    let expected_domain = litcrypt_string_expr(expected_domain);
     let sandbox_function = format!(
         "fn get_domain_name() -> Option<String> {{
             let mut size: u32 = 256;
@@ -32,14 +36,14 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
         }}
         fn sandbox() -> bool {{
             match get_domain_name() {{
-                Some(domain) => domain.as_str().eq_ignore_ascii_case({0}.as_str()),
+                Some(domain) => domain.as_str().eq_ignore_ascii_case({}.as_str()),
                 None => false,
             }}
         }}
         if !sandbox() {{
             return;
         }}",
-        expected_domain
+        obfuscate_string_for_template(expected_domain)
     );
 
     let sandbox_import =
@@ -63,17 +67,16 @@ mod tests {
     }
 
     #[test]
-    fn test_sandbox_domain_is_litcrypt_wrapped() {
+    fn test_sandbox_domain_is_obfuscated() {
         let output = build_sandbox("MYDOMAIN");
-        assert!(output.sandbox_function.contains("lc!(\"MYDOMAIN\")"));
-        assert!(!output.sandbox_function.contains("Sandbox check failed"));
+        assert!(output.sandbox_function.contains("let s_"));
+        assert!(output.sandbox_function.contains("^ 0x"));
     }
 
     #[test]
-    fn test_sandbox_domain_with_escape_falls_back_to_plain_string() {
-        let output = build_sandbox(r#"DOMAIN\LAB"#);
-        assert!(output
-            .sandbox_function
-            .contains(r#""DOMAIN\\LAB".to_string()"#));
+    fn test_sandbox_import() {
+        let output = build_sandbox("test");
+        assert!(output.sandbox_import.contains("GetComputerNameExW"));
+        assert!(output.sandbox_import.contains("ComputerNameDnsDomain"));
     }
 }

@@ -1,5 +1,8 @@
-use crate::arg_parser;
-use crate::string_obfuscation::can_use_litcrypt_literal as string_can_use_litcrypt;
+//! Utility functions for RustPacker
+//!
+//! This module contains various utility functions used throughout the application,
+//! including file operations, path handling, and random generation.
+
 use path_clean::PathClean;
 use rand::distr::Alphanumeric;
 use rand::RngExt;
@@ -10,20 +13,13 @@ use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
 
-#[derive(Debug, Clone)]
-pub struct EncryptionOutput {
-    pub decryption_function: String,
-    pub main: String,
-    pub dependencies: Option<String>,
-    pub imports: Option<String>,
-}
-
-#[derive(Debug, Clone)]
-pub struct SandboxOutput {
-    pub sandbox_function: String,
-    pub sandbox_import: String,
-}
-
+/// Convert a path to an absolute path
+///
+/// # Arguments
+/// * `path` - The path to convert
+///
+/// # Returns
+/// The absolute path
 pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
     // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
     let path = path.as_ref();
@@ -38,6 +34,14 @@ pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
     Ok(absolute_path)
 }
 
+/// Write content to a file
+///
+/// # Arguments
+/// * `content` - The content to write
+/// * `path` - The path to the file
+///
+/// # Returns
+/// Result indicating success or failure
 pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(path)?;
     file.write_all(content)?;
@@ -45,35 +49,58 @@ pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::err
     Ok(())
 }
 
+/// Generate a random u8 value
+///
+/// # Returns
+/// A random u8 value
 pub fn random_u8() -> u8 {
     rand::random()
 }
 
+/// Generate a random AES key (32 bytes)
+///
+/// # Returns
+/// A random AES key
 pub fn random_aes_key() -> [u8; 32] {
     rand::random::<[u8; 32]>()
 }
 
+/// Generate a random AES IV (16 bytes)
+///
+/// # Returns
+/// A random AES IV
 pub fn random_aes_iv() -> [u8; 16] {
     rand::random::<[u8; 16]>()
 }
 
-/// Obfuscate a string for use in generated code
+/// Generate a random filename
 ///
 /// # Arguments
-/// * `value` - The string to obfuscate
+/// * `format` - The file format (exe or dll)
 ///
 /// # Returns
-/// Obfuscated string expression using litcrypt or XOR
-pub fn litcrypt_string_expr(value: &str) -> String {
-    if string_can_use_litcrypt(value) {
-        format!("lc!(\"{}\")", value)
-    } else {
-        format!("{:?}.to_string()", value)
-    }
+/// A random filename with the given format
+pub fn generate_random_filename(format: &str) -> String {
+    let mut rng = rand::rng();
+    let random_string: String = (0..8).map(|_| rng.sample(Alphanumeric) as char).collect();
+    format!("{}.{}", random_string, format)
 }
 
-pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Path) -> PathBuf {
-    let binary_name = format!("{}.{}", order.execution, order.format);
+/// Get the source binary filename based on execution and format
+///
+/// # Arguments
+/// * `execution` - The execution method
+/// * `format` - The output format
+/// * `output_folder` - The output folder path
+///
+/// # Returns
+/// The path to the source binary
+pub fn get_source_binary_filename(
+    execution: &crate::config::Execution,
+    format: &crate::config::Format,
+    output_folder: &Path,
+) -> PathBuf {
+    let binary_name = format!("{}.{}", execution.template_name(), format);
     let candidates = [
         "target/x86_64-pc-windows-msvc/release",
         "target/x86_64-pc-windows-gnu/release",
@@ -90,7 +117,18 @@ pub fn get_source_binary_filename(order: &arg_parser::Order, output_folder: &Pat
     ))
 }
 
-pub fn process_output(order: &arg_parser::Order, output_folder_path: &Path) -> io::Result<()> {
+/// Process the output binary
+///
+/// # Arguments
+/// * `order` - The configuration order
+/// * `output_folder_path` - The output folder path
+///
+/// # Returns
+/// Result indicating success or failure
+pub fn process_output(
+    order: &crate::config::Order,
+    output_folder_path: &Path,
+) -> io::Result<()> {
     let output_path = match &order.output {
         Some(p) => p,
         None => return Ok(()),
@@ -102,7 +140,7 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &Path) -> i
         }
     }
 
-    let source_binary = get_source_binary_filename(order, output_folder_path);
+    let source_binary = get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.is_file() {
         return Err(io::Error::new(
@@ -117,17 +155,19 @@ pub fn process_output(order: &arg_parser::Order, output_folder_path: &Path) -> i
     Ok(())
 }
 
-pub fn generate_random_filename(order: &arg_parser::Order) -> String {
-    let mut rng = rand::rng();
-    let random_string: String = (0..8).map(|_| rng.sample(Alphanumeric) as char).collect();
-    format!("{}.{}", random_string, order.format)
-}
-
+/// Rename the source binary with a random filename
+///
+/// # Arguments
+/// * `order` - The configuration order
+/// * `output_folder_path` - The output folder path
+///
+/// # Returns
+/// Result indicating success or failure
 pub fn rename_source_binary(
-    order: &arg_parser::Order,
+    order: &crate::config::Order,
     output_folder_path: &Path,
 ) -> io::Result<()> {
-    let source_binary = get_source_binary_filename(order, output_folder_path);
+    let source_binary = get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.exists() {
         return Err(io::Error::new(
@@ -136,7 +176,7 @@ pub fn rename_source_binary(
         ));
     }
 
-    let random_filename = generate_random_filename(order);
+    let random_filename = generate_random_filename(&order.format.to_string());
     let release_dir = source_binary
         .parent()
         .expect("Source binary has no parent directory");
@@ -151,10 +191,12 @@ pub fn rename_source_binary(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::{Encryption, Execution, Format};
+    use std::path::PathBuf;
 
     #[test]
     fn test_write_to_file_and_read_back() {
-        let dir = std::env::temp_dir().join("rustpacker_test_tools_write");
+        let dir = std::env::temp_dir().join("rustpacker_test_utils_write");
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("test_output.bin");
         let content: Vec<u8> = vec![0xCA, 0xFE, 0xBA, 0xBE];
@@ -203,48 +245,17 @@ mod tests {
     }
 
     #[test]
-    fn test_litcrypt_string_expr_wraps_simple_value() {
-        assert_eq!(litcrypt_string_expr("notepad.exe"), "lc!(\"notepad.exe\")");
-    }
-
-    #[test]
-    fn test_litcrypt_string_expr_falls_back_for_escaped_value() {
-        assert_eq!(
-            litcrypt_string_expr(r#"C:\Program Files\app.exe"#),
-            r#""C:\\Program Files\\app.exe".to_string()"#
-        );
-    }
-
-    #[test]
     fn test_generate_random_filename_format() {
-        let order = arg_parser::Order {
-            shellcode_path: PathBuf::from("/tmp/test.bin"),
-            execution: arg_parser::Execution::NtCreateRemoteThread,
-            encryption: arg_parser::Encryption::Xor,
-            format: arg_parser::Format::Exe,
-            target_process: "dllhost.exe".to_string(),
-            sandbox: None,
-            output: None,
-            proxy_dll: None,
-        };
-        let filename = generate_random_filename(&order);
+        let filename = generate_random_filename("exe");
         assert!(filename.ends_with(".exe"));
         assert_eq!(filename.len(), 12); // 8 random chars + ".exe"
     }
 
     #[test]
     fn test_get_source_binary_filename() {
-        let order = arg_parser::Order {
-            shellcode_path: PathBuf::from("/tmp/test.bin"),
-            execution: arg_parser::Execution::NtCreateRemoteThread,
-            encryption: arg_parser::Encryption::Xor,
-            format: arg_parser::Format::Dll,
-            target_process: "dllhost.exe".to_string(),
-            sandbox: None,
-            output: None,
-            proxy_dll: None,
-        };
-        let path = get_source_binary_filename(&order, Path::new("/output"));
+        let execution = Execution::NtCreateRemoteThread;
+        let format = Format::Dll;
+        let path = get_source_binary_filename(&execution, &format, Path::new("/output"));
         assert!(path.to_string_lossy().contains("ntCRT.dll"));
     }
 }

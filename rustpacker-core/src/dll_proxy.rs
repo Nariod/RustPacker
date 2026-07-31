@@ -1,5 +1,5 @@
+use crate::obfuscation::obfuscate_string_for_template;
 use crate::pe_parser::DllExport;
-use crate::tools::litcrypt_string_expr;
 
 pub struct ProxyOutput {
     pub proxy_source: String,
@@ -51,7 +51,7 @@ fn generate_proxy_source(exports: &[DllExport], forward_target: &str) -> String 
     s.push_str("pub unsafe fn init() {\n");
     s.push_str(&format!(
         "    let dll_name = CString::new({}).unwrap();\n",
-        litcrypt_string_expr(&dll_filename)
+        obfuscate_string_for_template(&dll_filename)
     ));
     s.push_str("    let h = rp_load_library(dll_name.as_ptr() as *const u8);\n");
     s.push_str("    if h == 0 { return; }\n");
@@ -59,7 +59,7 @@ fn generate_proxy_source(exports: &[DllExport], forward_target: &str) -> String 
         s.push_str(&format!(
             "    let export_{} = CString::new({}).unwrap();\n",
             i,
-            litcrypt_string_expr(name)
+            obfuscate_string_for_template(name)
         ));
         s.push_str(&format!(
             "    RP_ADDR_{}.store(rp_get_proc_address(h, export_{}.as_ptr() as *const u8), Ordering::Release);\n",
@@ -108,7 +108,6 @@ mod tests {
         assert!(src.contains("#[export_name = \"GetFileVersionInfoA\"]"));
         assert!(src.contains("#[export_name = \"GetFileVersionInfoW\"]"));
         assert!(src.contains("#[unsafe(naked)]"));
-        assert!(src.contains("lc!(\"version_orig.dll\")"));
     }
 
     #[test]
@@ -145,7 +144,6 @@ mod tests {
         let output = generate_proxy(&exports, "mylib");
         assert_eq!(output.original_dll_name, "mylib_orig.dll");
         assert!(output.proxy_source.contains("#[export_name = \"Init\"]"));
-        assert!(output.proxy_source.contains("lc!(\"mylib_orig.dll\")"));
     }
 
     #[test]
@@ -165,9 +163,9 @@ mod tests {
             },
         ];
         let src = generate_proxy_source(&exports, "lib_orig");
-        assert!(src.contains("lc!(\"Alpha\")"));
-        assert!(src.contains("lc!(\"Beta\")"));
-        assert!(src.contains("lc!(\"Gamma\")"));
+        assert!(src.contains("Alpha"));
+        assert!(src.contains("Beta"));
+        assert!(src.contains("Gamma"));
         assert!(src.contains("RP_ADDR_0.store"));
         assert!(src.contains("RP_ADDR_1.store"));
         assert!(src.contains("RP_ADDR_2.store"));

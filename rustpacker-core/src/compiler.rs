@@ -2,10 +2,10 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 use std::{env, fs};
 
-use crate::tools::absolute_path;
+use crate::utils::absolute_path;
 
 const BUILDER_IMAGE: &str = "rustpacker-builder";
-const BUILDER_DOCKERFILE: &str = include_str!("../Dockerfile.builder");
+const BUILDER_DOCKERFILE: &str = include_str!("../../Dockerfile.builder");
 const BUILD_TARGET: &str = "x86_64-pc-windows-gnu";
 
 fn is_running_in_container() -> bool {
@@ -155,6 +155,10 @@ fn run_compiler(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::E
     compile_locally(path_to_cargo_folder)
 }
 
+/// Compile the generated Rust code
+///
+/// # Arguments
+/// * `path_to_cargo_folder` - Path to the folder containing Cargo.toml
 pub fn compile(path_to_cargo_folder: &Path) {
     println!("[+] Starting to compile your malware..");
     run_compiler(path_to_cargo_folder).unwrap_or_else(|err| {

@@ -1,19 +1,24 @@
-[package]
-name = "RustPacker"
-version = "2.0.0"
-edition = "2021"
+[workspace]
+members = [
+    "rustpacker-core",
+    "rustpacker-cli",
+    "rustpacker-templates",
+]
+resolver = "2"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
+[workspace.dependencies]
+# Shared dependencies across all crates
 clap = { version = "4", features = ["derive"] }
+thiserror = "1.0"
+anyhow = "1.0"
 path-absolutize = "4"
 fs_extra = "1"
 path-clean = "1"
 rand = "0.10"
 libaes = "0.7"
-thiserror = "1.0"
-anyhow = "1.0"
+sysinfo = "0.39"
+winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt"] }
+litcrypt = "0.4"
 
 [profile.release]
 strip = true

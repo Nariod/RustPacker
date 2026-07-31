@@ -1,13 +1,18 @@
+//! XOR encryption for shellcode
+//!
+//! This module provides XOR-based encryption for shellcode.
+
+use crate::encryption::EncryptionOutput;
 use crate::shellcode_reader::read_shellcode;
-use crate::tools::{write_to_file, EncryptionOutput};
+use crate::utils::write_to_file;
 use std::path::Path;
 
 /// XOR encode shellcode with the given key
-///
+/// 
 /// # Arguments
 /// * `shellcode` - The shellcode bytes to encode
 /// * `key` - The XOR key to use
-///
+/// 
 /// # Returns
 /// The XOR encoded shellcode
 fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
@@ -15,22 +20,23 @@ fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
 }
 
 /// Encrypt shellcode using XOR encoding
-///
+/// 
 /// # Arguments
 /// * `input_path` - Path to the input shellcode file
 /// * `export_path` - Path to save the XOR encoded shellcode
 /// * `key` - XOR key to use for encoding
-///
+/// 
 /// # Returns
 /// `EncryptionOutput` containing decryption function and main logic
 pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> EncryptionOutput {
     println!("[+] XORing shellcode with key {}..", key);
 
-    let unencrypted =
-        read_shellcode(input_path).expect("Failed to read shellcode for XOR encryption");
+    let unencrypted = read_shellcode(input_path)
+        .expect("Failed to read shellcode for XOR encryption");
 
     let encrypted_content = xor_encode(&unencrypted, key);
-    write_to_file(&encrypted_content, export_path).expect("Failed to write XOR output");
+    write_to_file(&encrypted_content, export_path)
+        .expect("Failed to write XOR output");
 
     let decryption_function = "fn xor_decode(buf: &[u8], key: u8) -> Vec<u8> {
         buf.iter().map(|x| x ^ key).collect()
@@ -55,7 +61,7 @@ mod tests {
 
     #[test]
     fn test_xor_encode_roundtrip() {
-        let original = vec![0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8, 0xc0];
+        let original: Vec<u8> = vec![0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8, 0xc0];
         let key: u8 = 0x42;
         let encoded = xor_encode(&original, key);
         let decoded = xor_encode(&encoded, key);
@@ -64,7 +70,7 @@ mod tests {
 
     #[test]
     fn test_xor_encode_with_zero_key() {
-        let original = vec![0xfc, 0x48, 0x83];
+        let original: Vec<u8> = vec![0xfc, 0x48, 0x83];
         let encoded = xor_encode(&original, 0);
         assert_eq!(encoded, original);
     }
@@ -82,7 +88,7 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("test_shellcode.bin");
         let output = dir.join("output.xor");
-        fs::write(&input, vec![0xfc, 0x48, 0x83]).unwrap();
+        fs::write(&input, &[0xfc, 0x48, 0x83]).unwrap();
 
         let result = encrypt_xor(&input, &output, 0x42);
 

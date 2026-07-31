@@ -1,8 +1,13 @@
+//! Configuration types for RustPacker
+//!
+//! This module contains all the configuration types used throughout the application,
+//! including command-line arguments, execution methods, encryption types, and output formats.
+
 use clap::{Parser, ValueEnum};
 use std::fmt;
 use std::path::PathBuf;
 
-use crate::tools::absolute_path;
+use crate::utils::absolute_path;
 
 /// Main configuration structure for RustPacker
 #[derive(Parser, Debug, Clone)]
@@ -21,11 +26,11 @@ pub struct Order {
     pub format: Format,
 
     /// Execution technique / injection template
-    #[arg(short, long, value_name = "TEMPLATE")]
+    #[arg(short = 'i', long, value_name = "TEMPLATE")]
     pub execution: Execution,
 
     /// Encryption method: xor, aes, uuid
-    #[arg(short, long, value_name = "ENCRYPTION")]
+    #[arg(short = 'e', long, value_name = "ENCRYPTION")]
     pub encryption: Encryption,
 
     /// Target process to inject into (default: dllhost.exe, CRT templates only)
@@ -33,7 +38,7 @@ pub struct Order {
     pub target_process: String,
 
     /// Sandbox check: Domain Pinning to the provided domain name
-    #[arg(short, long)]
+    #[arg(long)]
     pub sandbox: Option<String>,
 
     /// Optional output path for the resulting binary
@@ -47,31 +52,31 @@ pub struct Order {
 }
 
 /// Execution techniques available for shellcode injection
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum Execution {
     /// Self inject using APC low level APIs
-    #[value(alias = "ntapc")]
+    #[value(alias = "ntapc", alias = "ntAPC")]
     NtQueueUserAPC,
     /// Create Remote Thread using low level APIs
-    #[value(alias = "ntcrt")]
+    #[value(alias = "ntcrt", alias = "ntCRT")]
     NtCreateRemoteThread,
     /// Create Remote Thread using indirect syscalls
-    #[value(alias = "syscrt")]
+    #[value(alias = "syscrt", alias = "sysCRT")]
     SysCreateRemoteThread,
     /// Create Remote Thread using the official Windows Crate
-    #[value(alias = "wincrt")]
+    #[value(alias = "wincrt", alias = "winCRT")]
     WinCreateRemoteThread,
     /// Self execute using Fibers and the official Windows Crate
-    #[value(alias = "winfiber")]
+    #[value(alias = "winfiber", alias = "winFIBER")]
     WinFiber,
     /// Self execute using Fibers and low level APIs
-    #[value(alias = "ntfiber")]
+    #[value(alias = "ntfiber", alias = "ntFIBER")]
     NtFiber,
     /// Self execute using Fibers and indirect syscalls
-    #[value(alias = "sysfiber")]
+    #[value(alias = "sysfiber", alias = "sysFIBER")]
     SysFiber,
     /// EarlyCascade injection via shim engine callback hijacking
-    #[value(alias = "earlycascade")]
+    #[value(alias = "earlycascade", alias = "ntEarlyCascade")]
     EarlyCascade,
 }
 
@@ -86,32 +91,39 @@ impl Execution {
                 | Execution::SysFiber
         )
     }
-}
 
-impl fmt::Display for Execution {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            Execution::SysCreateRemoteThread => "sysCRT",
-            Execution::NtCreateRemoteThread => "ntCRT",
+    /// Get the template name for this execution method
+    pub fn template_name(&self) -> &'static str {
+        match self {
             Execution::NtQueueUserAPC => "ntAPC",
+            Execution::NtCreateRemoteThread => "ntCRT",
+            Execution::SysCreateRemoteThread => "sysCRT",
             Execution::WinCreateRemoteThread => "winCRT",
             Execution::WinFiber => "winFIBER",
             Execution::NtFiber => "ntFIBER",
             Execution::SysFiber => "sysFIBER",
             Execution::EarlyCascade => "ntEarlyCascade",
-        };
-        write!(f, "{}", s)
+        }
+    }
+}
+
+impl fmt::Display for Execution {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.template_name())
     }
 }
 
 /// Encryption methods available for shellcode
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum Encryption {
     /// XOR encoding
+    #[value(alias = "xor", alias = "XOR")]
     Xor,
     /// AES 256 encryption
+    #[value(alias = "aes", alias = "AES")]
     Aes,
     /// UUID-based shellcode encoding
+    #[value(alias = "uuid", alias = "UUID")]
     Uuid,
 }
 
@@ -127,11 +139,13 @@ impl fmt::Display for Encryption {
 }
 
 /// Output binary format
-#[derive(Debug, Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum Format {
     /// EXE format
+    #[value(alias = "exe", alias = "EXE")]
     Exe,
     /// DLL format
+    #[value(alias = "dll", alias = "DLL")]
     Dll,
 }
 
@@ -150,7 +164,8 @@ pub fn parse_args() -> Order {
     let mut order = Order::parse();
 
     // Convert relative paths to absolute
-    order.shellcode_path = absolute_path(order.shellcode_path).expect("Invalid shellcode path");
+    order.shellcode_path = absolute_path(order.shellcode_path)
+        .expect("Invalid shellcode path");
 
     if let Some(ref path) = order.output {
         order.output = Some(absolute_path(path).expect("Invalid output path"));
@@ -213,5 +228,12 @@ mod tests {
     fn test_format_display() {
         assert_eq!(format!("{}", Format::Exe), "exe");
         assert_eq!(format!("{}", Format::Dll), "dll");
+    }
+
+    #[test]
+    fn test_template_name() {
+        assert_eq!(Execution::NtQueueUserAPC.template_name(), "ntAPC");
+        assert_eq!(Execution::NtCreateRemoteThread.template_name(), "ntCRT");
+        assert_eq!(Execution::SysCreateRemoteThread.template_name(), "sysCRT");
     }
 }

@@ -1,3 +1,7 @@
+//! Shellcode reader module
+//!
+//! This module provides functionality for reading shellcode from files.
+
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;

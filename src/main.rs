@@ -6,6 +6,7 @@ mod pe_parser;
 mod puzzle;
 mod sandbox;
 mod shellcode_reader;
+mod string_obfuscation;
 mod tools;
 mod uuid_enc;
 mod xor;

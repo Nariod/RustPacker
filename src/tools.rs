@@ -1,4 +1,5 @@
 use crate::arg_parser;
+use crate::string_obfuscation::can_use_litcrypt_literal as string_can_use_litcrypt;
 use path_clean::PathClean;
 use rand::distr::Alphanumeric;
 use rand::RngExt;
@@ -56,14 +57,15 @@ pub fn random_aes_iv() -> [u8; 16] {
     rand::random::<[u8; 16]>()
 }
 
-fn can_use_litcrypt_literal(value: &str) -> bool {
-    value.chars().all(|c| c.is_ascii_graphic() || c == ' ')
-        && !value.contains('"')
-        && !value.contains('\\')
-}
-
+/// Obfuscate a string for use in generated code
+///
+/// # Arguments
+/// * `value` - The string to obfuscate
+///
+/// # Returns
+/// Obfuscated string expression using litcrypt or XOR
 pub fn litcrypt_string_expr(value: &str) -> String {
-    if can_use_litcrypt_literal(value) {
+    if string_can_use_litcrypt(value) {
         format!("lc!(\"{}\")", value)
     } else {
         format!("{:?}.to_string()", value)

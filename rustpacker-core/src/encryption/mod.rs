@@ -1,12 +1,16 @@
 //! Encryption modules for RustPacker
-//!
-//! This module provides various encryption methods for shellcode.
 
 pub mod aes;
 pub mod uuid;
 pub mod xor;
 
 use std::path::Path;
+
+use crate::encryption::aes::encrypt_aes;
+use crate::encryption::uuid::encrypt_uuid;
+use crate::encryption::xor::encrypt_xor;
+use crate::obfuscation::non_zero_random_key;
+use crate::utils::{random_aes_iv, random_aes_key};
 
 /// Output of encryption process
 #[derive(Debug, Clone)]
@@ -18,32 +22,19 @@ pub struct EncryptionOutput {
 }
 
 /// Encrypt shellcode using the specified method
-///
-/// # Arguments
-/// * `input_path` - Path to the input shellcode file
-/// * `export_path` - Path to save the encrypted shellcode
-/// * `method` - Encryption method to use
-///
-/// # Returns
-/// EncryptionOutput containing all necessary code for decryption
 pub fn encrypt_shellcode(
     input_path: &Path,
     export_path: &Path,
     method: crate::config::Encryption,
 ) -> EncryptionOutput {
     match method {
-        crate::config::Encryption::Xor => xor::encrypt_xor(
-            input_path,
-            export_path,
-            crate::obfuscation::non_zero_random_key(),
-        ),
-        crate::config::Encryption::Aes => aes::encrypt_aes(
-            input_path,
-            export_path,
-            &crate::utils::random_aes_key(),
-            &crate::utils::random_aes_iv(),
-        ),
-        crate::config::Encryption::Uuid => uuid::encrypt_uuid(input_path, export_path),
+        crate::config::Encryption::Xor => {
+            encrypt_xor(input_path, export_path, non_zero_random_key())
+        }
+        crate::config::Encryption::Aes => {
+            encrypt_aes(input_path, export_path, &random_aes_key(), &random_aes_iv())
+        }
+        crate::config::Encryption::Uuid => encrypt_uuid(input_path, export_path),
     }
 }
 

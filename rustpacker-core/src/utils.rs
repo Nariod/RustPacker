@@ -125,10 +125,7 @@ pub fn get_source_binary_filename(
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn process_output(
-    order: &crate::config::Order,
-    output_folder_path: &Path,
-) -> io::Result<()> {
+pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -> io::Result<()> {
     let output_path = match &order.output {
         Some(p) => p,
         None => return Ok(()),
@@ -140,7 +137,8 @@ pub fn process_output(
         }
     }
 
-    let source_binary = get_source_binary_filename(&order.execution, &order.format, output_folder_path);
+    let source_binary =
+        get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.is_file() {
         return Err(io::Error::new(
@@ -167,7 +165,8 @@ pub fn rename_source_binary(
     order: &crate::config::Order,
     output_folder_path: &Path,
 ) -> io::Result<()> {
-    let source_binary = get_source_binary_filename(&order.execution, &order.format, output_folder_path);
+    let source_binary =
+        get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.exists() {
         return Err(io::Error::new(
@@ -191,8 +190,7 @@ pub fn rename_source_binary(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Encryption, Execution, Format};
-    use std::path::PathBuf;
+    use crate::config::{Execution, Format};
 
     #[test]
     fn test_write_to_file_and_read_back() {

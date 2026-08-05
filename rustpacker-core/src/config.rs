@@ -164,8 +164,7 @@ pub fn parse_args() -> Order {
     let mut order = Order::parse();
 
     // Convert relative paths to absolute
-    order.shellcode_path = absolute_path(order.shellcode_path)
-        .expect("Invalid shellcode path");
+    order.shellcode_path = absolute_path(order.shellcode_path).expect("Invalid shellcode path");
 
     if let Some(ref path) = order.output {
         order.output = Some(absolute_path(path).expect("Invalid output path"));

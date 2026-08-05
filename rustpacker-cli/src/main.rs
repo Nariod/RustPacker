@@ -2,7 +2,9 @@
 //!
 //! This is the command-line interface for RustPacker.
 
-use rustpacker_core::{assemble, compile, config::parse_args, process_output, rename_source_binary};
+use rustpacker_core::{
+    assemble, compile, config::parse_args, process_output, rename_source_binary,
+};
 use std::io;
 
 fn main() -> io::Result<()> {

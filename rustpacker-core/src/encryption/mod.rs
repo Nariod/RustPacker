@@ -50,7 +50,7 @@ mod tests {
         fs::create_dir_all(&dir).unwrap();
         let input = dir.join("test.bin");
         let output = dir.join("output.xor");
-        fs::write(&input, &[0xfc, 0x48, 0x83]).unwrap();
+        fs::write(&input, [0xfc, 0x48, 0x83]).unwrap();
 
         let result = encrypt_shellcode(&input, &output, Encryption::Xor);
         assert!(!result.decryption_function.is_empty());

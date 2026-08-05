@@ -61,16 +61,15 @@ fn uuid_encode(shellcode: &[u8]) -> String {
 pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     println!("[+] UUID encoding shellcode..");
 
-    let unencrypted = read_shellcode(input_path)
-        .expect("Failed to read shellcode for UUID encoding");
+    let unencrypted =
+        read_shellcode(input_path).expect("Failed to read shellcode for UUID encoding");
 
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
 
     let xor_key = generate_xor_key();
     let masked: Vec<u8> = encoded.bytes().map(|b| b ^ xor_key).collect();
-    write_to_file(&masked, export_path)
-        .expect("Failed to write UUID output");
+    write_to_file(&masked, export_path).expect("Failed to write UUID output");
 
     let decryption_function = "fn unmask(buf: &mut Vec<u8>, key: u8) {
         for b in buf.iter_mut() {

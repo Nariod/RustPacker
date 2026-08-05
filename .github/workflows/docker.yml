@@ -1,15 +1,15 @@
-name: Docker Build
+name: Docker Build (Legacy)
 
 on:
   push:
-    branches: [main]
+    branches: [main, preprod]
     tags: ["*"]
   pull_request:
-    branches: [main]
+    branches: [main, preprod]
 
 jobs:
   build:
-    name: Build Docker Image
+    name: Build Docker Images
     runs-on: ubuntu-latest
     
     steps:
@@ -26,22 +26,22 @@ jobs:
           username: ${{ secrets.DOCKER_HUB_USERNAME }}
           password: ${{ secrets.DOCKER_HUB_TOKEN }}
       
-      - name: Build and push main image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: nariod/rustpacker:latest,nariod/rustpacker:${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-      
-      - name: Build and push builder image
+      - name: Build and push builder image (legacy)
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.builder
           push: ${{ github.event_name != 'pull_request' }}
           tags: nariod/rustpacker-builder:latest,nariod/rustpacker-builder:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push main image (legacy)
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: nariod/rustpacker:latest,nariod/rustpacker:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

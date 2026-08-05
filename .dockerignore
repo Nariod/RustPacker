@@ -1,0 +1,50 @@
+# RustPacker Docker Ignore
+# Files and directories to exclude from Docker build context
+
+# Git directory
+.git/
+.gitignore
+
+# Build artifacts (but keep Cargo.lock for reproducible builds)
+target/
+**/target/
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Rust cache directory (not the cargo home itself)
+.cargo/
+
+# Generated output files
+shared/
+output_*
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Environment files
+.env
+.env.local
+
+# Podman/Docker files
+.podman/
+.docker/
+
+# Skip cargo registry cache (handled separately in multi-stage build)
+/usr/local/cargo/registry/
+
+# Skip rustup home (handled separately in multi-stage build)
+/usr/local/rustup/

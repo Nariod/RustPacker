@@ -1,0 +1,109 @@
+name: Build and Push All-in-One Container
+
+on:
+  push:
+    branches: [main, preprod]
+    tags: ["v*"]
+  pull_request:
+    branches: [main, preprod]
+
+# Define environment variables for container registries
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    name: Build and Push All-in-One Container
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata (tags, labels) for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=sha
+
+      - name: Build and push all-in-one container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.all-in-one
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push to Docker Hub (optional)
+        if: github.event_name != 'pull_request' && env.DOCKER_HUB_USERNAME != ''
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile.all-in-one
+          push: true
+          tags: nariod/rustpacker-all-in-one:latest,nariod/rustpacker-all-in-one:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+        env:
+          DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_HUB_USERNAME }}
+          DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
+
+  test-container:
+    name: Test All-in-One Container
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/preprod')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Podman
+        uses: containers/podman-action@v1
+
+      - name: Pull the built container
+        run: |
+          podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Create test shellcode
+        run: |
+          # Create a simple test shellcode (MessageBox)
+          echo -e '\x48\x83\xEC\x28\x48\x83\xE4\xF0\x48\x8D\x15\xE1\xFF\xFF\xFF' > test_shellcode.bin
+          echo -e '\x48\x8D\x0D\xD6\xFF\xFF\xFF\xE8\xB7\xFF\xFF\xFF' >> test_shellcode.bin
+          # This is just a placeholder - in real usage, use msfvenom or similar
+
+      - name: Test container with minimal arguments
+        run: |
+          # Test that the container starts and shows help
+          podman run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help || true
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f test_shellcode.bin

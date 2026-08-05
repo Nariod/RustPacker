@@ -1,0 +1,101 @@
+# RustPacker All-in-One Container
+# Cross-compile Windows payloads from any platform using only Podman or Docker
+#
+# This container includes:
+# - Rust stable toolchain with Windows cross-compilation target
+# - Mingw-w64 toolchain for Windows cross-compilation
+# - Pre-built RustPacker binary
+# - All templates and dependencies
+#
+# Usage:
+#   podman run --rm -v $(pwd):/workdir ghcr.io/nariod/rustpacker:latest \
+#       --shellcode-path /workdir/shellcode.bin \
+#       --format exe \
+#       --execution nt-create-remote-thread \
+#       --encryption xor \
+#       --output /workdir/payload.exe
+
+FROM docker.io/library/rust:slim as builder
+
+# Install Windows cross-compilation toolchain
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    g++-mingw-w64-x86-64 \
+    gcc-mingw-w64-x86-64 \
+    binutils-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Windows GNU target for cross-compilation
+RUN rustup target add x86_64-pc-windows-gnu
+
+# Create and set working directory
+WORKDIR /app
+
+# Copy project files (excluding target directory to reduce build cache)
+COPY Cargo.toml Cargo.lock rustpacker-core/ rustpacker-cli/ rustpacker-templates/ templates/ ./
+
+# Build RustPacker in release mode
+RUN CARGO_TERM_COLOR=always \
+    CFLAGS_x86_64_pc_windows_gnu="-lrt" \
+    LDFLAGS_x86_64_pc_windows_gnu="-lrt" \
+    RUSTFLAGS="-C target-feature=+crt-static" \
+    cargo build --release --locked --bin rustpacker-cli
+
+# Final stage - runtime image
+FROM docker.io/library/debian:stable-slim
+
+# Install mingw-w64 toolchain (needed for linking)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    g++-mingw-w64-x86-64 \
+    gcc-mingw-w64-x86-64 \
+    binutils-mingw-w64-x86-64 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy Rust toolchain from builder stage
+COPY --from=builder /usr/local/rustup /usr/local/rustup
+COPY --from=builder /usr/local/cargo /usr/local/cargo
+COPY --from=builder /usr/local/bin/rustc /usr/local/bin/
+COPY --from=builder /usr/local/bin/cargo /usr/local/bin/
+COPY --from=builder /usr/local/bin/rustup /usr/local/bin/
+
+# Copy the pre-built RustPacker binary
+COPY --from=builder /app/target/release/rustpacker-cli /usr/local/bin/rustpacker
+
+# Copy all project files (templates, source code)
+COPY --from=builder /app /app
+
+# Set working directory
+WORKDIR /app
+
+# Add Windows target (ensure it's available in final image)
+RUN export PATH="/usr/local/cargo/bin:/usr/local/rustup/shims:$PATH" && \
+    rustup target add x86_64-pc-windows-gnu
+
+# Create shared directory for generated files
+RUN mkdir -p /app/shared
+
+# Set environment variables for cross-compilation
+ENV CARGO_HOME=/usr/local/cargo
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV PATH="/usr/local/cargo/bin:/usr/local/rustup/shims:${PATH}"
+ENV CFLAGS_x86_64_pc_windows_gnu="-lrt"
+ENV LDFLAGS_x86_64_pc_windows_gnu="-lrt"
+ENV RUSTFLAGS="-C target-feature=+crt-static"
+
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Set entrypoint
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["--help"]
+
+# Metadata
+LABEL maintainer="Nariod"
+LABEL description="RustPacker - Cross-compile Windows shellcode loaders from any platform"
+LABEL version="2.0.0"
+LABEL org.opencontainers.image.source="https://github.com/Nariod/RustPacker"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.vendor="RustPacker"
+LABEL org.opencontainers.image.authors="Nariod"

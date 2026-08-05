@@ -35,11 +35,11 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 ---
 
-## 🚀 Quick Start (Linux — Recommended Path)
+## 🚀 Quick Start (Container Mode — Recommended)
 
-> **Other platforms:** see the [macOS instructions](#macos) or the Windows accordion below.
+**The fastest and easiest way to use RustPacker! No Rust installation required.**
 
-### Step 1 — Install Podman
+### ✅ Step 1 — Install Podman or Docker
 
 ```bash
 # Ubuntu / Debian
@@ -47,55 +47,93 @@ sudo apt install podman
 
 # Fedora / RHEL
 sudo dnf install podman
+
+# macOS
+brew install podman
+podman machine init
+podman machine start
+
+# Windows (PowerShell)
+winget install Podman.Podman  # or install Podman Desktop
 ```
 
-Verify: `podman --version`
+Verify: `podman --version` or `docker --version`
 
-### Step 2 — Clone & Build the Container
+### 🎯 Step 2 — One-Command Payload Generation
+
+**That's it! No clone, no build, no setup.** Just run:
+
+```bash
+# Generate a test payload (harmless MessageBox)
+msfvenom -p windows/x64/messagebox TEXT="RustPacker!" TITLE="Test" -f raw -o shellcode.bin
+
+# Generate EXE payload with a single command
+podman run --rm -v $(pwd):/workdir ghcr.io/nariod/rustpacker:latest \
+  --shellcode-path /workdir/shellcode.bin \
+  --format exe \
+  --execution nt-create-remote-thread \
+  --encryption xor \
+  --output /workdir/payload.exe
+```
+
+**Your payload is ready!** Find it at: `/workdir/payload.exe`
+
+### 💡 Using Pre-Built Container Image (No Local Build Required)
+
+The `ghcr.io/nariod/rustpacker:latest` image contains **everything** you need:
+- ✅ Rust toolchain with Windows cross-compilation support
+- ✅ Mingw-w64 cross-compilation tools
+- ✅ Pre-compiled RustPacker binary
+- ✅ All templates (ntCRT, ntAPC, sysCRT, winCRT, etc.)
+- ✅ All dependencies
+
+**Works on Linux, Windows (with Podman/Docker Desktop), and macOS!**
+
+### 🔄 Create an Alias for Daily Use
+
+Add this to your `~/.bashrc` or `~/.zshrc`:
+
+```bash
+alias rustpacker='podman run --rm -v $(pwd):/workdir ghcr.io/nariod/rustpacker:latest'
+```
+
+Now use it with the new argument format:
+
+```bash
+# Generate EXE payload
+rustpacker \
+  --shellcode-path shellcode.bin \
+  --format exe \
+  --execution ntcrt \
+  --encryption aes \
+  --output payload.exe
+
+# Generate DLL payload with self-injection
+rustpacker \
+  --shellcode-path shellcode.bin \
+  --format dll \
+  --execution ntapc \
+  --encryption uuid \
+  --output payload.dll
+```
+
+### 🏗️ Alternative: Build Your Own Container (Optional)
+
+If you prefer to build the container yourself (for offline use or customization):
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-podman build -t rustpacker -f Dockerfile
-```
 
-This step is done **once**. The image is then cached locally.
+# Build the all-in-one container
+podman build -t rustpacker -f Dockerfile.all-in-one
 
-### Step 3 — Your First Build
-
-1. Generate a test shellcode with msfvenom (a harmless `MessageBox` popup):
-
-```bash
-msfvenom -p windows/x64/messagebox TEXT="RustPacker works!" TITLE="Test" -f raw -o shared/test.raw
-```
-
-2. Pack it:
-
-```bash
-podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker \
-  -f shared/test.raw -i ntcrt -e aes -b exe -t notepad.exe
-```
-
-3. Find your binary:
-
-```
-[+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
-```
-
-The compiled `.exe` is inside `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/`.
-
-### Create an Alias for Convenience
-
-Add this to your `~/.bashrc` or `~/.zshrc` to avoid typing the full `podman run` command every time:
-
-```bash
-alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
-```
-
-Then use it directly:
-
-```bash
-rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+# Use your custom-built image
+podman run --rm -v $(pwd):/workdir rustpacker \
+  --shellcode-path /workdir/shellcode.bin \
+  --format exe \
+  --execution ntcrt \
+  --output /workdir/payload.exe
 ```
 
 <details>

@@ -94,10 +94,11 @@ pub fn obfuscate_string_for_template(value: &str) -> String {
     // Generate a unique variable name based on the string
     let var_name = format!("s_{}", generate_string_hash(value));
 
-    // Return the deobfuscation code
+    // Return the deobfuscation code - just the expression, not a statement
+    // Use char::from_u32 to safely convert from u8 to char
     format!(
-        "let {} = [{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| b as char)\n    .collect::<String>();",
-        var_name, bytes_lit.join(", "), key
+        "[{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| char::from_u32(b as u32).unwrap())\n    .collect::<String>()",
+        bytes_lit.join(", "), key
     )
 }
 

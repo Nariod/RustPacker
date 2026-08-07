@@ -147,8 +147,12 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
     let mut replacements = build_basic_replacements(enc_output, include_path);
     add_target_process_replacement(&mut replacements, &order.target_process);
 
+    // Always add sandbox replacements (empty if no sandbox specified)
     if let Some(ref domain) = order.sandbox {
         add_sandbox_replacements(&mut replacements, domain);
+    } else {
+        replacements.insert("{{SANDBOX}}", String::new());
+        replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
     }
 
     add_api_obfuscation_replacements(&mut replacements);

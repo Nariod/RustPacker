@@ -46,8 +46,7 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
         obfuscate_string_for_template(expected_domain)
     );
 
-    let sandbox_import =
-        "use winapi::um::sysinfoapi::{GetComputerNameExW, ComputerNameDnsDomain};\n".to_string();
+    let sandbox_import = "use winapi::um::sysinfoapi::{GetComputerNameExW, ComputerNameDnsDomain};".to_string();
 
     SandboxOutput {
         sandbox_function,

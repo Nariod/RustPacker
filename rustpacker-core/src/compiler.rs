@@ -96,6 +96,12 @@ fn run_compiler(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::E
         return compile_with_cargo(path_to_cargo_folder);
     }
 
+    // If Rust is available locally, try to compile directly
+    if is_rust_available() {
+        println!("[+] Using local Rust for cross-compilation");
+        return compile_with_cargo(path_to_cargo_folder);
+    }
+
     // Otherwise, use container runtime for cross-compilation
     if let Some(runtime) = find_container_runtime() {
         println!("[+] Using {} for cross-compilation", runtime);

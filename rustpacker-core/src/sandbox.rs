@@ -46,7 +46,8 @@ pub fn build_sandbox(expected_domain: &str) -> SandboxOutput {
         obfuscate_string_for_template(expected_domain)
     );
 
-    let sandbox_import = "use winapi::um::sysinfoapi::{GetComputerNameExW, ComputerNameDnsDomain};".to_string();
+    let sandbox_import =
+        "use winapi::um::sysinfoapi::{GetComputerNameExW, ComputerNameDnsDomain};".to_string();
 
     SandboxOutput {
         sandbox_function,
@@ -68,7 +69,7 @@ mod tests {
     #[test]
     fn test_sandbox_domain_is_obfuscated() {
         let output = build_sandbox("MYDOMAIN");
-        assert!(output.sandbox_function.contains("let s_"));
+        assert!(output.sandbox_function.contains("collect::<String>()"));
         assert!(output.sandbox_function.contains("^ 0x"));
     }
 

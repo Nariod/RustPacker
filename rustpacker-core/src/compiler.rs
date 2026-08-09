@@ -1,6 +1,6 @@
+use std::env;
 use std::path::Path;
 use std::process::{Command, Stdio};
-use std::env;
 
 use crate::utils::absolute_path;
 
@@ -46,15 +46,15 @@ fn compile_in_container(
         let output = Command::new(runtime)
             .args(["pull", BUILDER_IMAGE])
             .output()?;
-        
+
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
             return Err(format!("Failed to pull {}: {}", BUILDER_IMAGE, err).into());
         }
     }
-    
+
     let abs_path = absolute_path(path_to_cargo_folder)?;
-    
+
     // Use the all-in-one container image
     let output = Command::new(runtime)
         .args(["run", "--rm"])
@@ -116,14 +116,14 @@ fn run_compiler(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::E
 fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
     let target = BUILD_TARGET;
     let manifest = path_to_cargo_folder.join("Cargo.toml");
-    
+
     let mut cmd = Command::new("cargo");
-    
+
     // Set environment variables for cross-compilation
     cmd.env("CFLAGS_x86_64_pc_windows_gnu", "-lrt");
     cmd.env("LDFLAGS_x86_64_pc_windows_gnu", "-lrt");
     cmd.env("RUSTFLAGS", "-C target-feature=+crt-static");
-    
+
     if cfg!(not(target_os = "windows")) {
         cmd.env("CFLAGS", "-lrt");
         cmd.env("LDFLAGS", "-lrt");

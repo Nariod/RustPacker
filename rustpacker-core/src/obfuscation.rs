@@ -92,7 +92,7 @@ pub fn obfuscate_string_for_template(value: &str) -> String {
     let bytes_lit: Vec<String> = obfuscated.iter().map(|b| format!("0x{:02x}", b)).collect();
 
     // Generate a unique variable name based on the string
-    let var_name = format!("s_{}", generate_string_hash(value));
+    let _var_name = format!("s_{}", generate_string_hash(value));
 
     // Return the deobfuscation code - just the expression, not a statement
     // Use char::from_u32 to safely convert from u8 to char
@@ -208,7 +208,7 @@ mod tests {
     #[test]
     fn test_obfuscate_string_for_template() {
         let obfuscated = obfuscate_string_for_template("notepad.exe");
-        assert!(obfuscated.contains("let s_"));
+        assert!(obfuscated.contains("collect::<String>()"));
         assert!(obfuscated.contains(".iter()"));
         assert!(obfuscated.contains("^ 0x"));
     }

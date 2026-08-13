@@ -12,10 +12,3 @@ path = "src/main.rs"
 
 [dependencies]
 rustpacker-core = { path = "../rustpacker-core" }
-
-[profile.release]
-strip = true
-opt-level = "z"
-codegen-units = 1
-panic = "abort"
-lto = true

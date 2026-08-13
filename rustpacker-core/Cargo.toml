@@ -34,10 +34,3 @@ sysinfo = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"
-
-[profile.release]
-strip = true
-opt-level = "z"
-codegen-units = 1
-panic = "abort"
-lto = true

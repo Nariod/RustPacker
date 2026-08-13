@@ -64,9 +64,8 @@ COPY --from=builder /app /app
 # Set working directory
 WORKDIR /app
 
-# Add Windows target (ensure it's available in final image)
-RUN export PATH="/usr/local/cargo/bin:/usr/local/rustup/shims:$PATH" && \
-    rustup target add x86_64-pc-windows-gnu
+# The x86_64-pc-windows-gnu target is already installed in the builder
+# and copied via /usr/local/rustup above, so no rustup call is needed here.
 
 # Create shared directory for generated files
 RUN mkdir -p /app/shared

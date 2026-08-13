@@ -39,7 +39,7 @@ RUN CARGO_TERM_COLOR=always \
     CFLAGS_x86_64_pc_windows_gnu="-lrt" \
     LDFLAGS_x86_64_pc_windows_gnu="-lrt" \
     RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo build --release --locked --bin rustpacker-cli
+    cargo build --release --locked --bin RustPacker
 
 # Final stage - runtime image
 FROM docker.io/library/debian:stable-slim
@@ -60,7 +60,7 @@ COPY --from=builder /usr/local/bin/cargo /usr/local/bin/
 COPY --from=builder /usr/local/bin/rustup /usr/local/bin/
 
 # Copy the pre-built RustPacker binary
-COPY --from=builder /app/target/release/rustpacker-cli /usr/local/bin/rustpacker
+COPY --from=builder /app/target/release/RustPacker /usr/local/bin/rustpacker
 
 # Copy all project files (templates, source code)
 COPY --from=builder /app /app

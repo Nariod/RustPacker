@@ -11,4 +11,4 @@ name = "RustPacker"
 path = "src/main.rs"
 
 [dependencies]
-rustpacker-core = { path = "../rustpacker-core" }
+rustpacker-core = { workspace = true }

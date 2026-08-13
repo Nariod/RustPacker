@@ -34,12 +34,11 @@ WORKDIR /app
 # Copy project files (.dockerignore excludes target/, .git/, etc.)
 COPY . ./
 
-# Build RustPacker in release mode
-RUN CARGO_TERM_COLOR=always \
-    CFLAGS_x86_64_pc_windows_gnu="-lrt" \
-    LDFLAGS_x86_64_pc_windows_gnu="-lrt" \
-    RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo build --release --locked --bin RustPacker
+# Build the RustPacker CLI for the container's host target (Linux).
+# Windows cross-compilation flags are applied at runtime by entrypoint.sh
+# when generating payloads; the host build must not use crt-static because
+# it breaks proc-macro crates (clap_derive, thiserror-impl, ...).
+RUN CARGO_TERM_COLOR=always cargo build --release --locked --bin RustPacker
 
 # Final stage - runtime image
 FROM docker.io/library/debian:stable-slim

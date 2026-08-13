@@ -43,6 +43,14 @@ temp/
 .podman/
 .docker/
 
+# Dockerfiles (not needed inside the build context)
+Dockerfile
+Dockerfile.*
+docker-compose*.yml
+
+# Documentation images
+img/
+
 # Skip cargo registry cache (handled separately in multi-stage build)
 /usr/local/cargo/registry/
 

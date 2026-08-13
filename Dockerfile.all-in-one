@@ -31,8 +31,8 @@ RUN rustup target add x86_64-pc-windows-gnu
 # Create and set working directory
 WORKDIR /app
 
-# Copy project files (excluding target directory to reduce build cache)
-COPY Cargo.toml Cargo.lock rustpacker-core/ rustpacker-cli/ rustpacker-templates/ templates/ ./
+# Copy project files (.dockerignore excludes target/, .git/, etc.)
+COPY . ./
 
 # Build RustPacker in release mode
 RUN CARGO_TERM_COLOR=always \

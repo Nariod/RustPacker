@@ -7,4 +7,4 @@ description = "Templates for RustPacker - injection techniques"
 license = "MIT"
 
 [dependencies]
-rustpacker-core = { path = "../rustpacker-core" }
+rustpacker-core = { workspace = true }

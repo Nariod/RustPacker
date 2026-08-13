@@ -31,15 +31,14 @@ RUN rustup target add x86_64-pc-windows-gnu
 # Create and set working directory
 WORKDIR /app
 
-# Copy project files (excluding target directory to reduce build cache)
-COPY Cargo.toml Cargo.lock rustpacker-core/ rustpacker-cli/ rustpacker-templates/ templates/ ./
+# Copy project files (.dockerignore excludes target/, .git/, etc.)
+COPY . ./
 
-# Build RustPacker in release mode
-RUN CARGO_TERM_COLOR=always \
-    CFLAGS_x86_64_pc_windows_gnu="-lrt" \
-    LDFLAGS_x86_64_pc_windows_gnu="-lrt" \
-    RUSTFLAGS="-C target-feature=+crt-static" \
-    cargo build --release --locked --bin rustpacker-cli
+# Build the RustPacker CLI for the container's host target (Linux).
+# Windows cross-compilation flags are applied at runtime by entrypoint.sh
+# when generating payloads; the host build must not use crt-static because
+# it breaks proc-macro crates (clap_derive, thiserror-impl, ...).
+RUN CARGO_TERM_COLOR=always cargo build --release --locked --bin RustPacker
 
 # Final stage - runtime image
 FROM docker.io/library/debian:stable-slim
@@ -52,15 +51,12 @@ RUN apt-get update && \
     binutils-mingw-w64-x86-64 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Rust toolchain from builder stage
+# Copy Rust toolchain from builder stage (rustc/cargo/rustup live in /usr/local/cargo/bin)
 COPY --from=builder /usr/local/rustup /usr/local/rustup
 COPY --from=builder /usr/local/cargo /usr/local/cargo
-COPY --from=builder /usr/local/bin/rustc /usr/local/bin/
-COPY --from=builder /usr/local/bin/cargo /usr/local/bin/
-COPY --from=builder /usr/local/bin/rustup /usr/local/bin/
 
 # Copy the pre-built RustPacker binary
-COPY --from=builder /app/target/release/rustpacker-cli /usr/local/bin/rustpacker
+COPY --from=builder /app/target/release/RustPacker /usr/local/bin/rustpacker
 
 # Copy all project files (templates, source code)
 COPY --from=builder /app /app
@@ -68,9 +64,8 @@ COPY --from=builder /app /app
 # Set working directory
 WORKDIR /app
 
-# Add Windows target (ensure it's available in final image)
-RUN export PATH="/usr/local/cargo/bin:/usr/local/rustup/shims:$PATH" && \
-    rustup target add x86_64-pc-windows-gnu
+# The x86_64-pc-windows-gnu target is already installed in the builder
+# and copied via /usr/local/rustup above, so no rustup call is needed here.
 
 # Create shared directory for generated files
 RUN mkdir -p /app/shared

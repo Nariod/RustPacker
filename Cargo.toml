@@ -7,6 +7,8 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+# Internal crates
+rustpacker-core = { path = "rustpacker-core" }
 # Shared dependencies across all crates
 clap = { version = "4", features = ["derive"] }
 thiserror = "1.0"

@@ -51,12 +51,9 @@ RUN apt-get update && \
     binutils-mingw-w64-x86-64 \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Rust toolchain from builder stage
+# Copy Rust toolchain from builder stage (rustc/cargo/rustup live in /usr/local/cargo/bin)
 COPY --from=builder /usr/local/rustup /usr/local/rustup
 COPY --from=builder /usr/local/cargo /usr/local/cargo
-COPY --from=builder /usr/local/bin/rustc /usr/local/bin/
-COPY --from=builder /usr/local/bin/cargo /usr/local/bin/
-COPY --from=builder /usr/local/bin/rustup /usr/local/bin/
 
 # Copy the pre-built RustPacker binary
 COPY --from=builder /app/target/release/RustPacker /usr/local/bin/rustpacker

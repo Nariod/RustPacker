@@ -1,12 +1,17 @@
 use std::env;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
 use crate::utils::absolute_path;
 use anyhow::{Context, Result};
 
-const BUILDER_IMAGE: &str = "ghcr.io/nariod/rustpacker:latest";
+const BUILDER_IMAGE: &str = "rustpacker";
 const BUILD_TARGET: &str = "x86_64-pc-windows-gnu";
+const DOCKERFILE: &str = "Dockerfile.all-in-one";
+
+/// RUSTFLAGS applied when cross-compiling Windows payloads (container or local cargo).
+/// Single source of truth for the `crt-static` flag.
+const CRT_STATIC_RUSTFLAGS: &str = "-C target-feature=+crt-static";
 
 fn is_running_in_container() -> bool {
     Path::new("/.dockerenv").exists()
@@ -37,20 +42,64 @@ fn is_image_available(runtime: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn compile_in_container(runtime: &str, path_to_cargo_folder: &Path) -> Result<()> {
-    // Check if the container image is available, pull it if not
-    if !is_image_available(runtime) {
-        println!("[+] Pulling {} image...", BUILDER_IMAGE);
-        let output = Command::new(runtime)
-            .args(["pull", BUILDER_IMAGE])
-            .output()
-            .context("Failed to spawn container pull command")?;
+/// Build the all-in-one container image locally if it is not already present.
+/// RustPacker is meant to be built and used locally; there is no prebuilt remote image.
+fn ensure_image_available(runtime: &str) -> Result<()> {
+    if is_image_available(runtime) {
+        return Ok(());
+    }
 
-        if !output.status.success() {
-            let err = String::from_utf8_lossy(&output.stderr);
-            return Err(anyhow::anyhow!("Failed to pull {}: {}", BUILDER_IMAGE, err));
+    println!("[+] Building {} image (one-time, cached for next runs)...", BUILDER_IMAGE);
+    let project_root = find_project_root()?;
+    let dockerfile = project_root.join(DOCKERFILE);
+    if !dockerfile.exists() {
+        return Err(anyhow::anyhow!(
+            "Dockerfile not found at {}. Build the image manually: {} build -t {} -f {} .",
+            dockerfile.display(),
+            runtime,
+            BUILDER_IMAGE,
+            DOCKERFILE
+        ));
+    }
+
+    let output = Command::new(runtime)
+        .args(["build", "-t", BUILDER_IMAGE, "-f", DOCKERFILE, "."])
+        .current_dir(&project_root)
+        .output()
+        .context("Failed to spawn container build command")?;
+
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "Failed to build {}: {}",
+            BUILDER_IMAGE,
+            err
+        ));
+    }
+
+    Ok(())
+}
+
+/// Locate the project root (the directory containing the Dockerfile and templates/).
+/// Walks up from the current directory until it finds `Dockerfile.all-in-one`.
+fn find_project_root() -> Result<PathBuf> {
+    let mut dir = env::current_dir().context("Failed to determine current directory")?;
+    loop {
+        if dir.join(DOCKERFILE).exists() {
+            return Ok(dir);
+        }
+        if !dir.pop() {
+            return Err(anyhow::anyhow!(
+                "Could not find {} in the current directory or any parent directory.",
+                DOCKERFILE
+            ));
         }
     }
+}
+
+
+fn compile_in_container(runtime: &str, path_to_cargo_folder: &Path) -> Result<()> {
+    ensure_image_available(runtime)?;
 
     let abs_path = absolute_path(path_to_cargo_folder)
         .context("Failed to resolve absolute path for cargo folder")?;
@@ -61,7 +110,7 @@ fn compile_in_container(runtime: &str, path_to_cargo_folder: &Path) -> Result<()
         .args(["-v", &format!("{}:/workdir:z", abs_path.display())])
         .args(["-e", "CFLAGS_x86_64_pc_windows_gnu=-lrt"])
         .args(["-e", "LDFLAGS_x86_64_pc_windows_gnu=-lrt"])
-        .args(["-e", "RUSTFLAGS=-C target-feature=+crt-static"])
+        .args(["-e", &format!("RUSTFLAGS={}", CRT_STATIC_RUSTFLAGS)])
         .arg(BUILDER_IMAGE)
         .output()
         .context("Failed to spawn container run command")?;
@@ -128,7 +177,7 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
     // Set environment variables for cross-compilation
     cmd.env("CFLAGS_x86_64_pc_windows_gnu", "-lrt");
     cmd.env("LDFLAGS_x86_64_pc_windows_gnu", "-lrt");
-    cmd.env("RUSTFLAGS", "-C target-feature=+crt-static");
+    cmd.env("RUSTFLAGS", CRT_STATIC_RUSTFLAGS);
 
     if cfg!(not(target_os = "windows")) {
         cmd.env("CFLAGS", "-lrt");
@@ -145,7 +194,10 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         eprintln!("{}", err);
-        return Err(anyhow::anyhow!("Compilation failed: {}", output.status));
+        return Err(anyhow::anyhow!(
+            "Compilation failed: {}",
+            output.status
+        ));
     }
 
     if !output.stderr.is_empty() {

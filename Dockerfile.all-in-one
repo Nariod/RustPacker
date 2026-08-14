@@ -78,6 +78,9 @@ ENV RUSTUP_HOME=/usr/local/rustup
 ENV PATH="/usr/local/cargo/bin:/usr/local/rustup/shims:${PATH}"
 ENV CFLAGS_x86_64_pc_windows_gnu="-lrt"
 ENV LDFLAGS_x86_64_pc_windows_gnu="-lrt"
+# Applied when RustPacker compiles Windows payloads from inside the
+# container via local cargo (the host CLI build in the builder stage above
+# must NOT use crt-static: it breaks proc-macro crates like clap_derive).
 ENV RUSTFLAGS="-C target-feature=+crt-static"
 
 # Copy entrypoint script

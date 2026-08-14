@@ -43,12 +43,14 @@ RUN CARGO_TERM_COLOR=always cargo build --release --locked --bin RustPacker
 # Final stage - runtime image
 FROM docker.io/library/debian:stable-slim
 
-# Install mingw-w64 toolchain (needed for linking)
+# Install mingw-w64 toolchain, CA certificates, and build tools (needed for SSL and compilation)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     g++-mingw-w64-x86-64 \
     gcc-mingw-w64-x86-64 \
     binutils-mingw-w64-x86-64 \
+    ca-certificates \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy Rust toolchain from builder stage (rustc/cargo/rustup live in /usr/local/cargo/bin)

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # RustPacker All-in-One Container Entrypoint
 # This script handles the container execution and provides a user-friendly interface
 
@@ -119,9 +119,9 @@ validate_args() {
 
     # Validate execution template
     case "$EXECUTION" in
-        nt-create-remote-thread|ntcrt|nt-queue-user-apc|ntapc|
-        sys-create-remote-thread|syscrt|win-create-remote-thread|wincrt|
-        win-fiber|winfiber|nt-fiber|ntfiber|sys-fiber|sysfiber|
+        nt-create-remote-thread|ntcrt|nt-queue-user-apc|ntapc|\
+        sys-create-remote-thread|syscrt|win-create-remote-thread|wincrt|\
+        win-fiber|winfiber|nt-fiber|ntfiber|sys-fiber|sysfiber|\
         early-cascade|earlycascade) ;;
         *) echo "[-] Error: Invalid execution template '$EXECUTION'"
            exit 1

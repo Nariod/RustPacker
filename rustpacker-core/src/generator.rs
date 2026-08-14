@@ -327,6 +327,37 @@ fn apply_proxy_config(order: &Order, folder: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Ensure no template placeholder remains in a generated file.
+///
+/// Called after every substitution step so that a malformed template (a
+/// forgotten placeholder, a renamed variable) fails fast with a clear error
+/// listing the offending lines, instead of surfacing as a cryptic
+/// `cargo build` failure on the Windows target.
+fn validate_no_placeholders(path: &Path) -> Result<()> {
+    let content = fs::read_to_string(path).with_context(|| {
+        format!(
+            "Failed to read generated file for validation: {}",
+            path.display()
+        )
+    })?;
+    let leftovers: Vec<&str> = content
+        .lines()
+        .filter(|line| line.contains("{{") && line.contains("}}"))
+        .collect();
+    if leftovers.is_empty() {
+        return Ok(());
+    }
+    Err(anyhow::anyhow!(
+        "Unsubstituted template placeholders remain in {}:\n{}",
+        path.display(),
+        leftovers
+            .iter()
+            .map(|l| format!("  {}", l.trim()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    ))
+}
+
 /// Generate Rust loader code from order configuration
 pub fn assemble(order: Order) -> Result<PathBuf> {
     println!("[+] Assembling Rust code..");
@@ -352,6 +383,12 @@ pub fn assemble(order: Order) -> Result<PathBuf> {
     if is_proxy {
         apply_proxy_config(&order, &folder)?;
     }
+
+    // Fail fast if any template placeholder was not substituted: a leftover
+    // {{...}} would otherwise produce a cryptic cargo build failure on the
+    // Windows target that is hard for the end user to diagnose.
+    validate_no_placeholders(&target_file)?;
+    validate_no_placeholders(&cargo_toml)?;
 
     println!("[+] Done assembling Rust code!");
     Ok(folder)
@@ -462,22 +499,6 @@ mod tests {
         combos
     }
 
-    /// Scan a generated file for any leftover `{{...}}` template placeholder.
-    fn assert_no_placeholders(label: &str, path: &Path) {
-        let content = fs::read_to_string(path)
-            .unwrap_or_else(|e| panic!("read {label} {}: {e}", path.display()));
-        let leftovers: Vec<&str> = content
-            .lines()
-            .filter(|line| line.contains("{{") && line.contains("}}"))
-            .collect();
-        assert!(
-            leftovers.is_empty(),
-            "{label} {} contains unsubstituted placeholders:\n{}",
-            path.display(),
-            leftovers.join("\n")
-        );
-    }
-
     /// Build an Order pointing at a shellcode file in `dir`.
     fn make_order(
         shellcode: &Path,
@@ -551,8 +572,11 @@ mod tests {
                 "Cargo.toml missing for {execution}/{encryption}/{format}"
             );
 
-            assert_no_placeholders("source", &source_file);
-            assert_no_placeholders("Cargo.toml", &cargo_toml);
+            // assemble() now validates placeholders itself; double-check here
+            // so a regression is attributed to this test rather than to a
+            // later cargo build on the Windows target.
+            validate_no_placeholders(&source_file).expect("leftover placeholders in source");
+            validate_no_placeholders(&cargo_toml).expect("leftover placeholders in Cargo.toml");
 
             let enc_name = get_encrypted_filename(&encryption);
             assert!(
@@ -562,6 +586,32 @@ mod tests {
         }
 
         std::env::set_current_dir(&original_dir).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_validate_no_placeholders_accepts_clean_file() {
+        let dir = std::env::temp_dir().join("rustpacker_test_validate_clean");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("main.rs");
+        fs::write(&path, "fn main() { println!(\"hi\"); }\n").unwrap();
+        assert!(validate_no_placeholders(&path).is_ok());
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn test_validate_no_placeholders_rejects_leftover() {
+        let dir = std::env::temp_dir().join("rustpacker_test_validate_leftover");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let path = dir.join("main.rs");
+        fs::write(&path, "fn main() { \n    {{MAIN}}\n}\n").unwrap();
+
+        let err = validate_no_placeholders(&path).expect_err("should detect leftover");
+        assert!(format!("{err:#}").contains("Unsubstituted template placeholders"));
+        assert!(format!("{err:#}").contains("{{MAIN}}"));
+
         let _ = fs::remove_dir_all(&dir);
     }
 }

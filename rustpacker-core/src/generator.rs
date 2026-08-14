@@ -426,4 +426,137 @@ mod tests {
         let pos = find_proxy_insert_position(source);
         assert!(source[..pos].contains("use_litcrypt!();"));
     }
+
+    use crate::config::{Format, Order};
+    use std::path::Path;
+
+    /// All template × encryption × format combinations that assemble() must
+    /// turn into a fully-substituted, compilable Rust project.
+    ///
+    /// This is the integration filet: a regression in the templating contract
+    /// (a forgotten placeholder, a renamed template variable) would otherwise
+    /// only surface as a cryptic `cargo build` failure on the Windows target
+    /// at the very end of the pipeline.
+    fn all_combinations() -> Vec<(Execution, Encryption, Format)> {
+        let executions = [
+            Execution::NtQueueUserAPC,
+            Execution::NtCreateRemoteThread,
+            Execution::SysCreateRemoteThread,
+            Execution::WinCreateRemoteThread,
+            Execution::WinFiber,
+            Execution::NtFiber,
+            Execution::SysFiber,
+            Execution::EarlyCascade,
+        ];
+        let encryptions = [Encryption::Xor, Encryption::Aes, Encryption::Uuid];
+        let formats = [Format::Exe, Format::Dll];
+
+        let mut combos = Vec::new();
+        for &e in &executions {
+            for &enc in &encryptions {
+                for &f in &formats {
+                    combos.push((e, enc, f));
+                }
+            }
+        }
+        combos
+    }
+
+    /// Scan a generated file for any leftover `{{...}}` template placeholder.
+    fn assert_no_placeholders(label: &str, path: &Path) {
+        let content =
+            fs::read_to_string(path).unwrap_or_else(|e| panic!("read {label} {}: {e}", path.display()));
+        let leftovers: Vec<&str> = content
+            .lines()
+            .filter(|line| line.contains("{{") && line.contains("}}"))
+            .collect();
+        assert!(
+            leftovers.is_empty(),
+            "{label} {} contains unsubstituted placeholders:\n{}",
+            path.display(),
+            leftovers.join("\n")
+        );
+    }
+
+    /// Build an Order pointing at a shellcode file in `dir`.
+    fn make_order(
+        shellcode: &Path,
+        execution: Execution,
+        encryption: Encryption,
+        format: Format,
+    ) -> Order {
+        Order {
+            shellcode_path: shellcode.to_path_buf(),
+            format,
+            execution,
+            encryption,
+            target_process: "notepad.exe".to_string(),
+            sandbox: None,
+            output: None,
+            proxy_dll: None,
+        }
+    }
+
+    #[test]
+    fn test_assemble_leaves_no_template_placeholders() {
+        // assemble() resolves `templates/` relative to the CWD and writes to
+        // `shared/` relative to the CWD. Isolate the test in a tempdir that
+        // mirrors the project layout so it never touches the real repo.
+        let dir = std::env::temp_dir().join("rustpacker_test_assemble_integration");
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+
+        // Copy the real templates/ so the contract tested matches production.
+        // CWD during `cargo test` is the crate dir, so resolve the workspace
+        // root from CARGO_MANIFEST_DIR (rustpacker-core -> parent is the root
+        // that holds templates/).
+        let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();
+        let templates_src = workspace_root.join("templates");
+        let options = fs_extra::dir::CopyOptions {
+            content_only: false,
+            ..Default::default()
+        };
+        fs_extra::dir::copy(&templates_src, &dir, &options).unwrap();
+
+        // assemble() writes generated projects under ./shared/ (relative to CWD).
+        fs::create_dir_all(dir.join("shared")).unwrap();
+
+        let shellcode = dir.join("shellcode.bin");
+        fs::write(&shellcode, [0xfc, 0x48, 0x83, 0xe4, 0xf0, 0xe8]).unwrap();
+
+        let original_dir = std::env::current_dir().unwrap();
+        std::env::set_current_dir(&dir).unwrap();
+
+        for (execution, encryption, format) in all_combinations() {
+            // create_output_folder() names folders by second-precision timestamp,
+            // so separate iterations by >1s to avoid same-second collisions.
+            std::thread::sleep(std::time::Duration::from_millis(1100));
+            let order = make_order(&shellcode, execution, encryption, format);
+            let folder = assemble(order).expect("assemble should succeed");
+
+            let src_dir = folder.join("src");
+            let source_file = if matches!(format, Format::Dll) {
+                src_dir.join("lib.rs")
+            } else {
+                src_dir.join("main.rs")
+            };
+            let cargo_toml = folder.join("Cargo.toml");
+
+            assert!(source_file.exists(), "source file missing for {execution}/{encryption}/{format}");
+            assert!(cargo_toml.exists(), "Cargo.toml missing for {execution}/{encryption}/{format}");
+
+            assert_no_placeholders("source", &source_file);
+            assert_no_placeholders("Cargo.toml", &cargo_toml);
+
+            let enc_name = get_encrypted_filename(&encryption);
+            assert!(
+                src_dir.join(enc_name).exists(),
+                "encrypted payload missing for {execution}/{encryption}/{format}"
+            );
+        }
+
+        std::env::set_current_dir(&original_dir).unwrap();
+        let _ = fs::remove_dir_all(&dir);
+    }
+
 }

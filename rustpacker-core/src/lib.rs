@@ -5,13 +5,16 @@
 
 pub mod compiler;
 pub mod config;
+pub mod dll;
 pub mod dll_proxy;
 pub mod encryption;
 pub mod generator;
 pub mod obfuscation;
 pub mod pe_parser;
+pub mod replacements;
 pub mod sandbox;
 pub mod shellcode_reader;
+pub mod template_io;
 pub mod utils;
 
 // Re-export the most important types and functions for convenience

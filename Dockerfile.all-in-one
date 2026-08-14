@@ -94,7 +94,7 @@ CMD ["--help"]
 # Metadata
 LABEL maintainer="Nariod"
 LABEL description="RustPacker - Cross-compile Windows shellcode loaders from any platform"
-LABEL version="2.0.0"
+LABEL version="3.0.0"
 LABEL org.opencontainers.image.source="https://github.com/Nariod/RustPacker"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.vendor="RustPacker"

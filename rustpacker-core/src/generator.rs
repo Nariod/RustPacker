@@ -26,14 +26,22 @@ fn build_dependencies(template_dependencies: Option<String>) -> String {
 
 fn search_and_replace(path: &Path, search: &str, replace: &str) -> Result<()> {
     let content = fs::read_to_string(path).with_context(|| {
-        format!("Failed to read template file for replacement: {}", path.display())
+        format!(
+            "Failed to read template file for replacement: {}",
+            path.display()
+        )
     })?;
     let new_content = content.replace(search, replace);
     let mut file = OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(path)
-        .with_context(|| format!("Failed to open template file for writing: {}", path.display()))?;
+        .with_context(|| {
+            format!(
+                "Failed to open template file for writing: {}",
+                path.display()
+            )
+        })?;
     file.write_all(new_content.as_bytes())
         .with_context(|| format!("Failed to write replaced template file: {}", path.display()))?;
     Ok(())
@@ -236,12 +244,20 @@ fn apply_dll_format(
     replacements.insert("{{DLL_MAIN}}", build_dll_main_function(is_proxy));
 
     let lib_rs_path = main_rs_path.with_file_name("lib.rs");
-    fs::rename(main_rs_path, &lib_rs_path)
-        .with_context(|| format!("Failed to rename main.rs to lib.rs: {}", main_rs_path.display()))?;
+    fs::rename(main_rs_path, &lib_rs_path).with_context(|| {
+        format!(
+            "Failed to rename main.rs to lib.rs: {}",
+            main_rs_path.display()
+        )
+    })?;
     Ok(lib_rs_path)
 }
 
-fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, cargo_path: &Path) -> Result<()> {
+fn apply_replacements(
+    replacements: &HashMap<&str, String>,
+    main_path: &Path,
+    cargo_path: &Path,
+) -> Result<()> {
     for (key, value) in replacements {
         search_and_replace(main_path, key, value)
             .with_context(|| format!("Template replacement failed for key '{}'", key))?;

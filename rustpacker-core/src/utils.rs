@@ -46,8 +46,8 @@ pub fn absolute_path(path: impl AsRef<Path>) -> Result<PathBuf> {
 /// # Returns
 /// Result indicating success or failure
 pub fn write_to_file(content: &[u8], path: &Path) -> Result<()> {
-    let mut file = File::create(path)
-        .with_context(|| format!("Failed to create file: {}", path.display()))?;
+    let mut file =
+        File::create(path).with_context(|| format!("Failed to create file: {}", path.display()))?;
     file.write_all(content)
         .with_context(|| format!("Failed to write to file: {}", path.display()))?;
 
@@ -138,8 +138,9 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
 
     if let Some(parent) = output_path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create output directory: {}", parent.display()))?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create output directory: {}", parent.display())
+            })?;
         }
     }
 
@@ -173,10 +174,7 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn rename_source_binary(
-    order: &crate::config::Order,
-    output_folder_path: &Path,
-) -> Result<()> {
+pub fn rename_source_binary(order: &crate::config::Order, output_folder_path: &Path) -> Result<()> {
     let source_binary =
         get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 

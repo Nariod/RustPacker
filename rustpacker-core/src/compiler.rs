@@ -145,10 +145,7 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         eprintln!("{}", err);
-        return Err(anyhow::anyhow!(
-            "Compilation failed: {}",
-            output.status
-        ));
+        return Err(anyhow::anyhow!("Compilation failed: {}", output.status));
     }
 
     if !output.stderr.is_empty() {
@@ -165,8 +162,7 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
 /// * `path_to_cargo_folder` - Path to the folder containing Cargo.toml
 pub fn compile(path_to_cargo_folder: &Path) -> Result<()> {
     println!("[+] Starting to compile your malware..");
-    run_compiler(path_to_cargo_folder)
-        .context("Compilation failed")?;
+    run_compiler(path_to_cargo_folder).context("Compilation failed")?;
     println!("[+] Successfully compiled! Rust code and compiled binary are in the 'shared' folder");
     Ok(())
 }

@@ -168,8 +168,7 @@ impl fmt::Display for Format {
 pub fn parse_args() -> Result<Order> {
     let mut order = Order::parse();
 
-    order.shellcode_path =
-        absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
+    order.shellcode_path = absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
 
     if let Some(ref path) = order.output {
         order.output = Some(absolute_path(path).context("Invalid output path")?);

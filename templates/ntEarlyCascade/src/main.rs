@@ -2,6 +2,7 @@
 #![allow(non_snake_case, non_camel_case_types)]
 
 {{LITCRYPT_SETUP}}
+{{COMMON_MODULE}}
 
 use std::ffi::CString;
 use std::include_bytes;
@@ -100,12 +101,6 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-fn wipe(buf: &mut Vec<u8>) {
-    for b in buf.iter_mut() {
-        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
-    }
-    buf.clear();
-}
 
 fn find_bytes(haystack: &[u8], needle: &[u8]) -> Option<usize> {
     haystack.windows(needle.len()).position(|w| w == needle)
@@ -385,7 +380,7 @@ fn main() {
     {{MAIN}}
 
     cascade(&vec);
-    wipe(&mut vec);
+    common::wipe(&mut vec);
 }
 
 {{DLL_MAIN}}

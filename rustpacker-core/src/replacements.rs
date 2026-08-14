@@ -13,6 +13,7 @@ use std::path::Path;
 
 const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
+const COMMON_MODULE_DECL: &str = "mod common;";
 
 pub(super) fn build_dependencies(template_dependencies: Option<String>) -> String {
     match template_dependencies {
@@ -56,6 +57,7 @@ fn build_basic_replacements(
     replacements.insert("{{DEPENDENCIES}}", dependencies);
     replacements.insert("{{IMPORTS}}", enc_output.imports.unwrap_or_default());
     replacements.insert("{{LITCRYPT_SETUP}}", LITCRYPT_SETUP.to_string());
+    replacements.insert("{{COMMON_MODULE}}", COMMON_MODULE_DECL.to_string());
     replacements.insert("{{DLL_MAIN}}", String::new());
     replacements.insert("{{DLL_FORMAT}}", String::new());
     replacements

@@ -464,13 +464,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rustpacker-templates"
-version = "2.0.0"
-dependencies = [
- "rustpacker-core",
-]
-
-[[package]]
 name = "strsim"
 version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

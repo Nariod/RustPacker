@@ -106,20 +106,8 @@ pub fn get_source_binary_filename(
     output_folder: &Path,
 ) -> PathBuf {
     let binary_name = format!("{}.{}", execution.template_name(), format);
-    let candidates = [
-        "target/x86_64-pc-windows-msvc/release",
-        "target/x86_64-pc-windows-gnu/release",
-    ];
-    for dir in candidates {
-        let path = output_folder.join(dir).join(&binary_name);
-        if path.exists() {
-            return path;
-        }
-    }
-    output_folder.join(format!(
-        "target/x86_64-pc-windows-gnu/release/{}",
-        binary_name
-    ))
+    let target_dir = "target/x86_64-pc-windows-gnu/release";
+    output_folder.join(target_dir).join(binary_name)
 }
 
 /// Process the output binary

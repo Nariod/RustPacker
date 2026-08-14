@@ -10,7 +10,6 @@ export CARGO_HOME=/usr/local/cargo
 export RUSTUP_HOME=/usr/local/rustup
 export CFLAGS_x86_64_pc_windows_gnu="-lrt"
 export LDFLAGS_x86_64_pc_windows_gnu="-lrt"
-export RUSTFLAGS="-C target-feature=+crt-static"
 
 # Function to display help
 show_help() {
@@ -21,11 +20,11 @@ RustPacker All-in-One Container v2.0.0
 Cross-compile Windows shellcode loaders from any platform using Podman or Docker.
 
 USAGE:
-  podman run --rm -v \$(pwd):/workdir ghcr.io/nariod/rustpacker:latest [OPTIONS]
+  podman run --rm -v \$(pwd):/workdir rustpacker [OPTIONS]
 
 EXAMPLES:
   # Generate EXE payload with XOR encryption
-  podman run --rm -v \$(pwd):/workdir ghcr.io/nariod/rustpacker:latest \\
+  podman run --rm -v \$(pwd):/workdir rustpacker \\
       --shellcode-path /workdir/shellcode.bin \\
       --format exe \\
       --execution nt-create-remote-thread \\
@@ -33,7 +32,7 @@ EXAMPLES:
       --output /workdir/payload.exe
 
   # Generate DLL payload with AES encryption
-  podman run --rm -v \$(pwd):/workdir ghcr.io/nariod/rustpacker:latest \\
+  podman run --rm -v \$(pwd):/workdir rustpacker \\
       --shellcode-path /workdir/shellcode.bin \\
       --format dll \\
       --execution ntapc \\
@@ -41,7 +40,7 @@ EXAMPLES:
       --output /workdir/payload.dll
 
   # With sandbox evasion (domain pinning)
-  podman run --rm -v \$(pwd):/workdir ghcr.io/nariod/rustpacker:latest \\
+  podman run --rm -v \$(pwd):/workdir rustpacker \\
       --shellcode-path /workdir/shellcode.bin \\
       --format exe \\
       --execution syscrt \\

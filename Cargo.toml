@@ -2,7 +2,6 @@
 members = [
     "rustpacker-core",
     "rustpacker-cli",
-    "rustpacker-templates",
 ]
 resolver = "2"
 

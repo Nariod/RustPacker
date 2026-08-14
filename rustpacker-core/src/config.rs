@@ -14,7 +14,7 @@ use anyhow::{anyhow, Context, Result};
 #[derive(Parser, Debug, Clone)]
 #[command(name = "RustPacker")]
 #[command(author = "by Nariod")]
-#[command(version = "2.0.0")]
+#[command(version = "3.0.0")]
 #[command(about = "Shellcode packer written in Rust.", long_about = None)]
 #[command(arg_required_else_help = true)]
 pub struct Order {

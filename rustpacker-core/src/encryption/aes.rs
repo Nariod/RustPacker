@@ -5,6 +5,8 @@
 use crate::encryption::EncryptionOutput;
 use crate::shellcode_reader::read_shellcode;
 use crate::utils::write_to_file;
+use anyhow::Context;
+use anyhow::Result;
 use libaes::Cipher;
 use std::path::Path;
 
@@ -37,17 +39,17 @@ pub fn encrypt_aes(
     export_path: &Path,
     key: &[u8; 32],
     iv: &[u8; 16],
-) -> EncryptionOutput {
+) -> Result<EncryptionOutput> {
     println!(
         "[+] AES encrypting shellcode with key {:?} and IV {:?}",
         key, iv
     );
 
     let unencrypted =
-        read_shellcode(input_path).expect("Failed to read shellcode for AES encryption");
+        read_shellcode(input_path).context("Failed to read shellcode for AES encryption")?;
 
     let encrypted_content = aes_256_encrypt(&unencrypted, key, iv);
-    write_to_file(&encrypted_content, export_path).expect("Failed to write AES output");
+    write_to_file(&encrypted_content, export_path).context("Failed to write AES output")?;
 
     let decryption_function =
         "fn aes_256_decrypt(buf: &[u8], key: &[u8; 32], iv: &[u8; 16]) -> Vec<u8> {
@@ -62,12 +64,12 @@ pub fn encrypt_aes(
     );
 
     println!("[+] Done AES encrypting shellcode!");
-    EncryptionOutput {
+    Ok(EncryptionOutput {
         decryption_function,
         main,
         dependencies: Some(r#"libaes = "0.7""#.to_string()),
         imports: Some("use libaes::Cipher;".to_string()),
-    }
+    })
 }
 
 #[cfg(test)]
@@ -109,7 +111,7 @@ mod tests {
 
         let key: [u8; 32] = [0x01; 32];
         let iv: [u8; 16] = [0x02; 16];
-        let result = encrypt_aes(&input, &output, &key, &iv);
+        let result = encrypt_aes(&input, &output, &key, &iv).unwrap();
 
         assert!(!result.decryption_function.is_empty());
         assert!(!result.main.is_empty());

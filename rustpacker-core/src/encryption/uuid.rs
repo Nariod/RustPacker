@@ -6,6 +6,8 @@ use crate::encryption::EncryptionOutput;
 use crate::obfuscation::generate_xor_key;
 use crate::shellcode_reader::read_shellcode;
 use crate::utils::write_to_file;
+use anyhow::Context;
+use anyhow::Result;
 use std::path::Path;
 
 /// Convert 16 bytes to UUID string format
@@ -58,18 +60,18 @@ fn uuid_encode(shellcode: &[u8]) -> String {
 ///
 /// # Returns
 /// `EncryptionOutput` containing decryption function and main logic
-pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
+pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> Result<EncryptionOutput> {
     println!("[+] UUID encoding shellcode..");
 
     let unencrypted =
-        read_shellcode(input_path).expect("Failed to read shellcode for UUID encoding");
+        read_shellcode(input_path).context("Failed to read shellcode for UUID encoding")?;
 
     let original_len = unencrypted.len();
     let encoded = uuid_encode(&unencrypted);
 
     let xor_key = generate_xor_key();
     let masked: Vec<u8> = encoded.bytes().map(|b| b ^ xor_key).collect();
-    write_to_file(&masked, export_path).expect("Failed to write UUID output");
+    write_to_file(&masked, export_path).context("Failed to write UUID output")?;
 
     let decryption_function = "fn unmask(buf: &mut Vec<u8>, key: u8) {
         for b in buf.iter_mut() {
@@ -112,12 +114,12 @@ pub fn encrypt_uuid(input_path: &Path, export_path: &Path) -> EncryptionOutput {
     );
 
     println!("[+] Done UUID encoding shellcode!");
-    EncryptionOutput {
+    Ok(EncryptionOutput {
         decryption_function,
         main,
         dependencies: None,
         imports: None,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -227,7 +229,7 @@ mod tests {
         ];
         std::fs::write(&input_path, &original).unwrap();
 
-        let output = encrypt_uuid(&input_path, &output_path);
+        let output = encrypt_uuid(&input_path, &output_path).unwrap();
 
         let mut encoded = std::fs::read(&output_path).unwrap();
 

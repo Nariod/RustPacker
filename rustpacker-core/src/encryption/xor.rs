@@ -5,6 +5,8 @@
 use crate::encryption::EncryptionOutput;
 use crate::shellcode_reader::read_shellcode;
 use crate::utils::write_to_file;
+use anyhow::Context;
+use anyhow::Result;
 use std::path::Path;
 
 /// XOR encode shellcode with the given key
@@ -28,14 +30,14 @@ fn xor_encode(shellcode: &[u8], key: u8) -> Vec<u8> {
 ///
 /// # Returns
 /// `EncryptionOutput` containing decryption function and main logic
-pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> EncryptionOutput {
+pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> Result<EncryptionOutput> {
     println!("[+] XORing shellcode with key {}..", key);
 
     let unencrypted =
-        read_shellcode(input_path).expect("Failed to read shellcode for XOR encryption");
+        read_shellcode(input_path).context("Failed to read shellcode for XOR encryption")?;
 
     let encrypted_content = xor_encode(&unencrypted, key);
-    write_to_file(&encrypted_content, export_path).expect("Failed to write XOR output");
+    write_to_file(&encrypted_content, export_path).context("Failed to write XOR output")?;
 
     let decryption_function = "fn xor_decode(buf: &[u8], key: u8) -> Vec<u8> {
         buf.iter().map(|x| x ^ key).collect()
@@ -45,12 +47,12 @@ pub fn encrypt_xor(input_path: &Path, export_path: &Path, key: u8) -> Encryption
     let main = format!("vec = xor_decode(&vec, {});", key);
 
     println!("[+] Done XORing shellcode!");
-    EncryptionOutput {
+    Ok(EncryptionOutput {
         decryption_function,
         main,
         dependencies: None,
         imports: None,
-    }
+    })
 }
 
 #[cfg(test)]
@@ -89,7 +91,7 @@ mod tests {
         let output = dir.join("output.xor");
         fs::write(&input, [0xfc, 0x48, 0x83]).unwrap();
 
-        let result = encrypt_xor(&input, &output, 0x42);
+        let result = encrypt_xor(&input, &output, 0x42).unwrap();
 
         assert!(!result.decryption_function.is_empty());
         assert!(!result.main.is_empty());

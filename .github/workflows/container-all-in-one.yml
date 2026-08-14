@@ -89,7 +89,9 @@ jobs:
 
       - name: Pull the built container
         run: |
-          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          # Use branch name as tag (latest is only available for main branch)
+          BRANCH_TAG=${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$BRANCH_TAG
 
       - name: Create test shellcode
         run: |
@@ -101,7 +103,8 @@ jobs:
       - name: Test container with minimal arguments
         run: |
           # Test that the container starts and shows help
-          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help || true
+          BRANCH_TAG=${{ github.ref_name == 'main' && 'latest' || github.ref_name }}
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:$BRANCH_TAG --help || true
 
       - name: Cleanup
         if: always()

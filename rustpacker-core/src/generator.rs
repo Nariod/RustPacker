@@ -464,8 +464,8 @@ mod tests {
 
     /// Scan a generated file for any leftover `{{...}}` template placeholder.
     fn assert_no_placeholders(label: &str, path: &Path) {
-        let content =
-            fs::read_to_string(path).unwrap_or_else(|e| panic!("read {label} {}: {e}", path.display()));
+        let content = fs::read_to_string(path)
+            .unwrap_or_else(|e| panic!("read {label} {}: {e}", path.display()));
         let leftovers: Vec<&str> = content
             .lines()
             .filter(|line| line.contains("{{") && line.contains("}}"))
@@ -542,8 +542,14 @@ mod tests {
             };
             let cargo_toml = folder.join("Cargo.toml");
 
-            assert!(source_file.exists(), "source file missing for {execution}/{encryption}/{format}");
-            assert!(cargo_toml.exists(), "Cargo.toml missing for {execution}/{encryption}/{format}");
+            assert!(
+                source_file.exists(),
+                "source file missing for {execution}/{encryption}/{format}"
+            );
+            assert!(
+                cargo_toml.exists(),
+                "Cargo.toml missing for {execution}/{encryption}/{format}"
+            );
 
             assert_no_placeholders("source", &source_file);
             assert_no_placeholders("Cargo.toml", &cargo_toml);
@@ -558,5 +564,4 @@ mod tests {
         std::env::set_current_dir(&original_dir).unwrap();
         let _ = fs::remove_dir_all(&dir);
     }
-
 }

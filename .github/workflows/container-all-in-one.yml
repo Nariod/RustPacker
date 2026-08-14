@@ -10,7 +10,7 @@ on:
 # Define environment variables for container registries
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ toLower(github.repository) }}
+  IMAGE_NAME: nariod/rustpacker
 
 jobs:
   build-and-push:

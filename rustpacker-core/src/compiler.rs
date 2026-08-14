@@ -49,7 +49,10 @@ fn ensure_image_available(runtime: &str) -> Result<()> {
         return Ok(());
     }
 
-    println!("[+] Building {} image (one-time, cached for next runs)...", BUILDER_IMAGE);
+    println!(
+        "[+] Building {} image (one-time, cached for next runs)...",
+        BUILDER_IMAGE
+    );
     let project_root = find_project_root()?;
     let dockerfile = project_root.join(DOCKERFILE);
     if !dockerfile.exists() {
@@ -96,7 +99,6 @@ fn find_project_root() -> Result<PathBuf> {
         }
     }
 }
-
 
 fn compile_in_container(runtime: &str, path_to_cargo_folder: &Path) -> Result<()> {
     ensure_image_available(runtime)?;
@@ -194,10 +196,7 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         eprintln!("{}", err);
-        return Err(anyhow::anyhow!(
-            "Compilation failed: {}",
-            output.status
-        ));
+        return Err(anyhow::anyhow!("Compilation failed: {}", output.status));
     }
 
     if !output.stderr.is_empty() {

@@ -84,24 +84,24 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Podman
-        uses: containers/podman-action@v1
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
 
       - name: Pull the built container
         run: |
-          podman pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
 
       - name: Create test shellcode
         run: |
           # Create a simple test shellcode (MessageBox)
-          echo -e '\x48\x83\xEC\x28\x48\x83\xE4\xF0\x48\x8D\x15\xE1\xFF\xFF\xFF' > test_shellcode.bin
-          echo -e '\x48\x8D\x0D\xD6\xFF\xFF\xFF\xE8\xB7\xFF\xFF\xFF' >> test_shellcode.bin
+          printf '\x48\x83\xEC\x28\x48\x83\xE4\xF0\x48\x8D\x15\xE1\xFF\xFF\xFF' > test_shellcode.bin
+          printf '\x48\x8D\x0D\xD6\xFF\xFF\xFF\xE8\xB7\xFF\xFF\xFF' >> test_shellcode.bin
           # This is just a placeholder - in real usage, use msfvenom or similar
 
       - name: Test container with minimal arguments
         run: |
           # Test that the container starts and shows help
-          podman run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help || true
+          docker run --rm ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest --help || true
 
       - name: Cleanup
         if: always()

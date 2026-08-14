@@ -1,0 +1,36 @@
+[package]
+name = "rustpacker-core"
+version = "2.0.0"
+edition = "2021"
+authors = ["Nariod"]
+description = "Core library for RustPacker - shellcode loader generator"
+license = "MIT"
+
+[dependencies]
+# Argument parsing
+clap = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+
+# File system operations
+path-absolutize = { workspace = true }
+fs_extra = { workspace = true }
+path-clean = { workspace = true }
+
+# Random number generation
+rand = { workspace = true }
+
+# Encryption
+libaes = { workspace = true }
+
+# String obfuscation
+litcrypt = { workspace = true }
+
+# Windows API (for templates)
+winapi = { workspace = true }
+sysinfo = { workspace = true }
+
+[dev-dependencies]
+tempfile = "3"

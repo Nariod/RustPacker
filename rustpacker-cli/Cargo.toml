@@ -1,0 +1,14 @@
+[package]
+name = "rustpacker-cli"
+version = "2.0.0"
+edition = "2021"
+authors = ["Nariod"]
+description = "CLI for RustPacker - shellcode loader generator"
+license = "MIT"
+
+[[bin]]
+name = "RustPacker"
+path = "src/main.rs"
+
+[dependencies]
+rustpacker-core = { workspace = true }

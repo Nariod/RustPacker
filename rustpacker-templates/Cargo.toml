@@ -1,0 +1,10 @@
+[package]
+name = "rustpacker-templates"
+version = "2.0.0"
+edition = "2021"
+authors = ["Nariod"]
+description = "Templates for RustPacker - injection techniques"
+license = "MIT"
+
+[dependencies]
+rustpacker-core = { workspace = true }

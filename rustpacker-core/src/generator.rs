@@ -46,6 +46,22 @@ pub fn validate_no_placeholders(path: &Path) -> Result<()> {
     ))
 }
 
+/// Copy the shared `common.rs` helper into the generated project's `src/`.
+///
+/// Templates declare `mod common;` via the {{COMMON_MODULE}} placeholder;
+/// this provides the implementation from a single source of truth
+/// (`templates/common.rs`) instead of one copy per template.
+fn copy_common_module(src_dir: &Path) -> Result<()> {
+    let common_src = Path::new("templates").join("common.rs");
+    fs::copy(&common_src, src_dir.join("common.rs")).with_context(|| {
+        format!(
+            "Failed to copy shared common.rs from {}",
+            common_src.display()
+        )
+    })?;
+    Ok(())
+}
+
 /// Generate Rust loader code from order configuration
 pub fn assemble(order: Order) -> Result<PathBuf> {
     println!("[+] Assembling Rust code..");
@@ -55,6 +71,7 @@ pub fn assemble(order: Order) -> Result<PathBuf> {
     copy_template(&template_path, &folder)?;
 
     let src_dir = folder.join("src");
+    copy_common_module(&src_dir)?;
     let main_rs = src_dir.join("main.rs");
     let cargo_toml = folder.join("Cargo.toml");
 

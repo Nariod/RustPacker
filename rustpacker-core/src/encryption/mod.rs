@@ -11,6 +11,7 @@ use crate::encryption::uuid::encrypt_uuid;
 use crate::encryption::xor::encrypt_xor;
 use crate::obfuscation::non_zero_random_key;
 use crate::utils::{random_aes_iv, random_aes_key};
+use anyhow::Result;
 
 /// Output of encryption process
 #[derive(Debug, Clone)]
@@ -26,7 +27,7 @@ pub fn encrypt_shellcode(
     input_path: &Path,
     export_path: &Path,
     method: crate::config::Encryption,
-) -> EncryptionOutput {
+) -> Result<EncryptionOutput> {
     match method {
         crate::config::Encryption::Xor => {
             encrypt_xor(input_path, export_path, non_zero_random_key())
@@ -52,7 +53,7 @@ mod tests {
         let output = dir.join("output.xor");
         fs::write(&input, [0xfc, 0x48, 0x83]).unwrap();
 
-        let result = encrypt_shellcode(&input, &output, Encryption::Xor);
+        let result = encrypt_shellcode(&input, &output, Encryption::Xor).unwrap();
         assert!(!result.decryption_function.is_empty());
         assert!(!result.main.is_empty());
         assert!(output.exists());

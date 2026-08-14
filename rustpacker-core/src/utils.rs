@@ -8,10 +8,11 @@ use rand::distr::Alphanumeric;
 use rand::RngExt;
 use std::env;
 use std::fs::{self, File};
-use std::io;
 use std::io::Write;
 use std::path::Path;
 use std::path::PathBuf;
+
+use anyhow::{Context, Result};
 
 /// Convert a path to an absolute path
 ///
@@ -20,14 +21,16 @@ use std::path::PathBuf;
 ///
 /// # Returns
 /// The absolute path
-pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
+pub fn absolute_path(path: impl AsRef<Path>) -> Result<PathBuf> {
     // thanks to https://stackoverflow.com/questions/30511331/getting-the-absolute-path-from-a-pathbuf
     let path = path.as_ref();
 
     let absolute_path = if path.is_absolute() {
         path.to_path_buf()
     } else {
-        env::current_dir()?.join(path)
+        env::current_dir()
+            .context("Failed to determine current directory")?
+            .join(path)
     }
     .clean();
 
@@ -42,9 +45,11 @@ pub fn absolute_path(path: impl AsRef<Path>) -> io::Result<PathBuf> {
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn write_to_file(content: &[u8], path: &Path) -> Result<(), Box<dyn std::error::Error>> {
-    let mut file = File::create(path)?;
-    file.write_all(content)?;
+pub fn write_to_file(content: &[u8], path: &Path) -> Result<()> {
+    let mut file =
+        File::create(path).with_context(|| format!("Failed to create file: {}", path.display()))?;
+    file.write_all(content)
+        .with_context(|| format!("Failed to write to file: {}", path.display()))?;
 
     Ok(())
 }
@@ -101,20 +106,8 @@ pub fn get_source_binary_filename(
     output_folder: &Path,
 ) -> PathBuf {
     let binary_name = format!("{}.{}", execution.template_name(), format);
-    let candidates = [
-        "target/x86_64-pc-windows-msvc/release",
-        "target/x86_64-pc-windows-gnu/release",
-    ];
-    for dir in candidates {
-        let path = output_folder.join(dir).join(&binary_name);
-        if path.exists() {
-            return path;
-        }
-    }
-    output_folder.join(format!(
-        "target/x86_64-pc-windows-gnu/release/{}",
-        binary_name
-    ))
+    let target_dir = "target/x86_64-pc-windows-gnu/release";
+    output_folder.join(target_dir).join(binary_name)
 }
 
 /// Process the output binary
@@ -125,7 +118,7 @@ pub fn get_source_binary_filename(
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -> io::Result<()> {
+pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -> Result<()> {
     let output_path = match &order.output {
         Some(p) => p,
         None => return Ok(()),
@@ -133,7 +126,9 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
 
     if let Some(parent) = output_path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent)?;
+            fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create output directory: {}", parent.display())
+            })?;
         }
     }
 
@@ -141,13 +136,19 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
         get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.is_file() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("Source file does not exist: {:?}", source_binary),
+        return Err(anyhow::anyhow!(
+            "Source file does not exist: {}",
+            source_binary.display()
         ));
     }
 
-    fs::copy(&source_binary, output_path)?;
+    fs::copy(&source_binary, output_path).with_context(|| {
+        format!(
+            "Failed to copy source binary from {} to {}",
+            source_binary.display(),
+            output_path.display()
+        )
+    })?;
     println!("[+] Your binary has been written here: {:?}", output_path);
 
     Ok(())
@@ -161,27 +162,30 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
 ///
 /// # Returns
 /// Result indicating success or failure
-pub fn rename_source_binary(
-    order: &crate::config::Order,
-    output_folder_path: &Path,
-) -> io::Result<()> {
+pub fn rename_source_binary(order: &crate::config::Order, output_folder_path: &Path) -> Result<()> {
     let source_binary =
         get_source_binary_filename(&order.execution, &order.format, output_folder_path);
 
     if !source_binary.exists() {
-        return Err(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("Source file does not exist: {:?}", source_binary),
+        return Err(anyhow::anyhow!(
+            "Source file does not exist: {}",
+            source_binary.display()
         ));
     }
 
     let random_filename = generate_random_filename(&order.format.to_string());
     let release_dir = source_binary
         .parent()
-        .expect("Source binary has no parent directory");
+        .context("Source binary has no parent directory")?;
     let new_path = release_dir.join(random_filename);
 
-    fs::rename(&source_binary, &new_path)?;
+    fs::rename(&source_binary, &new_path).with_context(|| {
+        format!(
+            "Failed to rename source binary from {} to {}",
+            source_binary.display(),
+            new_path.display()
+        )
+    })?;
     println!("[+] Source binary has been renamed to: {:?}", new_path);
 
     Ok(())

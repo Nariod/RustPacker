@@ -12,3 +12,4 @@ path = "src/main.rs"
 
 [dependencies]
 rustpacker-core = { workspace = true }
+anyhow = { workspace = true }

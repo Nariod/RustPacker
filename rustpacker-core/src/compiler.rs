@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::utils::absolute_path;
+use anyhow::{Context, Result};
 
 const BUILDER_IMAGE: &str = "ghcr.io/nariod/rustpacker:latest";
 const BUILD_TARGET: &str = "x86_64-pc-windows-gnu";
@@ -36,24 +37,23 @@ fn is_image_available(runtime: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn compile_in_container(
-    runtime: &str,
-    path_to_cargo_folder: &Path,
-) -> Result<(), Box<dyn std::error::Error>> {
+fn compile_in_container(runtime: &str, path_to_cargo_folder: &Path) -> Result<()> {
     // Check if the container image is available, pull it if not
     if !is_image_available(runtime) {
         println!("[+] Pulling {} image...", BUILDER_IMAGE);
         let output = Command::new(runtime)
             .args(["pull", BUILDER_IMAGE])
-            .output()?;
+            .output()
+            .context("Failed to spawn container pull command")?;
 
         if !output.status.success() {
             let err = String::from_utf8_lossy(&output.stderr);
-            return Err(format!("Failed to pull {}: {}", BUILDER_IMAGE, err).into());
+            return Err(anyhow::anyhow!("Failed to pull {}: {}", BUILDER_IMAGE, err));
         }
     }
 
-    let abs_path = absolute_path(path_to_cargo_folder)?;
+    let abs_path = absolute_path(path_to_cargo_folder)
+        .context("Failed to resolve absolute path for cargo folder")?;
 
     // Use the all-in-one container image
     let output = Command::new(runtime)
@@ -63,12 +63,16 @@ fn compile_in_container(
         .args(["-e", "LDFLAGS_x86_64_pc_windows_gnu=-lrt"])
         .args(["-e", "RUSTFLAGS=-C target-feature=+crt-static"])
         .arg(BUILDER_IMAGE)
-        .output()?;
+        .output()
+        .context("Failed to spawn container run command")?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         eprintln!("{}", err);
-        return Err(format!("Container compilation failed: {}", output.status).into());
+        return Err(anyhow::anyhow!(
+            "Container compilation failed: {}",
+            output.status
+        ));
     }
 
     if !output.stderr.is_empty() {
@@ -90,7 +94,7 @@ fn is_rust_available() -> bool {
         .unwrap_or(false)
 }
 
-fn run_compiler(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn run_compiler(path_to_cargo_folder: &Path) -> Result<()> {
     // If we're already in a container with Rust available, compile locally
     if is_running_in_container() && is_rust_available() {
         return compile_with_cargo(path_to_cargo_folder);
@@ -109,11 +113,13 @@ fn run_compiler(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::E
     }
 
     // No compilation method available - force container usage
-    Err("No container runtime (podman/docker) found. Please install Podman or Docker and ensure it's in your PATH.".into())
+    Err(anyhow::anyhow!(
+        "No container runtime (podman/docker) found. Please install Podman or Docker and ensure it's in your PATH."
+    ))
 }
 
 /// Compile using cargo (for use inside containers or when Rust is available locally)
-fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
     let target = BUILD_TARGET;
     let manifest = path_to_cargo_folder.join("Cargo.toml");
 
@@ -133,12 +139,13 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::er
         .args(["build", "--release", "--manifest-path"])
         .arg(&manifest)
         .args(["--target", target])
-        .output()?;
+        .output()
+        .context("Failed to spawn cargo build command")?;
 
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         eprintln!("{}", err);
-        return Err(format!("Compilation failed: {}", output.status).into());
+        return Err(anyhow::anyhow!("Compilation failed: {}", output.status));
     }
 
     if !output.stderr.is_empty() {
@@ -153,10 +160,9 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<(), Box<dyn std::er
 ///
 /// # Arguments
 /// * `path_to_cargo_folder` - Path to the folder containing Cargo.toml
-pub fn compile(path_to_cargo_folder: &Path) {
+pub fn compile(path_to_cargo_folder: &Path) -> Result<()> {
     println!("[+] Starting to compile your malware..");
-    run_compiler(path_to_cargo_folder).unwrap_or_else(|err| {
-        panic!("Compilation failed: {:?}", err);
-    });
+    run_compiler(path_to_cargo_folder).context("Compilation failed")?;
     println!("[+] Successfully compiled! Rust code and compiled binary are in the 'shared' folder");
+    Ok(())
 }

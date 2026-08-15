@@ -187,9 +187,6 @@ mod tests {
         std::env::set_current_dir(&dir).unwrap();
 
         for (execution, encryption, format) in all_combinations() {
-            // create_output_folder() names folders by second-precision timestamp,
-            // so separate iterations by >1s to avoid same-second collisions.
-            std::thread::sleep(std::time::Duration::from_millis(1100));
             let order = make_order(&shellcode, execution, encryption, format);
             let folder = assemble(order).expect("assemble should succeed");
 

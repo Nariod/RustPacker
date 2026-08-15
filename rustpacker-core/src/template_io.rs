@@ -6,6 +6,8 @@
 use crate::config::Execution;
 use anyhow::{Context, Result};
 use fs_extra::dir::{copy, CopyOptions};
+use rand::distr::Alphanumeric;
+use rand::RngExt;
 use std::fs::{self, OpenOptions};
 use std::io::prelude::*;
 use std::path::{Path, PathBuf};
@@ -38,12 +40,19 @@ pub fn search_and_replace(path: &Path, search: &str, replace: &str) -> Result<()
 }
 
 /// Create a timestamped output folder under `shared/`.
+///
+/// A random suffix is appended so that two folders created within the same
+/// second never collide (the second `fs::create_dir` would otherwise fail
+/// with "File exists").
 pub fn create_output_folder() -> Result<PathBuf> {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .context("System clock before UNIX epoch")?
         .as_secs();
-    let folder_name = format!("output_{}", timestamp);
+    let suffix: String = (0..6)
+        .map(|_| rand::rng().sample(Alphanumeric) as char)
+        .collect();
+    let folder_name = format!("output_{}_{}", timestamp, suffix);
     println!("[+] Creating output folder: {}", folder_name);
     let path = Path::new(OUTPUT_DIR).join(folder_name);
     fs::create_dir(&path)

@@ -14,3 +14,7 @@ output_*/
 # shellcode
 *.raw
 *.bin
+
+# binaries
+*.exe
+*.dll

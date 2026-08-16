@@ -79,6 +79,9 @@ pub enum Execution {
     /// EarlyCascade injection via shim engine callback hijacking
     #[value(alias = "earlycascade", alias = "ntEarlyCascade")]
     EarlyCascade,
+    /// Module stomping via low level APIs (overwrites a legit DLL .text)
+    #[value(alias = "ntstomp", alias = "ntStomp")]
+    NtModuleStomping,
 }
 
 impl Execution {
@@ -90,6 +93,7 @@ impl Execution {
                 | Execution::WinFiber
                 | Execution::NtFiber
                 | Execution::SysFiber
+                | Execution::NtModuleStomping
         )
     }
 
@@ -104,6 +108,7 @@ impl Execution {
             Execution::NtFiber => "ntFIBER",
             Execution::SysFiber => "sysFIBER",
             Execution::EarlyCascade => "ntEarlyCascade",
+            Execution::NtModuleStomping => "ntStomp",
         }
     }
 }
@@ -204,6 +209,7 @@ mod tests {
         assert!(Execution::WinFiber.is_self_injection());
         assert!(Execution::NtFiber.is_self_injection());
         assert!(Execution::SysFiber.is_self_injection());
+        assert!(Execution::NtModuleStomping.is_self_injection());
 
         assert!(!Execution::NtCreateRemoteThread.is_self_injection());
         assert!(!Execution::SysCreateRemoteThread.is_self_injection());
@@ -217,6 +223,7 @@ mod tests {
         assert_eq!(format!("{}", Execution::NtCreateRemoteThread), "ntCRT");
         assert_eq!(format!("{}", Execution::NtQueueUserAPC), "ntAPC");
         assert_eq!(format!("{}", Execution::EarlyCascade), "ntEarlyCascade");
+        assert_eq!(format!("{}", Execution::NtModuleStomping), "ntStomp");
     }
 
     #[test]
@@ -237,5 +244,6 @@ mod tests {
         assert_eq!(Execution::NtQueueUserAPC.template_name(), "ntAPC");
         assert_eq!(Execution::NtCreateRemoteThread.template_name(), "ntCRT");
         assert_eq!(Execution::SysCreateRemoteThread.template_name(), "sysCRT");
+        assert_eq!(Execution::NtModuleStomping.template_name(), "ntStomp");
     }
 }

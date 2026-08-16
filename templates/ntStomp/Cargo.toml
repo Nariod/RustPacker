@@ -1,0 +1,20 @@
+[package]
+name = "ntStomp"
+version = "0.1.0"
+edition = "2021"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[workspace]
+{{DLL_FORMAT}}
+
+[dependencies]
+sysinfo = "0.39"
+winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt", "processthreadsapi", "winbase"] }
+{{DEPENDENCIES}}
+
+[profile.release]
+strip = true  # Automatically strip symbols from the binary.
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

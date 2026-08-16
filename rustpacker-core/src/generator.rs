@@ -122,6 +122,7 @@ mod tests {
             Execution::NtFiber,
             Execution::SysFiber,
             Execution::EarlyCascade,
+            Execution::NtModuleStomping,
         ];
         let encryptions = [Encryption::Xor, Encryption::Aes, Encryption::Uuid];
         let formats = [Format::Exe, Format::Dll];

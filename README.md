@@ -210,10 +210,10 @@ cd RustPacker/
 cargo build --release
 
 # Linux / macOS
-cargo run -- -f shared/your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
+cargo run -- -s shared/your_shellcode.raw -i ntcrt -e aes -f exe -t notepad.exe
 
 # Windows (PowerShell)
-cargo run -- -f shared\your_shellcode.raw -i ntcrt -e aes -b exe -t notepad.exe
+cargo run -- -s shared\your_shellcode.raw -i ntcrt -e aes -f exe -t notepad.exe
 ```
 
 The first run builds the `rustpacker-builder` image once. Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
@@ -290,18 +290,18 @@ Optional:
 ### Native Mode (Rust toolchain required)
 
 ```
-Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
+Usage: RustPacker -s <FILE> -f <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 
 Required:
-  -f <FILE>         Path to the raw shellcode file
-  -b <FORMAT>       Output binary format: exe, dll
+  -s <FILE>         Path to the raw shellcode file
+  -f <FORMAT>       Output binary format: exe, dll
   -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
   -e <ENCRYPTION>   Encryption method: xor, aes, uuid
 
 Optional:
   -t <PROCESS>      Target process to inject into (default: dllhost.exe, CRT templates only)
-  -s <DOMAIN>       Domain pinning: only execute on the specified domain name
-  -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy (requires -b dll, self-injection templates only)
+  --sandbox <DOMAIN>  Domain pinning: only execute on the specified domain name
+  -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
   -o <PATH>         Custom output path for the resulting binary
   -h                Print help
   -V                Print version
@@ -423,7 +423,7 @@ rustup target add x86_64-pc-windows-gnu
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
 cd RustPacker/
-cargo run -- -f shared/payload.raw -i ntcrt -e xor -b exe -t explorer.exe
+cargo run -- -s shared/payload.raw -i ntcrt -e xor -f exe -t explorer.exe
 ```
 
 > When no container runtime is detected, RustPacker falls back to local compilation automatically.

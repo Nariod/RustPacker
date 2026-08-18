@@ -16,6 +16,7 @@ pub mod sandbox;
 pub mod shellcode_reader;
 pub mod template_io;
 pub mod utils;
+pub mod wat;
 
 // Re-export the most important types and functions for convenience
 pub use compiler::compile;

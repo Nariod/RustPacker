@@ -233,6 +233,7 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 | Minimal dependencies, quick test | `wincrt` (remote) or `winfiber` (self) |
 | Shim engine / EarlyCascade technique | `earlycascade` |
 | **Module stomping** (overwrite a legit DLL's .text) | `ntstomp` |
+| **WebAssembly stager** (low-entropy WAT payload wrapping) | `ntwat` |
 
 ### Process Injection Templates (use with `-t <process>`)
 
@@ -256,6 +257,7 @@ These execute shellcode within the current process.
 | `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | Fiber-based execution via dynamic NT API resolution |
 | `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | Fiber-based execution via indirect syscalls |
 | `ntstomp` | Low (ntapi) | ❌ | ✅ | Module stomping: overwrites a legit DLL's .text with shellcode |
+| `ntwat` | Low (ntapi) | ❌ | ✅ | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
 
 ---
 
@@ -273,7 +275,7 @@ Usage: podman run --rm -v $(pwd):/workdir rustpacker [OPTIONS]
 Required:
   --shellcode-path <FILE>     Path to the raw shellcode file (use /workdir/... for container paths)
   --format <FORMAT>           Output binary format: exe, dll
-  --execution <TEMPLATE>      Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp
+  --execution <TEMPLATE>      Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
   --encryption <METHOD>       Encryption method: xor, aes, uuid
 
 Optional:
@@ -293,7 +295,7 @@ Usage: RustPacker -f <FILE> -b <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 Required:
   -f <FILE>         Path to the raw shellcode file
   -b <FORMAT>       Output binary format: exe, dll
-  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp
+  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
   -e <ENCRYPTION>   Encryption method: xor, aes, uuid
 
 Optional:
@@ -576,6 +578,8 @@ let executions = [
 | File | Role |
 |------|------|
 | `templates/ntStomp/` | Reference self-injection template (module stomping) |
+| `templates/ntWat/` | WebAssembly (WAT) stager self-injection template |
+| `rustpacker-core/src/wat.rs` | WAT generation + wasm compilation for the ntWat template |
 | `rustpacker-core/src/config.rs` | `Execution` enum, aliases, `is_self_injection`, `template_name` |
 | `rustpacker-core/src/replacements.rs` | Placeholder → value map construction |
 | `rustpacker-core/src/generator.rs` | Template copy + substitution orchestration + integration test |

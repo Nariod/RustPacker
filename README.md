@@ -274,15 +274,15 @@ Usage: podman run --rm -v $(pwd):/workdir rustpacker [OPTIONS]
 
 Required:
   --shellcode-path <FILE>     Path to the raw shellcode file (use /workdir/... for container paths)
-  --format <FORMAT>           Output binary format: exe, dll
-  --execution <TEMPLATE>      Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
-  --encryption <METHOD>       Encryption method: xor, aes, uuid
+  -f, --format <FORMAT>       Output binary format: exe, dll
+  -i, --execution <TEMPLATE>  Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
+  -e, --encryption <METHOD>   Encryption method: xor, aes, uuid
 
 Optional:
-  --target-process <PROCESS>  Target process to inject into (default: dllhost.exe, CRT templates only)
+  -t, --target-process <PROCESS>  Target process to inject into (default: dllhost.exe, CRT templates only)
   --sandbox <DOMAIN>          Domain pinning: only execute on the specified domain name
-  --proxy-dll <DLL_PATH>      DLL proxying: path to legitimate DLL to proxy (requires --format dll, self-injection templates only)
-  --output <PATH>             Custom output path for the resulting binary
+  -p, --proxy-dll <DLL_PATH>  DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
+  -o, --output <PATH>         Custom output path for the resulting binary
   --help                      Print help
   --version                   Print version
 ```

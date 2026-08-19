@@ -214,6 +214,6 @@ fn compile_with_cargo(path_to_cargo_folder: &Path) -> Result<()> {
 pub fn compile(path_to_cargo_folder: &Path) -> Result<()> {
     println!("[+] Starting to compile your malware..");
     run_compiler(path_to_cargo_folder).context("Compilation failed")?;
-    println!("[+] Successfully compiled! Rust code and compiled binary are in the 'shared' folder");
+    println!("[+] Successfully compiled! Binary is in: {}", path_to_cargo_folder.join("target/x86_64-pc-windows-gnu/release/").display());
     Ok(())
 }

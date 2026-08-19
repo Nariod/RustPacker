@@ -596,22 +596,6 @@ Contributions are welcome! Here's how you can help:
 3. **Templates**: Contribute new injection techniques
 4. **Documentation**: Improve documentation and examples
 
-### Development Roadmap
-
-- [x] Multiple injection templates
-- [x] XOR, AES, and UUID encryption/encoding
-- [x] Indirect syscalls support
-- [x] EXE and DLL output formats
-- [x] Docker containerization
-- [x] Domain pinning, thanks to [m4r1u5-p0p](https://github.com/m4r1u5-p0p) !
-- [x] Indirect syscalls for fiber templates
-- [x] Cross-platform support (Linux, Windows, macOS)
-- [x] String encryption (litcrypt)
-- [ ] Check DLL support for all templates
-- [x] Add EarlyCascade injection template
-- [x] Add Module Stomping (ntStomp) injection template
-- [x] Add DLL proxying support
-
 ---
 
 ## 🙏 Acknowledgments

@@ -17,10 +17,7 @@
 
 **Shellcode** is a small blob of machine code that a C2 framework (Metasploit, Sliver, Cobalt Strike…) generates as a payload. By itself it's just bytes — it needs a *loader* to run it on a target Windows machine.
 
-**RustPacker is that loader generator.** It takes your shellcode, wraps it in a Rust program that handles:
-- **Encryption** — so the payload looks like random bytes on disk and in memory
-- **Injection** — so the code is mapped into a Windows process and executed
-- **Evasion** — so EDR/AV sensors are less likely to catch it
+**RustPacker is that loader generator.** It takes your shellcode, wraps it in a Rust program.
 
 The result is a `.exe` or `.dll` that you deliver to your target during an authorized engagement.
 

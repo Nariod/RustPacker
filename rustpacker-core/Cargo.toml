@@ -15,7 +15,6 @@ thiserror = { workspace = true }
 anyhow = { workspace = true }
 
 # File system operations
-path-absolutize = { workspace = true }
 fs_extra = { workspace = true }
 path-clean = { workspace = true }
 
@@ -30,9 +29,8 @@ litcrypt = { workspace = true }
 
 # Windows API (for templates)
 winapi = { workspace = true }
-sysinfo = { workspace = true }
 # WebAssembly (WAT) payload wrapping for the ntWat template
-wat = "1"
+wat = "1.258"
 
 [dev-dependencies]
 tempfile = "3"

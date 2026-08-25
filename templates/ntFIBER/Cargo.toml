@@ -10,12 +10,12 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi"] }
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi"] }
 {{DEPENDENCIES}}
 
 
 [dependencies.windows-sys]
-version = "0.61"
+version = "0.61.2"
 
 features = [
     "Win32_System_Memory",

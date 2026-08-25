@@ -10,14 +10,12 @@ resolver = "2"
 rustpacker-core = { path = "rustpacker-core" }
 # Shared dependencies across all crates
 clap = { version = "4", features = ["derive"] }
-thiserror = "1.0"
+thiserror = "2.0"
 anyhow = "1.0"
-path-absolutize = "4"
 fs_extra = "1"
 path-clean = "1"
 rand = "0.10"
 libaes = "0.7"
-sysinfo = "0.39"
 winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt"] }
 litcrypt = "0.4"
 

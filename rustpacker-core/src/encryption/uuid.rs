@@ -43,11 +43,10 @@ fn uuid_encode(shellcode: &[u8]) -> String {
     }
 
     padded
-        .chunks_exact(16)
-        .map(|chunk| {
-            let arr: [u8; 16] = chunk.try_into().unwrap();
-            bytes_to_uuid(&arr)
-        })
+        .as_chunks::<16>()
+        .0
+        .iter()
+        .map(bytes_to_uuid)
         .collect::<Vec<String>>()
         .join("\n")
 }

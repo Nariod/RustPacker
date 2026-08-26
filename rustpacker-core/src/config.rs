@@ -50,6 +50,11 @@ pub struct Order {
     /// Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)
     #[arg(short, long)]
     pub proxy_dll: Option<PathBuf>,
+
+    /// Patch ETW functions to disable Event Tracing for Windows (EDR evasion).
+    /// Only available for self-injection templates using indirect syscalls.
+    #[arg(long)]
+    pub etw_patch: bool,
 }
 
 /// Execution techniques available for shellcode injection
@@ -101,6 +106,16 @@ impl Execution {
                 | Execution::NtModuleStomping
                 | Execution::NtWatStager
         )
+    }
+
+    /// Check if this execution method uses indirect syscalls
+    pub fn uses_indirect_syscalls(&self) -> bool {
+        matches!(self, Execution::SysCreateRemoteThread | Execution::SysFiber)
+    }
+
+    /// Check if this execution method supports ETW patching
+    pub fn supports_etw_patch(&self) -> bool {
+        self.is_self_injection() && self.uses_indirect_syscalls()
     }
 
     /// Get the template name for this execution method
@@ -203,7 +218,37 @@ pub fn parse_args() -> Result<Order> {
         }
     }
 
+    if order.etw_patch && !order.execution.supports_etw_patch() {
+        let eligible: Vec<&str> = Execution::all()
+            .iter()
+            .filter(|e| e.supports_etw_patch())
+            .map(|e| e.template_name())
+            .collect();
+        return Err(anyhow!(
+            "ETW patching (--etw-patch) is only supported with self-injection templates using indirect syscalls. Current eligible templates: {}",
+            eligible.join(", ")
+        ));
+    }
+
     Ok(order)
+}
+
+/// Helper to get all execution variants for iteration
+impl Execution {
+    pub fn all() -> &'static [Execution] {
+        &[
+            Execution::NtQueueUserAPC,
+            Execution::NtCreateRemoteThread,
+            Execution::SysCreateRemoteThread,
+            Execution::WinCreateRemoteThread,
+            Execution::WinFiber,
+            Execution::NtFiber,
+            Execution::SysFiber,
+            Execution::EarlyCascade,
+            Execution::NtModuleStomping,
+            Execution::NtWatStager,
+        ]
+    }
 }
 
 #[cfg(test)]
@@ -223,6 +268,36 @@ mod tests {
         assert!(!Execution::SysCreateRemoteThread.is_self_injection());
         assert!(!Execution::WinCreateRemoteThread.is_self_injection());
         assert!(!Execution::EarlyCascade.is_self_injection());
+    }
+
+    #[test]
+    fn test_execution_uses_indirect_syscalls() {
+        assert!(Execution::SysCreateRemoteThread.uses_indirect_syscalls());
+        assert!(Execution::SysFiber.uses_indirect_syscalls());
+
+        assert!(!Execution::NtQueueUserAPC.uses_indirect_syscalls());
+        assert!(!Execution::NtCreateRemoteThread.uses_indirect_syscalls());
+        assert!(!Execution::WinCreateRemoteThread.uses_indirect_syscalls());
+        assert!(!Execution::WinFiber.uses_indirect_syscalls());
+        assert!(!Execution::NtFiber.uses_indirect_syscalls());
+        assert!(!Execution::EarlyCascade.uses_indirect_syscalls());
+        assert!(!Execution::NtModuleStomping.uses_indirect_syscalls());
+        assert!(!Execution::NtWatStager.uses_indirect_syscalls());
+    }
+
+    #[test]
+    fn test_execution_supports_etw_patch() {
+        assert!(Execution::SysFiber.supports_etw_patch());
+
+        assert!(!Execution::NtQueueUserAPC.supports_etw_patch());
+        assert!(!Execution::NtCreateRemoteThread.supports_etw_patch());
+        assert!(!Execution::SysCreateRemoteThread.supports_etw_patch());
+        assert!(!Execution::WinCreateRemoteThread.supports_etw_patch());
+        assert!(!Execution::WinFiber.supports_etw_patch());
+        assert!(!Execution::NtFiber.supports_etw_patch());
+        assert!(!Execution::EarlyCascade.supports_etw_patch());
+        assert!(!Execution::NtModuleStomping.supports_etw_patch());
+        assert!(!Execution::NtWatStager.supports_etw_patch());
     }
 
     #[test]

@@ -155,6 +155,7 @@ mod tests {
             sandbox: None,
             output: None,
             proxy_dll: None,
+            etw_patch: false,
         }
     }
 

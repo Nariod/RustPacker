@@ -11,9 +11,9 @@ edition = "2021"
 
 [dependencies]
 rust_syscalls = { git = "https://github.com/Nariod/rust_syscalls",  features = ["_INDIRECT_"] }
-sysinfo = "0.39"
-ntapi = { version = "0.4", features = ["impl-default"] }
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "winnt"] }
+sysinfo = "0.39.6"
+ntapi = { version = "0.4.3", features = ["impl-default"] }
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "winnt"] }
 {{DEPENDENCIES}}
 
 [profile.release]

@@ -11,13 +11,13 @@ edition = "2021"
 
 [dependencies]
 rust_syscalls = { git = "https://github.com/Nariod/rust_syscalls",  features = ["_INDIRECT_"] }
-ntapi = { version = "0.4", features = ["impl-default"] }
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "winbase", "sysinfoapi"] }
+ntapi = { version = "0.4.3", features = ["impl-default"] }
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "winbase", "sysinfoapi"] }
 {{DEPENDENCIES}}
 
 
 [dependencies.windows-sys]
-version = "0.61"
+version = "0.61.2"
 
 features = [
     "Win32_System_Memory",

@@ -10,8 +10,8 @@ edition = "2021"
 {{DLL_FORMAT}}
 
 [dependencies]
-sysinfo = "0.39"
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt"] }
+sysinfo = "0.39.6"
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt"] }
 {{DEPENDENCIES}}
 
 [profile.release]

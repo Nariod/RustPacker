@@ -36,7 +36,7 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 **The fastest and easiest way to use RustPacker! No Rust installation required.**
 
-### \u2705 Step 1 — Install Podman or Docker
+### ✅ Step 1 — Install Podman or Docker
 
 ```bash
 # Ubuntu / Debian
@@ -238,10 +238,10 @@ These inject shellcode into a remote process. Default target: `dllhost.exe`.
 
 | Template | API Level | Indirect Syscalls | Dynamic API | Description |
 |----------|-----------|:-----------------:|:-----------:|-------------|
-| `wincrt` | High (Windows-rs) | \u274c | \u274c | CreateRemoteThread via the official Windows crate |
-| `ntcrt` | Low (ntapi) | \u274c | \u2705 | NtCreateThreadEx via dynamic NT API resolution |
-| `syscrt` | Syscall | \u2705 | \u274c | NtCreateThreadEx via indirect syscalls |
-| `earlycascade` | Low (winapi) | \u274c | \u274c | EarlyCascade injection via shim engine callback hijacking |
+| `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
+| `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
+| `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
+| `earlycascade` | Low (winapi) | ❌ | ❌ | EarlyCascade injection via shim engine callback hijacking |
 
 ### Self-Execution Templates (no `-t` needed)
 
@@ -249,12 +249,12 @@ These execute shellcode within the current process.
 
 | Template | API Level | Indirect Syscalls | Dynamic API | ETW patching compatible | Description |
 |----------|-----------|:-----------------:|:-----------:|:------------------------:|-------------|
-| `ntapc` | Low (ntapi) | \u274c | \u2705 | \u274c | Queue APC to current thread via dynamic NT API resolution |
-| `winfiber` | High (windows-sys) | \u274c | \u274c | \u274c | Fiber-based execution via Windows API |
-| `ntfiber` | Low (ntapi + windows-sys) | \u274c | \u2705 | \u274c | Fiber-based execution via dynamic NT API resolution |
-| `sysfiber` | Syscall (ntapi + windows-sys) | \u2705 | \u274c | \u2705 | Fiber-based execution via indirect syscalls |
-| `ntstomp` | Low (ntapi) | \u274c | \u2705 | \u274c | Module stomping: overwrites a legit DLL's .text with shellcode |
-| `ntwat` | Low (ntapi) | \u274c | \u2705 | \u274c | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
+| `ntapc` | Low (ntapi) | ❌ | ✅ | ❌ | Queue APC to current thread via dynamic NT API resolution |
+| `winfiber` | High (windows-sys) | ❌ | ❌ | ❌ | Fiber-based execution via Windows API |
+| `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | ❌ | Fiber-based execution via dynamic NT API resolution |
+| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | ✅ | Fiber-based execution via indirect syscalls |
+| `ntstomp` | Low (ntapi) | ❌ | ✅ | ❌ | Module stomping: overwrites a legit DLL's .text with shellcode |
+| `ntwat` | Low (ntapi) | ❌ | ✅ | ❌ | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
 
 ---
 

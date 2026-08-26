@@ -21,7 +21,7 @@
 
 The result is a `.exe` or `.dll` that you deliver to your target during an authorized engagement.
 
-### \u2728 Key Features
+### ✨ Key Features
 
 - **Multiple Injection Templates** — CRT, APC, Fibers, EarlyCascade, Module Stomping…
 - **Encryption** — XOR, AES-256, UUID encoding
@@ -56,7 +56,7 @@ winget install Podman.Podman  # or install Podman Desktop
 
 Verify: `podman --version` or `docker --version`
 
-### 🏗\ufe0f Step 2 — Build the Container Locally
+### 🏗️ Step 2 — Build the Container Locally
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
@@ -97,7 +97,7 @@ Add this to your `~/.bashrc` or `~/.zshrc`:
 alias rustpacker='podman run --rm -v $(pwd):/workdir rustpacker'
 ```
 
-> **\u26a0\ufe0f Remember:** Always place your shellcode files in the `shared/` directory. The alias mounts the current directory to `/workdir` in the container.
+> **⚠️ Remember:** Always place your shellcode files in the `shared/` directory. The alias mounts the current directory to `/workdir` in the container.
 
 Now use it directly:
 
@@ -219,7 +219,7 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 
 ---
 
-## 🗠\ufe0f Choosing a Template
+## 🗠️ Choosing a Template
 
 | I want to… | Recommended template |
 |------------|---------------------|
@@ -262,7 +262,7 @@ These execute shellcode within the current process.
 
 The container mode uses long-form arguments. Both short and long forms are supported in native mode.
 
-> **\u26a0\ufe0f Important for container mode:** All files (shellcode, output, proxy DLLs) must be placed in or output to the `shared/` directory. This directory is mounted at `/workdir/shared/` inside the container.
+> **⚠️ Important for container mode:** All files (shellcode, output, proxy DLLs) must be placed in or output to the `shared/` directory. This directory is mounted at `/workdir/shared/` inside the container.
 
 ### Container Mode (Recommended)
 
@@ -328,7 +328,7 @@ generate --mtls 192.168.1.100:443 --format shellcode --os windows
 
 ### Packing Examples
 
-> **\u26a0\ufe0f Important:** All shellcode files must be placed in the `shared/` directory before running these commands. The container mounts `shared/` at `/workdir/shared/`.
+> **⚠️ Important:** All shellcode files must be placed in the `shared/` directory before running these commands. The container mounts `shared/` at `/workdir/shared/`.
 >
 > The examples below use the `rustpacker` alias defined in the Quick Start section. Replace it with the full `podman run --rm -v $(pwd):/workdir rustpacker` command if you haven't set up the alias.
 
@@ -402,11 +402,11 @@ RustPacker implements several evasion techniques:
 - **Template Variety**: Multiple execution methods to avoid static signatures
 - **Rust Compilation**: Native binaries with stripped symbols and LTO
 
-> \u26a0\ufe0f **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
+> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
 
 ---
 
-## \u2699\ufe0f Local Installation (Without Containers)
+## ⚙️ Local Installation (Without Containers)
 
 If you prefer to compile without containers (Linux only):
 
@@ -617,7 +617,7 @@ Contributions are welcome! Here's how you can help:
 
 ## 📄 License & Legal Notice
 
-**\u26a0\ufe0f IMPORTANT DISCLAIMER \u26a0\ufe0f**
+**⚠️ IMPORTANT DISCLAIMER ⚠️**
 
 This tool is provided for **educational and authorized penetration testing purposes only**.
 
@@ -632,8 +632,8 @@ This tool is provided for **educational and authorized penetration testing purpo
 
 <div align="center">
 
-**Made with \u2764\ufe0f for the cybersecurity community**
+**Made with ❤️ for the cybersecurity community**
 
-[Report Issues](https://github.com/Nariod/RustPacker/issues) \u2022 [Contribute](https://github.com/Nariod/RustPacker/pulls) \u2022 [Documentation](https://github.com/Nariod/RustPacker/wiki)
+[Report Issues](https://github.com/Nariod/RustPacker/issues) • [Contribute](https://github.com/Nariod/RustPacker/pulls) • [Documentation](https://github.com/Nariod/RustPacker/wiki)
 
 </div>

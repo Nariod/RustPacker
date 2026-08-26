@@ -11,7 +11,7 @@
 
 ---
 
-## \ud83e\udd14 New here? Start with this section
+## 🔔 New here? Start with this section
 
 ### What is RustPacker?
 
@@ -32,7 +32,7 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 ---
 
-## \ud83d\ude80 Quick Start (Local Container — Recommended)
+## 🚀 Quick Start (Local Container — Recommended)
 
 **The fastest and easiest way to use RustPacker! No Rust installation required.**
 
@@ -56,7 +56,7 @@ winget install Podman.Podman  # or install Podman Desktop
 
 Verify: `podman --version` or `docker --version`
 
-### \ud83c\udfd7\ufe0f Step 2 — Build the Container Locally
+### 🏗\ufe0f Step 2 — Build the Container Locally
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
@@ -68,7 +68,7 @@ podman build -t rustpacker -f Dockerfile.all-in-one .
 
 This step is done **once**. The image is then cached locally.
 
-### \ud83c\udfaf Step 3 — Generate Your First Payload
+### 🎯 Step 3 — Generate Your First Payload
 
 **Important:** Place all your shellcode files (e.g., `shellcode.raw`, `payload.bin`) in the `shared/` directory of the RustPacker project. This directory is mounted inside the container at `/workdir/shared/`.
 
@@ -89,7 +89,7 @@ podman run --rm -v $(pwd):/workdir rustpacker \
 
 > **Note:** The container uses long-form arguments (`--shellcode-path`, `--format`, `--execution`, `--encryption`, `--output`). Template names support both short aliases (e.g., `ntcrt`, `ntapc`) and full names (e.g., `nt-create-remote-thread`, `nt-queue-user-apc`).
 
-### \ud83d\udd04 Create an Alias for Daily Use
+### 🐄 Create an Alias for Daily Use
 
 Add this to your `~/.bashrc` or `~/.zshrc`:
 
@@ -120,7 +120,7 @@ rustpacker \
 ```
 
 <details>
-<summary>\ud83e\ude9f Windows setup instructions</summary>
+<summary>🙏 Windows setup instructions</summary>
 
 ### Step 1: Install a Container Runtime
 
@@ -177,7 +177,7 @@ function rustpacker { podman run --rm -v "${PWD}:/workdir:z" rustpacker @args }
 </details>
 
 <details>
-<summary id="macos">\ud83c\udf4e macOS setup instructions</summary>
+<summary id="macos">🍎 macOS setup instructions</summary>
 
 ```bash
 brew install podman
@@ -197,7 +197,7 @@ rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution
 </details>
 
 <details>
-<summary>\ud83e\udd80 Alternative: Native Mode (Rust toolchain required)</summary>
+<summary>🐕 Alternative: Native Mode (Rust toolchain required)</summary>
 
 If you already have Rust installed, you can run RustPacker directly without building the container first. It will **automatically detect** Podman or Docker and use a container only for cross-compilation:
 
@@ -219,7 +219,7 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 
 ---
 
-## \ud83d\udee0\ufe0f Choosing a Template
+## 🗠\ufe0f Choosing a Template
 
 | I want to… | Recommended template |
 |------------|---------------------|
@@ -258,7 +258,7 @@ These execute shellcode within the current process.
 
 ---
 
-## \ud83d\udcd6 Command Line Options
+## 📖 Command Line Options
 
 The container mode uses long-form arguments. Both short and long forms are supported in native mode.
 
@@ -308,7 +308,7 @@ Optional:
 
 ---
 
-## \ud83d\udccb Usage Examples
+## 📋 Usage Examples
 
 ### Generate Shellcode
 
@@ -386,7 +386,7 @@ The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) 
 
 ---
 
-## \ud83d\udd12 Detection Evasion
+## 🔒 Detection Evasion
 
 RustPacker implements several evasion techniques:
 
@@ -435,7 +435,7 @@ cargo run -- -s shared/payload.raw -i ntcrt -e xor -f exe -t explorer.exe
 
 ---
 
-## \ud83d\udc33 Why Podman over Docker?
+## 🐳 Why Podman over Docker?
 
 We recommend using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/):
 - Rootless containers by default
@@ -444,7 +444,7 @@ We recommend using Podman instead of Docker for [security reasons](https://cloud
 
 ---
 
-## \ud83e\udde9 Adding a New Template
+## 🟩 Adding a New Template
 
 RustPacker templates are self-contained Rust projects under `templates/` that the generator copies and substitutes placeholders into at build time. Adding a new injection technique is a well-defined, six-step process. The `ntStomp` (module stomping) template is a good reference implementation to mirror.
 
@@ -592,7 +592,7 @@ let executions = [
 | `templates/common.rs` | Shared `wipe()` helper injected into every template |
 
 
-## \ud83e\udd1d Contributing
+## 🐝 Contributing
 
 Contributions are welcome! Here's how you can help:
 
@@ -603,7 +603,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## \ud83d\ude4f Acknowledgments
+## 🙏 Acknowledgments
 
 - [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
 - [0xWerz](https://github.com/0xWerz) - String encryption implementation
@@ -615,7 +615,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## \ud83d\udcc4 License & Legal Notice
+## 📄 License & Legal Notice
 
 **\u26a0\ufe0f IMPORTANT DISCLAIMER \u26a0\ufe0f**
 

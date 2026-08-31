@@ -9,7 +9,7 @@ description = "Vectored Exception Handler (VEH) based code injection template"
 {{DLL_FORMAT}}
 
 [dependencies]
-winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "errhandlingapi", "memoryapi"] }
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "errhandlingapi", "memoryapi", "winnt"] }
 {{DEPENDENCIES}}
 
 [profile.release]

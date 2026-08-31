@@ -355,6 +355,29 @@ pub fn add_veh_handler(
     Some(new_entry)
 }
 
+/// Gets the start address of the VEH list.
+fn get_veh_list_start(list_ptr: *mut VectoredHandlerList) -> *mut VectoredHandlerEntry {
+    let list_ptr_usize = list_ptr as usize;
+    (list_ptr_usize + std::mem::offset_of!(VectoredHandlerList, first_veh)) as *mut _
+}
+
+/// Updates the handler pointer in the first VEH entry.
+///
+/// # Arguments
+/// * `first_entry` - Pointer to the first VEH entry.
+/// * `handler` - The new handler function.
+fn update_first_handler_entry(first_entry: *mut VectoredHandlerEntry, handler: PVOID) {
+    if let Some(cookie) = get_process_cookie() {
+        unsafe {
+            (*first_entry).handler = encode_pointer(handler, cookie);
+        }
+    } else {
+        unsafe {
+            (*first_entry).handler = handler;
+        }
+    }
+}
+
 /// Overwrites the first VEH handler in the list.
 pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32) -> bool {
     let list_ptr = get_vectored_handler_list().unwrap_or_else(|| std::ptr::null_mut());
@@ -363,9 +386,7 @@ pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) 
     }
 
     let list = unsafe { &mut *list_ptr };
-    let list_ptr_usize = list_ptr as usize;
-    let veh_list_start = (list_ptr_usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
-        as *mut VectoredHandlerEntry;
+    let veh_list_start = get_veh_list_start(list_ptr);
 
     unsafe { AcquireSRWLockExclusive(list.lock_veh as *mut _) };
 
@@ -382,15 +403,7 @@ pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) 
         return false;
     }
 
-    if let Some(cookie) = get_process_cookie() {
-        unsafe {
-            (*list.first_veh).handler = encode_pointer(handler as PVOID, cookie);
-        }
-    } else {
-        unsafe {
-            (*list.first_veh).handler = handler as PVOID;
-        }
-    }
+    update_first_handler_entry(list.first_veh, handler as PVOID);
 
     set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadOnly);
     unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };

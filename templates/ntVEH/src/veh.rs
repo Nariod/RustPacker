@@ -287,38 +287,34 @@ fn insert_entry_after_first(list: &mut VectoredHandlerList, new_entry: *mut Vect
     list.first_veh = new_entry;
 }
 
-/// Adds a custom Vectored Exception Handler (VEH).
-pub fn add_veh_handler(
-    handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32,
-    insert_first: bool,
-) -> Option<*mut VectoredHandlerEntry> {
-    let list_ptr = get_vectored_handler_list()?;
-    let list = unsafe { &mut *list_ptr };
-
-    let _ = get_ldr_protect_mrdata()?;
-
-    let is_cfg_enabled = is_cfg_enabled();
-    let heap = if is_cfg_enabled {
+/// Gets the appropriate heap to use based on CFG status.
+///
+/// # Returns
+/// Pointer to the heap to use for VEH entry allocation.
+fn get_veh_allocation_heap() -> *mut () {
+    if is_cfg_enabled() {
         get_ldrp_mrdata_heap().map_or(
             unsafe { winapi::um::heapapi::GetProcessHeap() },
             |mrdata_heap_ptr| unsafe { *mrdata_heap_ptr },
         )
     } else {
         unsafe { winapi::um::heapapi::GetProcessHeap() }
-    };
-
-    if !acquire_veh_lock_and_make_writable(list_ptr) {
-        return None;
     }
+}
 
-    let is_empty = is_veh_list_empty(list);
-
-    let new_entry = allocate_and_configure_entry(handler, heap);
-    if new_entry.is_null() {
-        release_veh_lock_and_restore(list_ptr);
-        return None;
-    }
-
+/// Determines the insertion position based on list state and preference.
+///
+/// # Arguments
+/// * `list` - The VEH list.
+/// * `new_entry` - The entry to insert.
+/// * `is_empty` - Whether the list is currently empty.
+/// * `insert_first` - User preference to insert at beginning.
+fn insert_entry_at_preferred_position(
+    list: &mut VectoredHandlerList,
+    new_entry: *mut VectoredHandlerEntry,
+    is_empty: bool,
+    insert_first: bool,
+) {
     if is_empty || insert_first {
         if is_empty {
             insert_entry_at_beginning(list, new_entry);
@@ -328,8 +324,34 @@ pub fn add_veh_handler(
     } else {
         insert_entry_at_end(list, new_entry);
     }
+}
 
+/// Adds a custom Vectored Exception Handler (VEH).
+pub fn add_veh_handler(
+    handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32,
+    insert_first: bool,
+) -> Option<*mut VectoredHandlerEntry> {
+    let list_ptr = get_vectored_handler_list()?;
+    let list = unsafe { &mut *list_ptr };
+
+    let _ = get_ldr_protect_mrdata()?;
+    let heap = get_veh_allocation_heap();
+
+    if !acquire_veh_lock_and_make_writable(list_ptr) {
+        return None;
+    }
+
+    let is_empty = is_veh_list_empty(list);
+    let new_entry = allocate_and_configure_entry(handler, heap);
+
+    if new_entry.is_null() {
+        release_veh_lock_and_restore(list_ptr);
+        return None;
+    }
+
+    insert_entry_at_preferred_position(list, new_entry, is_empty, insert_first);
     release_veh_lock_and_restore(list_ptr);
+
     Some(new_entry)
 }
 

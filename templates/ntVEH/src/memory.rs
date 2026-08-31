@@ -3,9 +3,8 @@
 //! This module provides safe wrappers around Windows memory protection APIs
 //! like VirtualProtect and heap protection functions.
 
-use winapi::um::winnt::{PVOID, DWORD, MEMORY_BASIC_INFORMATION};
 use winapi::um::memoryapi::{VirtualProtect, VirtualQuery};
-use winapi::shared::minwindef::BOOL;
+use winapi::um::winnt::{MEMORY_BASIC_INFORMATION, PVOID, DWORD};
 use winapi::um::heapapi::HeapAlloc;
 use winapi::ctypes::c_void;
 
@@ -29,10 +28,6 @@ pub enum MemoryProtection {
     ReadExecute = winapi::um::winnt::PAGE_EXECUTE_READ,
     /// Guard page (for stack overflow detection).
     Guard = winapi::um::winnt::PAGE_GUARD,
-    /// No-caching page.
-    NoCache = winapi::um::winnt::PAGE_NOCACHE,
-    /// Write-combined page.
-    WriteCombine = winapi::um::winnt::PAGE_WRITECOMBINE,
 }
 
 impl MemoryProtection {

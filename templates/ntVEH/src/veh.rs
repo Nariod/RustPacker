@@ -3,15 +3,28 @@
 //! This module provides functions to add, remove, and manipulate VEH/VCH handlers
 //! for code injection and execution hijacking purposes.
 
-use winapi::um::winnt::{PVOID, DWORD, LIST_ENTRY, HMODULE};
+use winapi::um::winnt::{BOOL, DWORD, LIST_ENTRY, PVOID};
 use winapi::um::libloaderapi::{GetModuleHandleA, GetProcAddress};
 use winapi::um::synchapi::{AcquireSRWLockExclusive, ReleaseSRWLockExclusive};
 use winapi::um::errhandlingapi::EXCEPTION_POINTERS;
-use winapi::ctypes::c_void;
-use std::ffi::CString;
 
-use crate::memory::{set_memory_protection, MemoryProtection, heap_alloc};
-use crate::cfg::{is_cfg_enabled, get_process_cookie, encode_pointer, get_ref_counter};
+use crate::cfg::{encode_pointer, get_process_cookie, get_ref_counter};
+use crate::memory::{heap_alloc, set_memory_protection, MemoryProtection};
+
+/// Pattern bytes for `lea r12, [displacement]` instruction.
+const PATTERN_LEA_R12: [u8; 3] = [0x4c, 0x8d, 0x25];
+
+/// Pattern bytes for `mov rcx, [displacement]` instruction.
+const PATTERN_MOV_RCX: [u8; 3] = [0x48, 0x8B, 0x0D];
+
+/// JMP instruction opcode.
+const OPCODE_JMP: u8 = 0xe9;
+
+/// CALL instruction opcode.
+const OPCODE_CALL: u8 = 0xe8;
+
+/// Maximum bytes to search for patterns.
+const MAX_PATTERN_SEARCH: usize = 0x1000;
 
 /// Represents a vectored handler entry in the LdrpVectorHandlerList.
 #[repr(C)]
@@ -56,7 +69,7 @@ pub fn set_peb_cross_process_flag(flag: CrossProcessFlags, set: bool) -> bool {
 
     let mut peb: *mut PEB = std::ptr::null_mut();
     let mut return_length: u32 = 0;
-    
+
     let status = unsafe {
         NtQueryInformationProcess(
             winapi::um::processthreadsapi::GetCurrentProcess(),
@@ -66,7 +79,7 @@ pub fn set_peb_cross_process_flag(flag: CrossProcessFlags, set: bool) -> bool {
             &mut return_length,
         )
     };
-    
+
     if status < 0 {
         return false;
     }
@@ -81,10 +94,33 @@ pub fn set_peb_cross_process_flag(flag: CrossProcessFlags, set: bool) -> bool {
     true
 }
 
+/// Skips initial jump instructions in a function.
+fn skip_initial_jumps(addr: &mut *const u8) {
+    while unsafe { *addr } == OPCODE_JMP {
+        let offset = unsafe { *(addr.add(1) as *const i32) };
+        *addr = unsafe { addr.add(5).add(offset as usize) };
+    }
+}
+
+/// Searches for a pattern in memory starting from a given address.
+fn find_pattern(start_addr: *const u8, pattern: &[u8]) -> Option<*const u8> {
+    let mut addr = start_addr;
+    skip_initial_jumps(&mut addr);
+
+    for _ in 0..MAX_PATTERN_SEARCH {
+        if unsafe {
+            *addr == pattern[0] &&
+            *addr.add(1) == pattern[1] &&
+            *addr.add(2) == pattern[2]
+        } {
+            return Some(addr);
+        }
+        addr = unsafe { addr.add(1) };
+    }
+    None
+}
+
 /// Finds the address of LdrpVectorHandlerList by pattern matching.
-/// 
-/// This searches for the `lea r12, [LdrpVectorHandlerList]` instruction
-/// in the RtlRemoveVectoredExceptionHandler function.
 pub fn get_vectored_handler_list() -> Option<*mut VectoredHandlerList> {
     let ntdll = unsafe { GetModuleHandleA(b"ntdll.dll\0".as_ptr() as *const i8) };
     if ntdll.is_null() {
@@ -101,49 +137,29 @@ pub fn get_vectored_handler_list() -> Option<*mut VectoredHandlerList> {
         return None;
     }
 
-    // Pattern: lea r12, [displacement] = 0x4c 0x8d 0x25
-    let pattern: [u8; 3] = [0x4c, 0x8d, 0x25];
-    let mut addr = rtl_remove_veh as *const u8;
-    
-    // Skip initial jumps (0xE9)
-    while unsafe { *addr } == 0xe9 {
-        let offset = unsafe { *(addr.add(1) as *const i32) };
-        addr = unsafe { addr.add(5).add(offset as usize) };
+    let addr = find_pattern(rtl_remove_veh as *const u8, &PATTERN_LEA_R12)?;
+    if addr.is_none() {
+        return None;
     }
 
-    // Search for pattern
-    let max_search = 0x1000;
-    for _ in 0..max_search {
-        if unsafe { 
-            *addr == pattern[0] && 
-            *addr.add(1) == pattern[1] && 
-            *addr.add(2) == pattern[2] 
-        } {
-            let displacement = unsafe { *(addr.add(3) as *const i32) };
-            let list_addr = unsafe { 
-                addr.add(7).add(displacement as usize) as *mut VectoredHandlerList 
-            };
-            return Some(list_addr);
-        }
-        addr = unsafe { addr.add(1) };
-    }
-    None
+    let addr = addr.unwrap();
+    let displacement = unsafe { *(addr.add(3) as *const i32) };
+    Some(unsafe { addr.add(7).add(displacement as usize) as *mut VectoredHandlerList })
 }
 
 /// Finds the address of LdrProtectMrdata function.
-pub fn get_ldr_protect_mrdata() -> Option<extern "system" fn(BOOL, PVOID) -> c_void> {
+pub fn get_ldr_protect_mrdata() -> Option<extern "system" fn(BOOL, PVOID) -> ()> {
     let ntdll = unsafe { GetModuleHandleA(b"ntdll.dll\0".as_ptr() as *const i8) };
     let rtl_delete_func_table = unsafe {
         GetProcAddress(ntdll, b"RtlDeleteFunctionTable\0".as_ptr() as *const i8)
     };
 
-    // Search for 'call LdrProtectMrdata' (0xE8 followed by 4-byte offset)
     let mut addr = rtl_delete_func_table as *const u8;
-    for _ in 0..0x1000 {
-        if unsafe { *addr } == 0xe8 {
+    for _ in 0..MAX_PATTERN_SEARCH {
+        if unsafe { *addr } == OPCODE_CALL {
             let offset = unsafe { *(addr.add(1) as *const i32) };
             let target = unsafe { (addr as usize + 5).wrapping_add(offset as usize) };
-            return Some(unsafe { std::mem::transmute(target as *const c_void) });
+            return Some(unsafe { std::mem::transmute(target as *const ()) });
         }
         addr = unsafe { addr.add(1) };
     }
@@ -157,107 +173,58 @@ pub fn get_ldrp_mrdata_heap() -> Option<*mut PVOID> {
         GetProcAddress(ntdll, b"RtlAddFunctionTable\0".as_ptr() as *const i8)
     };
 
-    // Pattern: mov rcx, [LdrpMrdataHeap] = 0x48 0x8B 0x0D
-    let pattern: [u8; 3] = [0x48, 0x8B, 0x0D];
-    let mut addr = rtl_add_func_table as *const u8;
-    
-    for _ in 0..0x1000 {
-        if unsafe { 
-            *addr == pattern[0] && 
-            *addr.add(1) == pattern[1] && 
-            *addr.add(2) == pattern[2] 
-        } {
-            let displacement = unsafe { *(addr.add(3) as *const i32) };
-            let heap_ptr = unsafe { (addr as usize + 7).wrapping_add(displacement as usize) as *mut PVOID };
-            return Some(heap_ptr);
-        }
-        addr = unsafe { addr.add(1) };
+    let addr = find_pattern(rtl_add_func_table as *const u8, &PATTERN_MOV_RCX)?;
+    if addr.is_none() {
+        return None;
     }
-    None
+
+    let addr = addr.unwrap();
+    let displacement = unsafe { *(addr.add(3) as *const i32) };
+    Some(unsafe { (addr as usize + 7).wrapping_add(displacement as usize) as *mut PVOID })
 }
 
 /// Type for the LdrProtectMrdata function.
-type LdrProtectMrdataFn = extern "system" fn(BOOL, PVOID) -> c_void;
+pub type LdrProtectMrdataFn = extern "system" fn(BOOL, PVOID) -> ();
 
-/// Wrapper for LdrProtectMrdata to avoid CFG alignment issues.
-/// Uses an indirect call via a function pointer.
-pub unsafe fn call_ldr_protect_mrdata(
-    protect: BOOL,
-    address: PVOID,
-    ldr_protect_mrdata: LdrProtectMrdataFn,
-) {
-    // Use a function pointer for indirect call
-    let func_ptr: *mut Option<extern "system" fn(BOOL, PVOID) -> c_void> = 
-        &mut Some(ldr_protect_mrdata);
-    (*func_ptr).unwrap()(protect, address);
-}
-
-/// Adds a custom Vectored Exception Handler (VEH).
-///
-/// This is similar to AddVectoredExceptionHandler but with full control over
-/// the registration process, including CFG support.
-///
-/// # Arguments
-/// * `handler` - The exception handler function to register.
-/// * `insert_first` - If true, inserts at the beginning of the list.
-///
-/// # Returns
-/// Pointer to the new handler entry, or None on failure.
-pub fn add_veh_handler(
-    handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32,
-    insert_first: bool,
-) -> Option<*mut VectoredHandlerEntry> {
-    // 1. Resolve internal addresses
-    let list_ptr = get_vectored_handler_list()?;
+/// Acquires the VEH list lock and makes .mrdata writable.
+fn acquire_veh_lock_and_make_writable(list_ptr: *mut VectoredHandlerList) -> bool {
     let list = unsafe { &mut *list_ptr };
-    
-    let ldr_protect_mrdata = get_ldr_protect_mrdata()?;
-    
-    // 2. Check CFG status
-    let cfg_enabled = is_cfg_enabled();
-    let mut heap = unsafe { winapi::um::heapapi::GetProcessHeap() };
-    
-    if cfg_enabled {
-        if let Some(mrdata_heap_ptr) = get_ldrp_mrdata_heap() {
-            let mrdata_heap = unsafe { *mrdata_heap_ptr };
-            if !mrdata_heap.is_null() {
-                heap = mrdata_heap;
-                // For now, we'll handle protection when needed
-            }
-        }
-    }
-
-    // 3. Acquire VEH lock
     unsafe { AcquireSRWLockExclusive(list.lock_veh as *mut _) };
 
-    // 4. Make .mrdata writable
     let list_size = std::mem::size_of::<VectoredHandlerList>();
-    let _old_protect = set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadWrite);
-    
-    if _old_protect.is_none() {
+    let old_protect = set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadWrite);
+
+    if old_protect.is_none() {
         unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };
-        return None;
+        return false;
     }
+    true
+}
 
-    // 5. Check if list is empty
-    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh)) 
-        as *mut VectoredHandlerEntry;
-    let is_empty = unsafe { list.first_veh == veh_list_start };
+/// Releases the VEH list lock and restores .mrdata to read-only.
+fn release_veh_lock_and_restore(list_ptr: *mut VectoredHandlerList) {
+    let list_size = std::mem::size_of::<VectoredHandlerList>();
+    set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadOnly);
+    let list = unsafe { &mut *list_ptr };
+    unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };
+}
 
-    // 6. Allocate new entry
+/// Allocates and configures a new VEH entry.
+fn allocate_and_configure_entry(
+    handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32,
+    heap: *mut (),
+) -> *mut VectoredHandlerEntry {
     let entry_size = std::mem::size_of::<VectoredHandlerEntry>();
     let new_entry = heap_alloc(entry_size) as *mut VectoredHandlerEntry;
+
     if new_entry.is_null() {
-        set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadOnly);
-        unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };
-        return None;
+        return std::ptr::null_mut();
     }
 
-    // 7. Configure the entry
     unsafe {
         (*new_entry).refs = get_ref_counter() as PVOID;
         (*new_entry).unused = std::ptr::null_mut();
-        
+
         if let Some(cookie) = get_process_cookie() {
             (*new_entry).handler = encode_pointer(handler as PVOID, cookie);
         } else {
@@ -265,51 +232,108 @@ pub fn add_veh_handler(
         }
     }
 
-    // 8. Insert into list
-    if is_empty || insert_first {
-        if is_empty {
-            set_peb_cross_process_flag(CrossProcessFlags::ProcessUsingVEH, true);
-            unsafe {
-                (*new_entry).entry.Flink = veh_list_start as *mut LIST_ENTRY;
-                (*new_entry).entry.Blink = veh_list_start as *mut LIST_ENTRY;
-            }
-            list.last_veh = new_entry;
-        } else {
-            unsafe {
-                (*new_entry).entry.Flink = list.first_veh as *mut LIST_ENTRY;
-                (*new_entry).entry.Blink = veh_list_start as *mut LIST_ENTRY;
-                (*list.first_veh).entry.Blink = &mut (*new_entry).entry as *mut _;
-            }
-        }
-        list.first_veh = new_entry;
-    } else {
-        unsafe {
-            (*list.last_veh).entry.Flink = new_entry as *mut LIST_ENTRY;
-            (*new_entry).entry.Blink = list.last_veh as *mut LIST_ENTRY;
-            (*new_entry).entry.Flink = veh_list_start as *mut LIST_ENTRY;
-        }
+    new_entry
+}
+
+/// Checks if the VEH list is empty.
+fn is_veh_list_empty(list: &VectoredHandlerList) -> bool {
+    let list_ptr = list as *const _ as *mut u8;
+    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
+        as *mut VectoredHandlerEntry;
+    unsafe { list.first_veh == veh_list_start }
+}
+
+/// Inserts a new entry at the beginning of the VEH list.
+fn insert_entry_at_beginning(list: &mut VectoredHandlerList, new_entry: *mut VectoredHandlerEntry) {
+    let list_ptr = list as *const _ as *mut u8;
+    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
+        as *mut VectoredHandlerEntry;
+
+    set_peb_cross_process_flag(CrossProcessFlags::ProcessUsingVEH, true);
+
+    unsafe {
+        (*new_entry).entry.Flink = veh_list_start as *mut _;
+        (*new_entry).entry.Blink = veh_list_start as *mut _;
         list.last_veh = new_entry;
     }
+    list.first_veh = new_entry;
+}
 
-    // 9. Restore protections
-    set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadOnly);
-    
-    // 10. Release lock
-    unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };
+/// Inserts a new entry at the end of the VEH list.
+fn insert_entry_at_end(list: &mut VectoredHandlerList, new_entry: *mut VectoredHandlerEntry) {
+    let list_ptr = list as *const _ as *mut u8;
+    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
+        as *mut VectoredHandlerEntry;
 
+    unsafe {
+        (*list.last_veh).entry.Flink = new_entry as *mut _;
+        (*new_entry).entry.Blink = list.last_veh as *mut _;
+        (*new_entry).entry.Flink = veh_list_start as *mut _;
+    }
+    list.last_veh = new_entry;
+}
+
+/// Inserts a new entry after the first existing entry.
+fn insert_entry_after_first(list: &mut VectoredHandlerList, new_entry: *mut VectoredHandlerEntry) {
+    let list_ptr = list as *const _ as *mut u8;
+    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
+        as *mut VectoredHandlerEntry;
+
+    unsafe {
+        (*new_entry).entry.Flink = list.first_veh as *mut _;
+        (*new_entry).entry.Blink = veh_list_start as *mut _;
+        (*list.first_veh).entry.Blink = &mut (*new_entry).entry as *mut _;
+    }
+    list.first_veh = new_entry;
+}
+
+/// Adds a custom Vectored Exception Handler (VEH).
+pub fn add_veh_handler(
+    handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32,
+    insert_first: bool,
+) -> Option<*mut VectoredHandlerEntry> {
+    let list_ptr = get_vectored_handler_list()?;
+    let list = unsafe { &mut *list_ptr };
+
+    let _ = get_ldr_protect_mrdata()?;
+
+    let is_cfg_enabled = is_cfg_enabled();
+    let heap = if is_cfg_enabled {
+        get_ldrp_mrdata_heap().map_or(
+            unsafe { winapi::um::heapapi::GetProcessHeap() },
+            |mrdata_heap_ptr| unsafe { *mrdata_heap_ptr },
+        )
+    } else {
+        unsafe { winapi::um::heapapi::GetProcessHeap() }
+    };
+
+    if !acquire_veh_lock_and_make_writable(list_ptr) {
+        return None;
+    }
+
+    let is_empty = is_veh_list_empty(list);
+
+    let new_entry = allocate_and_configure_entry(handler, heap);
+    if new_entry.is_null() {
+        release_veh_lock_and_restore(list_ptr);
+        return None;
+    }
+
+    if is_empty || insert_first {
+        if is_empty {
+            insert_entry_at_beginning(list, new_entry);
+        } else {
+            insert_entry_after_first(list, new_entry);
+        }
+    } else {
+        insert_entry_at_end(list, new_entry);
+    }
+
+    release_veh_lock_and_restore(list_ptr);
     Some(new_entry)
 }
 
 /// Overwrites the first VEH handler in the list.
-///
-/// This is a simpler approach than adding a new handler, but be careful
-/// as it may break existing functionality (e.g., EDR hooks).
-///
-/// # Arguments
-/// * `handler` - The new handler function to set as the first VEH.
-///
-/// # Returns
-/// true if successful, false otherwise.
 pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) -> i32) -> bool {
     let list_ptr = get_vectored_handler_list().unwrap_or_else(|| std::ptr::null_mut());
     if list_ptr.is_null() {
@@ -317,7 +341,8 @@ pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) 
     }
 
     let list = unsafe { &mut *list_ptr };
-    let veh_list_start = (list_ptr as usize + std::mem::offset_of!(VectoredHandlerList, first_veh)) 
+    let list_ptr_usize = list_ptr as usize;
+    let veh_list_start = (list_ptr_usize + std::mem::offset_of!(VectoredHandlerList, first_veh))
         as *mut VectoredHandlerEntry;
 
     unsafe { AcquireSRWLockExclusive(list.lock_veh as *mut _) };
@@ -328,9 +353,9 @@ pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) 
     }
 
     let list_size = std::mem::size_of::<VectoredHandlerList>();
-    let _old_protect = set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadWrite);
-    
-    if _old_protect.is_none() {
+    let old_protect = set_memory_protection(list_ptr as PVOID, list_size, MemoryProtection::ReadWrite);
+
+    if old_protect.is_none() {
         unsafe { ReleaseSRWLockExclusive(list.lock_veh as *mut _) };
         return false;
     }
@@ -352,7 +377,6 @@ pub fn overwrite_first_veh(handler: extern "system" fn(*mut EXCEPTION_POINTERS) 
 }
 
 /// Triggers an exception to test VEH handlers.
-/// This causes a division by zero exception.
 pub fn trigger_exception() {
     unsafe {
         let zero: i32 = 0;

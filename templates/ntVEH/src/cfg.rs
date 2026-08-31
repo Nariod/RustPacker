@@ -3,9 +3,9 @@
 //! This module provides functions to check CFG status, retrieve process cookies,
 //! and encode/decode pointers as required by Windows when working with VEH.
 
-use winapi::um::winnt::{PVOID, DWORD, HANDLE};
-use winapi::um::processthreadsapi::GetCurrentProcess;
 use winapi::um::errhandlingapi::GetProcessMitigationPolicy;
+use winapi::um::processthreadsapi::GetCurrentProcess;
+use winapi::um::winnt::PVOID;
 use winapi::shared::ntdef::BOOL;
 
 /// Process mitigation policy for CFG.
@@ -15,10 +15,10 @@ pub struct ProcessMitigationControlFlowGuardPolicy {
     pub strict_control_flow_guard: BOOL,
 }
 
+/// Cookie rotation shift calculation constant.
+const COOKIE_ROTATION_SHIFT_MASK: u32 = 0x3f;
+
 /// Checks if Control Flow Guard (CFG) is enabled for the current process.
-///
-/// # Returns
-/// true if CFG is enabled, false otherwise.
 pub fn is_cfg_enabled() -> bool {
     let mut policy: ProcessMitigationControlFlowGuardPolicy = unsafe { std::mem::zeroed() };
     let result = unsafe {
@@ -35,16 +35,13 @@ pub fn is_cfg_enabled() -> bool {
 /// Retrieves the process cookie for the current process.
 ///
 /// The process cookie is a per-process secret value used to obfuscate pointers.
-///
-/// # Returns
-/// The process cookie, or None on failure.
-pub fn get_process_cookie() -> Option<DWORD> {
+pub fn get_process_cookie() -> Option<u32> {
     use winapi::um::processthreadsapi::NtQueryInformationProcess;
     use winapi::um::winnt::PROCESSINFOCLASS;
 
-    let mut cookie: DWORD = 0;
+    let mut cookie: u32 = 0;
     let mut return_length: u32 = 0;
-    
+
     let status = unsafe {
         NtQueryInformationProcess(
             GetCurrentProcess(),
@@ -54,7 +51,7 @@ pub fn get_process_cookie() -> Option<DWORD> {
             &mut return_length,
         )
     };
-    
+
     if status >= 0 {
         Some(cookie)
     } else {
@@ -62,36 +59,9 @@ pub fn get_process_cookie() -> Option<DWORD> {
     }
 }
 
-/// Encodes a pointer using the process cookie.
-///
-/// This mimics the behavior of Windows' EncodePointer function.
-///
-/// # Arguments
-/// * `ptr` - The raw pointer to encode.
-/// * `cookie` - The process cookie to use for encoding.
-///
-/// # Returns
-/// The encoded pointer.
-pub fn encode_pointer(ptr: PVOID, cookie: DWORD) -> PVOID {
-    let raw = ptr as u64;
-    let encoded = rotate_left64(raw ^ cookie as u64, 0x40 - (cookie & 0x3f));
-    encoded as PVOID
-}
-
-/// Decodes a pointer using the process cookie.
-///
-/// This mimics the behavior of Windows' DecodePointer function.
-///
-/// # Arguments
-/// * `encoded` - The encoded pointer to decode.
-/// * `cookie` - The process cookie to use for decoding.
-///
-/// # Returns
-/// The decoded raw pointer.
-pub fn decode_pointer(encoded: PVOID, cookie: DWORD) -> PVOID {
-    let encoded_val = encoded as u64;
-    let rotated = rotate_right64(encoded_val, 0x40 - (cookie & 0x3f));
-    (rotated ^ cookie as u64) as PVOID
+/// Calculates the rotation shift from a cookie value.
+fn calculate_rotation_shift(cookie: u32) -> u32 {
+    0x40 - (cookie & COOKIE_ROTATION_SHIFT_MASK)
 }
 
 /// Performs a left rotation on a 64-bit value.
@@ -104,11 +74,29 @@ fn rotate_right64(value: u64, shift: u32) -> u64 {
     (value >> shift) | (value << (64 - shift))
 }
 
+/// Encodes a pointer using the process cookie.
+///
+/// This mimics the behavior of Windows' EncodePointer function.
+pub fn encode_pointer(ptr: PVOID, cookie: u32) -> PVOID {
+    let raw = ptr as u64;
+    let shift = calculate_rotation_shift(cookie);
+    rotate_left64(raw ^ cookie as u64, shift) as PVOID
+}
+
+/// Decodes a pointer using the process cookie.
+///
+/// This mimics the behavior of Windows' DecodePointer function.
+pub fn decode_pointer(encoded: PVOID, cookie: u32) -> PVOID {
+    let encoded_val = encoded as u64;
+    let shift = calculate_rotation_shift(cookie);
+    (rotate_right64(encoded_val, shift) ^ cookie as u64) as PVOID
+}
+
 /// Global reference counter for VEH entries.
 /// This is required by Windows when registering vectored handlers.
-static mut G_REF: DWORD = 1;
+static mut g_ref: u32 = 1;
 
 /// Returns a pointer to the global reference counter.
-pub fn get_ref_counter() -> *mut DWORD {
-    unsafe { &mut G_REF }
+pub fn get_ref_counter() -> *mut u32 {
+    unsafe { &mut g_ref }
 }

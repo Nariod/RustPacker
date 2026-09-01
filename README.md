@@ -454,10 +454,10 @@ Create a folder under `templates/` named after your technique (convention: API-l
 
 ```
 templates/ntStomp/
-\u251c\u2500\u2500 .gitignore          # ignore target/ and Cargo.lock
-\u251c\u2500\u2500 Cargo.toml          # template manifest with placeholders
-\u2514\u2500\u2500 src/
-    \u2514\u2500\u2500 main.rs         # the loader source with placeholders
+.gitignore          # ignore target/ and Cargo.lock
+Cargo.toml          # template manifest with placeholders
+src/
+  main.rs         # the loader source with placeholders
 ```
 
 The `.gitignore` should exclude build artifacts:

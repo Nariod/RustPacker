@@ -1,0 +1,20 @@
+[package]
+name = "ntVEH"
+version = "0.1.0"
+edition = "2021"
+description = "Vectored Exception Handler (VEH) based code injection template"
+
+[workspace]
+
+{{DLL_FORMAT}}
+
+[dependencies]
+winapi = { version = "0.3.9", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "errhandlingapi", "memoryapi", "winnt"] }
+{{DEPENDENCIES}}
+
+[profile.release]
+strip = true
+opt-level = "z"
+codegen-units = 1
+panic = "abort"
+lto = true

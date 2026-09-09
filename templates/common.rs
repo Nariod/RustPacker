@@ -1,9 +1,5 @@
-// Shared utilities injected into every generated loader.
-//
-// This file is copied verbatim into the `src/` of each generated project by
-// the generator and declared as `mod common;` via the {{COMMON_MODULE}}
-// placeholder. Keeping these helpers here means there is a single source of
-// truth instead of one copy per template.
+// Shared utilities injected into every generated loader via {{COMMON_MODULE}}.
+// Single source of truth: the generator copies this verbatim into each project's src/.
 
 /// Zero a buffer in a way that resists compiler optimisation, then clear it.
 ///

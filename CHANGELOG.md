@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added comprehensive docstrings to public functions
 
 ### Changed
-- Refactored `arg_parser.rs` to use `clap::Parser` derive macros
+- Refactored argument parsing to use `clap::Parser` derive macros
 - Improved error handling in encryption modules (aes, xor, uuid_enc)
 - Updated `Cargo.toml` with new dependencies and release profile optimizations
 - Enhanced `shellcode_reader.rs` to use chunked reading for better memory management

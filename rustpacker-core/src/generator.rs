@@ -124,6 +124,7 @@ mod tests {
             Execution::EarlyCascade,
             Execution::NtModuleStomping,
             Execution::NtWatStager,
+            Execution::NtVEH,
         ];
         let encryptions = [Encryption::Xor, Encryption::Aes, Encryption::Uuid];
         let formats = [Format::Exe, Format::Dll];

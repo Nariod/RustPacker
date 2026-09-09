@@ -420,9 +420,26 @@ git push origin vibe/code-review-204412
 - [x] Vérifier la documentation (README.md, commentaires, etc.)
 - [x] Vérifier l'idiomaticité du code Rust
 - [x] Créer un rapport détaillé des problèmes trouvés
-- [ ] Corriger les problèmes de priorité HAUTE
-- [ ] Corriger les problèmes de priorité MOYENNE
-- [ ] Corriger les problèmes de priorité BASE
+- [x] Corriger les problèmes de priorité HAUTE
+- [x] Corriger les problèmes de priorité MOYENNE
+- [x] Corriger les problèmes de priorité BASE
+
+### Corrections appliquées (seconde passe)
+
+| Bug | Gravité | Correction |
+|-----|---------|------------|
+| ntVEH ne compile pas (`PVECTORED_EXCEPTION_HANDLER` privé) | Critique | Type `VectoredHandler` défini localement, imports nettoyés |
+| ntVEH : `wipe()` avant `write_to_memory()` (shellcode écrasé) | Critique | `wipe()` déplacé après l'écriture mémoire |
+| ntVEH absent de `Execution::all()` et du test d'intégration | Critique | Ajouté aux deux |
+| ETW patch : `_read_gs_base` instable, casts invalides, `return;` unsafe manquant, indexation pointeur brut | Critique | Inline asm, casts corrigés, `unsafe` bloc, `(&(*ptr))[range]` |
+| Sandbox cassé sur 10/11 templates (feature `sysinfoapi` manquante) | Critique | FFI directe `#[link(name="kernel32")]` sans dépendance de crate |
+| ntVEH : `{{SANDBOX}}` dans `check_environment() -> bool` (`return;` invalide) | Haute | Retiré le placeholder dupliqué |
+| Messages d'erreur `-b` au lieu de `-f` pour le format | Haute | Corrigé dans config.rs |
+| Liste templates proxy-dll incomplète | Haute | Complétée (ntstomp, ntwat, ntveh ajoutés) |
+| CHANGELOG référence `arg_parser.rs` inexistant | Moyenne | Corrigé |
+| Noms non révélateurs (`boxboxbox`, `g`, `r`, `enhance`) | Moyenne | Renommés (`find_process_ids_by_name`, `resolve_nt_api_address`, `deobfuscate_bytes`, `inject_shellcode`) |
+| Commentaires inutiles dans `common.rs` | Base | Condensés en 2 lignes |
+| ntVEH absent du README | Moyenne | Ajouté aux tables, listes de templates et options CLI |
 
 ---
 

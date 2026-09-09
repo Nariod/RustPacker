@@ -225,12 +225,13 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 |------------|---------------------|
 | Inject into **another process** (e.g. notepad, explorer) | `ntcrt` (stealthy) or `syscrt` (max evasion) |
 | Run inside the **current process** (self-injection) | `ntapc` or `ntfiber` |
-| Run as a **DLL** that fires on load | `ntapc`, `winfiber`, `ntfiber`, or `sysfiber` |
+| Run as a **DLL** that fires on load | `ntapc`, `ntfiber`, `sysfiber`, `winfiber`, `ntstomp`, `ntwat`, or `ntveh` |
 | Maximum **syscall evasion** | `syscrt` (remote) or `sysfiber` (self) |
 | Minimal dependencies, quick test | `wincrt` (remote) or `winfiber` (self) |
 | Shim engine / EarlyCascade technique | `earlycascade` |
 | **Module stomping** (overwrite a legit DLL's .text) | `ntstomp` |
 | **WebAssembly stager** (low-entropy WAT payload wrapping) | `ntwat` |
+| **Vectored Exception Handler** (VEH-triggered execution) | `ntveh` |
 
 ### Process Injection Templates (use with `-t <process>`)
 
@@ -255,6 +256,7 @@ These execute shellcode within the current process.
 | `sysfiber` | Syscall (ntapi + windows-sys) | ✅ | ❌ | ✅ | Fiber-based execution via indirect syscalls |
 | `ntstomp` | Low (ntapi) | ❌ | ✅ | ❌ | Module stomping: overwrites a legit DLL's .text with shellcode |
 | `ntwat` | Low (ntapi) | ❌ | ✅ | ❌ | WebAssembly stager: wraps the encrypted payload in a wasm module (WAT text format, low entropy), reads the data section back out at runtime, then self-executes |
+| `ntveh` | Low (ntapi) | ❌ | ✅ | ❌ | Vectored Exception Handler: registers a VEH, raises an exception, and executes shellcode from the handler |
 
 ---
 
@@ -272,7 +274,7 @@ Usage: podman run --rm -v $(pwd):/workdir rustpacker [OPTIONS]
 Required:
   --shellcode-path <FILE>     Path to the raw shellcode file (use /workdir/... for container paths)
   -f, --format <FORMAT>       Output binary format: exe, dll
-  -i, --execution <TEMPLATE>  Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
+  -i, --execution <TEMPLATE>  Injection template: ntcrt, ntapc, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat, ntveh
   -e, --encryption <METHOD>   Encryption method: xor, aes, uuid
 
 Optional:
@@ -293,7 +295,7 @@ Usage: RustPacker -s <FILE> -f <FORMAT> -i <TEMPLATE> -e <ENCRYPTION> [OPTIONS]
 Required:
   -s <FILE>         Path to the raw shellcode file
   -f <FORMAT>       Output binary format: exe, dll
-  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat
+  -i <TEMPLATE>     Injection template: ntapc, ntcrt, syscrt, wincrt, winfiber, ntfiber, sysfiber, earlycascade, ntstomp, ntwat, ntveh
   -e <ENCRYPTION>   Encryption method: xor, aes, uuid
 
 Optional:
@@ -376,7 +378,7 @@ rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution
 cp /mnt/c/Windows/System32/version.dll shared/   # from WSL
 # or: copy C:\Windows\System32\version.dll shared\  # from Windows
 
-# 2. Proxy version.dll — compatible with self-injection templates only (ntapc, winfiber, ntfiber, sysfiber)
+# 2. Proxy version.dll — compatible with self-injection templates only (ntapc, ntfiber, sysfiber, winfiber, ntstomp, ntwat, ntveh)
 rustpacker --shellcode-path /workdir/shared/payload.raw --format dll --execution ntfiber --encryption aes --proxy-dll /workdir/shared/version.dll --output /workdir/shared/proxy.dll
 ```
 

@@ -47,7 +47,7 @@ pub struct Order {
     pub output: Option<PathBuf>,
 
     /// Path to legitimate DLL to proxy (place it in shared/ for container mode).
-    /// Requires -b dll and a self-injection template (ntapc, winfiber, ntfiber, sysfiber)
+    /// Requires -f dll and a self-injection template (ntapc, ntfiber, sysfiber, winfiber, ntstomp, ntwat, ntveh)
     #[arg(short, long)]
     pub proxy_dll: Option<PathBuf>,
 
@@ -213,12 +213,12 @@ pub fn parse_args() -> Result<Order> {
     if order.proxy_dll.is_some() {
         if !matches!(order.format, Format::Dll) {
             return Err(anyhow!(
-                "DLL proxying (-p) requires DLL output format (-b dll)"
+                "DLL proxying (-p) requires DLL output format (-f dll)"
             ));
         }
         if !order.execution.is_self_injection() {
             return Err(anyhow!(
-                "DLL proxying (-p) only works with self-injection templates: ntapc, winfiber, ntfiber, sysfiber"
+                "DLL proxying (-p) only works with self-injection templates: ntapc, ntfiber, sysfiber, winfiber, ntstomp, ntwat, ntveh"
             ));
         }
     }
@@ -252,6 +252,7 @@ impl Execution {
             Execution::EarlyCascade,
             Execution::NtModuleStomping,
             Execution::NtWatStager,
+            Execution::NtVEH,
         ]
     }
 }

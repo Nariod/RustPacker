@@ -221,18 +221,6 @@ The first run builds the `rustpacker-builder` image once. Subsequent runs reuse 
 
 ## 🗠️ Choosing a Template
 
-| I want to… | Recommended template |
-|------------|---------------------|
-| Inject into **another process** (e.g. notepad, explorer) | `ntcrt` (stealthy) or `syscrt` (max evasion) |
-| Run inside the **current process** (self-injection) | `ntapc` or `ntfiber` |
-| Run as a **DLL** that fires on load | `ntapc`, `ntfiber`, `sysfiber`, `winfiber`, `ntstomp`, `ntwat`, or `ntveh` |
-| Maximum **syscall evasion** | `syscrt` (remote) or `sysfiber` (self) |
-| Minimal dependencies, quick test | `wincrt` (remote) or `winfiber` (self) |
-| Shim engine / EarlyCascade technique | `earlycascade` |
-| **Module stomping** (overwrite a legit DLL's .text) | `ntstomp` |
-| **WebAssembly stager** (low-entropy WAT payload wrapping) | `ntwat` |
-| **Vectored Exception Handler** (VEH-triggered execution) | `ntveh` |
-
 ### Process Injection Templates (use with `-t <process>`)
 
 These inject shellcode into a remote process. Default target: `dllhost.exe`.
@@ -314,7 +302,7 @@ Optional:
 
 ### Generate Shellcode
 
-**Important:** Always save your shellcode files in the `shared/` directory of the RustPacker project. This directory is automatically mounted inside the container.
+**Important:** Always save your shellcode files in the `shared/` directory of the RustPacker project. This directory is the only one mounted inside the container.
 
 **Metasploit (msfvenom):**
 ```bash
@@ -445,154 +433,6 @@ We recommend using Podman instead of Docker for [security reasons](https://cloud
 - Better security isolation
 
 ---
-
-## 🟩 Adding a New Template
-
-RustPacker templates are self-contained Rust projects under `templates/` that the generator copies and substitutes placeholders into at build time. Adding a new injection technique is a well-defined, six-step process. The `ntStomp` (module stomping) template is a good reference implementation to mirror.
-
-### Step 1 — Create the template directory
-
-Create a folder under `templates/` named after your technique (convention: API-level prefix + short name, e.g. `ntStomp`, `sysPoolParty`, `winCallback`):
-
-```
-templates/ntStomp/
-\u251c\u2500\u2500 .gitignore          # ignore target/ and Cargo.lock
-\u251c\u2500\u2500 Cargo.toml          # template manifest with placeholders
-\u2514\u2500\u2500 src/
-    \u2514\u2500\u2500 main.rs         # the loader source with placeholders
-```
-
-The `.gitignore` should exclude build artifacts:
-
-```gitignore
-templates/ntStomp/target/
-templates/ntStomp/Cargo.lock
-```
-
-### Step 2 — Write the template `Cargo.toml`
-
-Mirror an existing template's `Cargo.toml`. The placeholders `{{DLL_FORMAT}}` and `{{DEPENDENCIES}}` are required (the generator fills them); keep the release profile identical across templates:
-
-```toml
-[package]
-name = "ntStomp"
-version = "0.1.0"
-edition = "2021"
-
-[workspace]
-{{DLL_FORMAT}}
-
-[dependencies]
-sysinfo = "0.39"
-winapi = { version = "0.3", features = ["ntdef", "ntstatus", "impl-default", "libloaderapi", "winnt"] }
-{{DEPENDENCIES}}
-
-[profile.release]
-strip = true
-opt-level = "z"
-codegen-units = 1
-panic = "abort"
-lto = true
-```
-
-> Only add crates the template actually uses. Do **not** add dependencies unless the package already uses them.
-
-### Step 3 — Write the template `src/main.rs` using placeholders
-
-The generator replaces `{{KEY}}` placeholders after copying the template. The required placeholders are:
-
-| Placeholder | Provided by | Purpose |
-|-------------|-------------|---------|
-| `{{LITCRYPT_SETUP}}` | generator (fixed) | `#[macro_use] extern crate litcrypt; use_litcrypt!();` |
-| `{{COMMON_MODULE}}` | generator (fixed) | `mod common;` declaration for the shared `common.rs` helper |
-| `{{IMPORTS}}` | encryption module | extra `use` statements needed by the decryption routine |
-| `{{SANDBOX_IMPORTS}}` | sandbox builder | imports for the optional sandbox domain-pinning check |
-| `{{DECRYPTION_FUNCTION}}` | encryption module | the `fn` that decrypts the embedded payload into `Vec<u8>` |
-| `{{MAIN}}` | encryption module | the decryption call placed in `main()` |
-| `{{PATH_TO_SHELLCODE}}` | generator | `include_bytes!("<encrypted file>")` path |
-| `{{SANDBOX}}` | sandbox builder | sandbox check call (empty if `--sandbox` not set) |
-| `{{DLL_MAIN}}` | dll module | `DllMain` + export stubs when `--format dll` (empty for exe) |
-| `{{API_KEY}}` | obfuscation module | XOR key for obfuscated NT API names (`nt*` templates) |
-| `{{OBF_NT_*}}` | obfuscation module | XOR-obfuscated `Nt*` function name bytes (`nt*` templates) |
-| `{{TARGET_PROCESS}}` | obfuscation module | litcrypt-obfuscated target process name |
-| `{{DLL_FORMAT}}` | dll module | `[lib] crate-type = ["cdylib"]` when `--format dll` |
-
-A minimal skeleton (see `templates/ntStomp/src/main.rs` for a full example):
-
-```rust
-#![windows_subsystem = "windows"]
-#![allow(non_snake_case, non_camel_case_types)]
-{{LITCRYPT_SETUP}}
-{{COMMON_MODULE}}
-use std::ptr::null_mut;
-use winapi::um::libloaderapi::{GetModuleHandleA, GetProcAddress};
-
-{{IMPORTS}}
-{{SANDBOX_IMPORTS}}
-{{DECRYPTION_FUNCTION}}
-
-fn main() {
-    {{SANDBOX}}
-    let buf = include_bytes!({{PATH_TO_SHELLCODE}});
-    let mut vec: Vec<u8> = buf.to_vec();
-    {{MAIN}}
-    // ... your injection technique here ...
-}
-{{DLL_MAIN}}
-```
-
-> **Every `{{...}}` placeholder must be consumed.** The generator runs `validate_no_placeholders()` after substitution and fails the build with a clear list of any leftover placeholders rather than emitting uncompilable Rust.
-
-### Step 4 — Register the template in `rustpacker-core/src/config.rs`
-
-Add a variant to the `Execution` enum with clap aliases (lowercase alias + exact-case alias):
-
-```rust
-/// Module stomping via low level APIs (overwrites a legit DLL .text)
-#[value(alias = "ntstomp", alias = "ntStomp")]
-NtModuleStomping,
-```
-
-Then update the three `impl Execution` members:
-
-- `template_name(&self)` \u2192 map the variant to the directory name: `Execution::NtModuleStomping => "ntStomp"`,
-- `is_self_injection(&self)` \u2192 return `true` if the technique runs in-process (enables DLL proxying via `-p`).
-- The existing unit tests (`test_execution_is_self_injection`, `test_execution_display`, `test_template_name`) should be extended to cover the new variant.
-
-### Step 5 — Add the template to the integration test
-
-In `rustpacker-core/src/generator.rs`, append the new variant to the `all_combinations()` array used by `test_assemble_leaves_no_template_placeholders`. This guarantees the template assembles cleanly for every `exe`/`dll` \u00d7 `xor`/`aes`/`uuid` combination and leaves no placeholder behind:
-
-```rust
-let executions = [
-    // ...existing variants...
-    Execution::NtModuleStomping,
-];
-```
-
-### Step 6 — Document the template and verify
-
-1. Add the template to the relevant table in **Choosing a Template** (process-injection or self-execution) and to the `--execution` / `-i` template lists in **Command Line Options**.
-2. Run the test suite: `cargo test` (the integration test will exercise all combinations).
-3. Smoke-test the generator end to end:
-   ```bash
-   cargo run --bin RustPacker -- -s shared/calc.raw -f exe -i ntstomp -e xor
-   ```
-4. Verify the generated `src/main.rs` contains zero `{{` (all placeholders substituted).
-
-### Reference files
-
-| File | Role |
-|------|------|
-| `templates/ntStomp/` | Reference self-injection template (module stomping) |
-| `templates/ntWat/` | WebAssembly (WAT) stager self-injection template |
-| `rustpacker-core/src/wat.rs` | WAT generation + wasm compilation for the ntWat template |
-| `rustpacker-core/src/config.rs` | `Execution` enum, aliases, `is_self_injection`, `template_name` |
-| `rustpacker-core/src/replacements.rs` | Placeholder \u2192 value map construction |
-| `rustpacker-core/src/generator.rs` | Template copy + substitution orchestration + integration test |
-| `rustpacker-core/src/dll.rs` | DLL-format handling (`DllMain`, `lib.rs` rename) |
-| `templates/common.rs` | Shared `wipe()` helper injected into every template |
-
 
 ## 🐝 Contributing
 

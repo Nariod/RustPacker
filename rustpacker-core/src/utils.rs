@@ -186,7 +186,7 @@ pub fn rename_source_binary(order: &crate::config::Order, output_folder_path: &P
             new_path.display()
         )
     })?;
-    println!("[+] Source binary has been renamed to: {:?}", new_path);
+    println!("[+] Compiled binary can be found at: {:?}", new_path);
 
     Ok(())
 }

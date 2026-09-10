@@ -10,7 +10,7 @@ use winapi::{
         winnt::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS},
         libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
-    shared::ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS},
+    shared::ntdef::{HANDLE, NT_SUCCESS},
     ctypes::c_void,
 };
 use std::time::Instant;

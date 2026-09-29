@@ -157,6 +157,7 @@ mod tests {
             output: None,
             proxy_dll: None,
             etw_patch: false,
+            stack_spoof: false,
         }
     }
 

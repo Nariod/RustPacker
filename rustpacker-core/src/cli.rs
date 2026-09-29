@@ -30,6 +30,29 @@ pub fn parse_args() -> Result<Order> {
     Ok(order)
 }
 
+/// Reject a feature flag that is enabled for a template that cannot support
+/// it, listing the eligible templates.
+fn require_template(
+    order: &Order,
+    enabled: bool,
+    supported: impl Fn(&Execution) -> bool,
+    flag: &str,
+    rule: &str,
+) -> Result<()> {
+    if !enabled || supported(&order.execution) {
+        return Ok(());
+    }
+    let eligible: Vec<&str> = Execution::all()
+        .iter()
+        .filter(|e| supported(e))
+        .map(|e| e.template_name())
+        .collect();
+    Err(anyhow!(
+        "{flag} is only supported with {rule}. Current eligible templates: {}",
+        eligible.join(", ")
+    ))
+}
+
 /// Enforce the business rules that link options together.
 fn validate_order(order: &Order) -> Result<()> {
     if order.proxy_dll.is_some() {
@@ -45,17 +68,21 @@ fn validate_order(order: &Order) -> Result<()> {
         }
     }
 
-    if order.etw_patch && !order.execution.supports_etw_patch() {
-        let eligible: Vec<&str> = Execution::all()
-            .iter()
-            .filter(|e| e.supports_etw_patch())
-            .map(|e| e.template_name())
-            .collect();
-        return Err(anyhow!(
-            "ETW patching (--etw-patch) is only supported with self-injection templates using indirect syscalls. Current eligible templates: {}",
-            eligible.join(", ")
-        ));
-    }
+    require_template(
+        order,
+        order.etw_patch,
+        |e| e.supports_etw_patch(),
+        "ETW patching (--etw-patch)",
+        "self-injection templates using indirect syscalls",
+    )?;
+
+    require_template(
+        order,
+        order.stack_spoof,
+        |e| e.supports_stack_spoof(),
+        "Stack spoofing (--stack-spoof)",
+        "indirect-syscall templates",
+    )?;
 
     Ok(())
 }

@@ -53,6 +53,12 @@ pub struct Order {
     /// Only available for self-injection templates using indirect syscalls.
     #[arg(long)]
     pub etw_patch: bool,
+
+    /// Spoof the call stack of the loader's sensitive syscalls (return
+    /// address swap to a kernel32 gadget plus synthetic thread-start
+    /// frames). Only available for indirect-syscall templates.
+    #[arg(long)]
+    pub stack_spoof: bool,
 }
 
 /// Execution techniques available for shellcode injection
@@ -118,6 +124,11 @@ impl Execution {
     /// Check if this execution method supports ETW patching
     pub fn supports_etw_patch(&self) -> bool {
         self.is_self_injection() && self.uses_indirect_syscalls()
+    }
+
+    /// Check if this execution method supports call stack spoofing
+    pub fn supports_stack_spoof(&self) -> bool {
+        self.uses_indirect_syscalls()
     }
 
     /// Get the template name for this execution method
@@ -259,6 +270,22 @@ mod tests {
         assert!(!Execution::NtModuleStomping.supports_etw_patch());
         assert!(!Execution::NtWatStager.supports_etw_patch());
         assert!(!Execution::NtVEH.supports_etw_patch());
+    }
+
+    #[test]
+    fn test_execution_supports_stack_spoof() {
+        assert!(Execution::SysCreateRemoteThread.supports_stack_spoof());
+        assert!(Execution::SysFiber.supports_stack_spoof());
+
+        assert!(!Execution::NtQueueUserAPC.supports_stack_spoof());
+        assert!(!Execution::NtCreateRemoteThread.supports_stack_spoof());
+        assert!(!Execution::WinCreateRemoteThread.supports_stack_spoof());
+        assert!(!Execution::WinFiber.supports_stack_spoof());
+        assert!(!Execution::NtFiber.supports_stack_spoof());
+        assert!(!Execution::EarlyCascade.supports_stack_spoof());
+        assert!(!Execution::NtModuleStomping.supports_stack_spoof());
+        assert!(!Execution::NtWatStager.supports_stack_spoof());
+        assert!(!Execution::NtVEH.supports_stack_spoof());
     }
 
     #[test]

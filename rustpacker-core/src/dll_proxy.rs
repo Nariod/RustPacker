@@ -50,14 +50,14 @@ fn generate_proxy_source(exports: &[DllExport], forward_target: &str) -> String 
 
     s.push_str("pub unsafe fn init() {\n");
     s.push_str(&format!(
-        "    let dll_name = CString::new({}).unwrap();\n",
+        "    let dll_name = CString::new({}).unwrap_or_default();\n",
         obfuscate_string_for_template(&dll_filename)
     ));
     s.push_str("    let h = rp_load_library(dll_name.as_ptr() as *const u8);\n");
     s.push_str("    if h == 0 { return; }\n");
     for (i, name) in &named {
         s.push_str(&format!(
-            "    let export_{} = CString::new({}).unwrap();\n",
+            "    let export_{} = CString::new({}).unwrap_or_default();\n",
             i,
             obfuscate_string_for_template(name)
         ));

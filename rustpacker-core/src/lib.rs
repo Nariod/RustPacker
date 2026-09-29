@@ -3,6 +3,7 @@
 //! This is the core library for RustPacker, providing all the functionality
 //! for generating shellcode loaders with various injection techniques and encryption methods.
 
+pub mod cli;
 pub mod compiler;
 pub mod config;
 pub mod dll;
@@ -19,8 +20,9 @@ pub mod utils;
 pub mod wat;
 
 // Re-export the most important types and functions for convenience
+pub use cli::parse_args;
 pub use compiler::compile;
-pub use config::{parse_args, Encryption, Execution, Format, Order};
+pub use config::{Encryption, Execution, Format, Order};
 pub use generator::assemble;
 pub use obfuscation::{non_zero_random_key, obfuscate_api_name, obfuscate_string_for_template};
 pub use utils::{process_output, rename_source_binary};

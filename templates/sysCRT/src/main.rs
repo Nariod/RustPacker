@@ -38,7 +38,7 @@ fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
     let tar_lower = tar.to_lowercase();
     for (_, pro) in s.processes() {
         if pro.name().to_string_lossy().to_lowercase() == tar_lower {
-            dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+            dom.push(pro.pid().as_u32() as usize);
         }
     }
     dom

@@ -199,7 +199,7 @@ rustpacker --shellcode-path /workdir/shared/payload.raw --format exe --execution
 <details>
 <summary>🐕 Alternative: Native Mode (Rust toolchain required)</summary>
 
-If you already have Rust installed, you can run RustPacker directly without building the container first. It will **automatically detect** Podman or Docker and use a container only for cross-compilation:
+If you already have Rust installed, you can run RustPacker directly without building the container first:
 
 ```bash
 git clone https://github.com/Nariod/RustPacker.git
@@ -213,7 +213,7 @@ cargo run -- -s shared/your_shellcode.raw -i ntcrt -e aes -f exe -t notepad.exe
 cargo run -- -s shared\your_shellcode.raw -i ntcrt -e aes -f exe -t notepad.exe
 ```
 
-The first run builds the `rustpacker-builder` image once. Subsequent runs reuse the cached image and a shared cargo registry volume for fast builds.
+With Rust available, RustPacker cross-compiles payloads directly with your local `cargo` using the `x86_64-pc-windows-gnu` target — no container involved. See the **Local Installation (Without Containers)** section below for the toolchain prerequisites (including `mingw-w64` on Linux).
 
 </details>
 
@@ -402,10 +402,12 @@ If you prefer to compile without containers (Linux only):
 
 ### Prerequisites
 
+All RustPacker dependencies are pure Rust — no OpenSSL, cmake or libxml2 required. On Linux you only need the `mingw-w64` linker for the Windows cross-compilation target:
+
 ```bash
 # Ubuntu/Debian
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y libssl-dev librust-openssl-dev musl-tools mingw-w64 cmake libxml2-dev
+sudo apt install -y mingw-w64
 
 # Install Rust
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh

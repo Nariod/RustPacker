@@ -97,7 +97,7 @@ pub fn obfuscate_string_for_template(value: &str) -> String {
     // Return the deobfuscation code - just the expression, not a statement
     // Use char::from_u32 to safely convert from u8 to char
     format!(
-        "[{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| char::from_u32(b as u32).unwrap())\n    .collect::<String>()",
+        "[{}]\n    .iter()\n    .map(|b| *b ^ 0x{:02x})\n    .map(|b| b as u8 as char)\n    .collect::<String>()",
         bytes_lit.join(", "), key
     )
 }

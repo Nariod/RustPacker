@@ -1,14 +1,12 @@
 //! Configuration types for RustPacker
 //!
-//! This module contains all the configuration types used throughout the application,
-//! including command-line arguments, execution methods, encryption types, and output formats.
+//! Domain types used throughout the application: execution methods,
+//! encryption types, and output formats. Command-line parsing lives in
+//! [`crate::cli`].
 
 use clap::{Parser, ValueEnum};
 use std::fmt;
 use std::path::PathBuf;
-
-use crate::utils::absolute_path;
-use anyhow::{anyhow, Context, Result};
 
 /// Main configuration structure for RustPacker
 #[derive(Parser, Debug, Clone)]
@@ -190,52 +188,6 @@ impl fmt::Display for Format {
         };
         write!(f, "{}", s)
     }
-}
-
-/// Parse command line arguments and validate them.
-///
-/// Converts relative paths to absolute and enforces the business rules
-/// (e.g. DLL proxying requires DLL format + a self-injection template).
-/// Returns an error instead of exiting the process.
-pub fn parse_args() -> Result<Order> {
-    let mut order = Order::parse();
-
-    order.shellcode_path = absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
-
-    if let Some(ref path) = order.output {
-        order.output = Some(absolute_path(path).context("Invalid output path")?);
-    }
-
-    if let Some(ref path) = order.proxy_dll {
-        order.proxy_dll = Some(absolute_path(path).context("Invalid proxy DLL path")?);
-    }
-
-    if order.proxy_dll.is_some() {
-        if !matches!(order.format, Format::Dll) {
-            return Err(anyhow!(
-                "DLL proxying (-p) requires DLL output format (-f dll)"
-            ));
-        }
-        if !order.execution.is_self_injection() {
-            return Err(anyhow!(
-                "DLL proxying (-p) only works with self-injection templates: ntapc, ntfiber, sysfiber, winfiber, ntstomp, ntwat, ntveh"
-            ));
-        }
-    }
-
-    if order.etw_patch && !order.execution.supports_etw_patch() {
-        let eligible: Vec<&str> = Execution::all()
-            .iter()
-            .filter(|e| e.supports_etw_patch())
-            .map(|e| e.template_name())
-            .collect();
-        return Err(anyhow!(
-            "ETW patching (--etw-patch) is only supported with self-injection templates using indirect syscalls. Current eligible templates: {}",
-            eligible.join(", ")
-        ));
-    }
-
-    Ok(order)
 }
 
 /// Helper to get all execution variants for iteration

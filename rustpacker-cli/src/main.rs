@@ -2,9 +2,7 @@
 //!
 //! This is the command-line interface for RustPacker.
 
-use rustpacker_core::{
-    assemble, compile, config::parse_args, process_output, rename_source_binary,
-};
+use rustpacker_core::{assemble, cli::parse_args, compile, process_output, rename_source_binary};
 
 fn main() -> anyhow::Result<()> {
     let order = parse_args()?;

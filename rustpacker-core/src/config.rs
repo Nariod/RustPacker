@@ -36,6 +36,14 @@ pub struct Order {
     #[arg(short, long, default_value_t = String::from("dllhost.exe"))]
     pub target_process: String,
 
+    /// List all available templates with their supported options, then exit.
+    #[arg(long)]
+    pub list_templates: bool,
+
+    /// Remove all previously generated folders under shared/ before generating.
+    #[arg(long)]
+    pub clean: bool,
+
     /// Sandbox check: Domain Pinning to the provided domain name
     #[arg(long)]
     pub sandbox: Option<String>,

@@ -1,29 +1,52 @@
 use std::fs;
 use std::path::Path;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[allow(dead_code)]
 pub struct DllExport {
     pub name: Option<String>,
     pub ordinal: u16,
 }
 
-fn read_u16(data: &[u8], offset: usize) -> u16 {
-    u16::from_le_bytes([data[offset], data[offset + 1]])
+const MZ_SIGNATURE: u16 = 0x5A4D;
+const PE_SIGNATURE: u32 = 0x0000_4550;
+const PE32_MAGIC: u16 = 0x10B;
+const PE32_PLUS_MAGIC: u16 = 0x20B;
+const DOS_HEADER_SIZE: usize = 64;
+const PE_HEADER_SIZE: usize = 24;
+const PE32_EXPORT_DIR_OFFSET: usize = 96;
+const PE32_PLUS_EXPORT_DIR_OFFSET: usize = 112;
+const SECTION_HEADER_SIZE: usize = 40;
+
+type ParseResult<T> = Result<T, String>;
+
+fn read_u16(data: &[u8], offset: usize) -> ParseResult<u16> {
+    let bytes = read_bytes(data, offset, 2)?;
+    Ok(u16::from_le_bytes([bytes[0], bytes[1]]))
 }
 
-fn read_u32(data: &[u8], offset: usize) -> u32 {
-    u32::from_le_bytes([
-        data[offset],
-        data[offset + 1],
-        data[offset + 2],
-        data[offset + 3],
-    ])
+fn read_u32(data: &[u8], offset: usize) -> ParseResult<u32> {
+    let bytes = read_bytes(data, offset, 4)?;
+    Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+}
+
+fn read_bytes(data: &[u8], offset: usize, len: usize) -> ParseResult<&[u8]> {
+    let end = offset
+        .checked_add(len)
+        .ok_or_else(|| format!("PE offset overflow: {:#x} + {}", offset, len))?;
+    data.get(offset..end).ok_or_else(|| {
+        format!(
+            "Truncated PE file: needed {} bytes at offset {:#x}, file is {} bytes",
+            len,
+            offset,
+            data.len()
+        )
+    })
 }
 
 fn rva_to_offset(sections: &[(u32, u32, u32)], rva: u32) -> Option<usize> {
     for &(vaddr, vsize, raw_offset) in sections {
-        if rva >= vaddr && rva < vaddr + vsize {
+        if rva >= vaddr && rva < vaddr.saturating_add(vsize) {
             return Some((rva - vaddr + raw_offset) as usize);
         }
     }
@@ -31,76 +54,75 @@ fn rva_to_offset(sections: &[(u32, u32, u32)], rva: u32) -> Option<usize> {
 }
 
 fn read_cstring(data: &[u8], offset: usize) -> Option<String> {
-    let end = data[offset..].iter().position(|&b| b == 0)?;
+    let end = data.get(offset..)?.iter().position(|&b| b == 0)?;
     String::from_utf8(data[offset..offset + end].to_vec()).ok()
 }
 
-fn parse_sections(data: &[u8], pe_offset: usize, num_sections: u16) -> Vec<(u32, u32, u32)> {
-    let opt_header_size = read_u16(data, pe_offset + 20) as usize;
-    let section_start = pe_offset + 24 + opt_header_size;
-
-    (0..num_sections as usize)
-        .map(|i| {
-            let base = section_start + i * 40;
-            let vaddr = read_u32(data, base + 12);
-            let vsize = read_u32(data, base + 8);
-            let raw_offset = read_u32(data, base + 20);
-            (vaddr, vsize, raw_offset)
-        })
-        .collect()
+fn parse_sections(
+    data: &[u8],
+    pe_offset: usize,
+    num_sections: u16,
+) -> ParseResult<Vec<(u32, u32, u32)>> {
+    let opt_header_size = read_u16(data, pe_offset + 20)? as usize;
+    let section_start = pe_offset + PE_HEADER_SIZE + opt_header_size;
+    let max_sections = data.len().saturating_sub(section_start) / SECTION_HEADER_SIZE;
+    if num_sections as usize > max_sections {
+        return Err(format!(
+            "Implausible section count: {} (file only holds {})",
+            num_sections, max_sections
+        ));
+    }
+    let mut sections = Vec::with_capacity(num_sections as usize);
+    for i in 0..num_sections as usize {
+        let base = section_start + i * SECTION_HEADER_SIZE;
+        let vsize = read_u32(data, base + 8)?;
+        let vaddr = read_u32(data, base + 12)?;
+        let raw_offset = read_u32(data, base + 20)?;
+        sections.push((vaddr, vsize, raw_offset));
+    }
+    Ok(sections)
 }
 
 pub fn parse_exports(dll_path: &Path) -> Result<Vec<DllExport>, String> {
     let data = fs::read(dll_path).map_err(|e| format!("Failed to read DLL: {}", e))?;
-
-    if data.len() < 64 || read_u16(&data, 0) != 0x5A4D {
+    if data.len() < DOS_HEADER_SIZE || read_u16(&data, 0)? != MZ_SIGNATURE {
         return Err("Not a valid PE file (bad MZ signature)".into());
     }
-
-    let pe_offset = read_u32(&data, 0x3C) as usize;
-    if data.len() < pe_offset + 4 || read_u32(&data, pe_offset) != 0x00004550 {
+    let pe_offset = read_u32(&data, 0x3C)? as usize;
+    if read_bytes(&data, pe_offset, 4).is_err() || read_u32(&data, pe_offset)? != PE_SIGNATURE {
         return Err("Not a valid PE file (bad PE signature)".into());
     }
-
-    let magic = read_u16(&data, pe_offset + 24);
+    let magic = read_u16(&data, pe_offset + 24)?;
     let export_dir_rva_offset = match magic {
-        0x10b => pe_offset + 24 + 96,  // PE32
-        0x20b => pe_offset + 24 + 112, // PE32+
+        PE32_MAGIC => pe_offset + PE_HEADER_SIZE + PE32_EXPORT_DIR_OFFSET,
+        PE32_PLUS_MAGIC => pe_offset + PE_HEADER_SIZE + PE32_PLUS_EXPORT_DIR_OFFSET,
         _ => return Err(format!("Unknown PE optional header magic: 0x{:04x}", magic)),
     };
-
-    let num_sections = read_u16(&data, pe_offset + 6);
-    let sections = parse_sections(&data, pe_offset, num_sections);
-
-    let export_rva = read_u32(&data, export_dir_rva_offset);
-    let export_size = read_u32(&data, export_dir_rva_offset + 4);
-
+    let num_sections = read_u16(&data, pe_offset + 6)?;
+    let sections = parse_sections(&data, pe_offset, num_sections)?;
+    let export_rva = read_u32(&data, export_dir_rva_offset)?;
+    let export_size = read_u32(&data, export_dir_rva_offset + 4)?;
     if export_rva == 0 || export_size == 0 {
         return Ok(vec![]);
     }
-
     let export_offset =
         rva_to_offset(&sections, export_rva).ok_or("Cannot resolve export directory RVA")?;
-
-    let num_functions = read_u32(&data, export_offset + 20) as usize;
-    let num_names = read_u32(&data, export_offset + 24) as usize;
-    let ordinal_base = read_u32(&data, export_offset + 16) as u16;
-
-    let addr_table_rva = read_u32(&data, export_offset + 28);
-    let name_ptr_rva = read_u32(&data, export_offset + 32);
-    let ordinal_table_rva = read_u32(&data, export_offset + 36);
-
+    let num_functions = read_u32(&data, export_offset + 20)? as usize;
+    let num_names = read_u32(&data, export_offset + 24)? as usize;
+    let ordinal_base = read_u32(&data, export_offset + 16)? as u16;
+    let addr_table_rva = read_u32(&data, export_offset + 28)?;
+    let name_ptr_rva = read_u32(&data, export_offset + 32)?;
+    let ordinal_table_rva = read_u32(&data, export_offset + 36)?;
     let addr_table_off =
         rva_to_offset(&sections, addr_table_rva).ok_or("Cannot resolve address table RVA")?;
     let name_ptr_off =
         rva_to_offset(&sections, name_ptr_rva).ok_or("Cannot resolve name pointer RVA")?;
     let ordinal_off =
         rva_to_offset(&sections, ordinal_table_rva).ok_or("Cannot resolve ordinal table RVA")?;
-
     let mut name_for_index: Vec<Option<String>> = vec![None; num_functions];
     for i in 0..num_names {
-        let name_rva = read_u32(&data, name_ptr_off + i * 4);
-        let ord_index = read_u16(&data, ordinal_off + i * 2) as usize;
+        let name_rva = read_u32(&data, name_ptr_off + i * 4)?;
+        let ord_index = read_u16(&data, ordinal_off + i * 2)? as usize;
         if let Some(off) = rva_to_offset(&sections, name_rva) {
             if let Some(name) = read_cstring(&data, off) {
                 if ord_index < num_functions {
@@ -109,27 +131,22 @@ pub fn parse_exports(dll_path: &Path) -> Result<Vec<DllExport>, String> {
             }
         }
     }
-
-    let export_end_rva = export_rva + export_size;
+    let export_end_rva = export_rva.saturating_add(export_size);
     let mut exports = Vec::new();
-
     for (i, _name) in name_for_index.iter().enumerate().take(num_functions) {
-        let func_rva = read_u32(&data, addr_table_off + i * 4);
+        let func_rva = read_u32(&data, addr_table_off + i * 4)?;
         if func_rva == 0 {
             continue;
         }
-
         let is_forwarder = func_rva >= export_rva && func_rva < export_end_rva;
         if is_forwarder {
             continue;
         }
-
         exports.push(DllExport {
             name: name_for_index[i].clone(),
-            ordinal: ordinal_base + i as u16,
+            ordinal: ordinal_base.wrapping_add(i as u16),
         });
     }
-
     Ok(exports)
 }
 
@@ -150,19 +167,15 @@ mod tests {
 
     fn build_minimal_pe_dll(exports: &[&str]) -> Vec<u8> {
         let mut buf = vec![0u8; 8192];
-
         buf[0] = 0x4D; // M
         buf[1] = 0x5A; // Z
-
         let pe_offset: u32 = 0x80;
         buf[0x3C] = pe_offset as u8;
-
         let pe = pe_offset as usize;
         buf[pe] = 0x50; // P
         buf[pe + 1] = 0x45; // E
         buf[pe + 2] = 0x00;
         buf[pe + 3] = 0x00;
-
         // COFF header
         buf[pe + 4] = 0x64;
         buf[pe + 5] = 0x86; // Machine: x86_64
@@ -173,19 +186,15 @@ mod tests {
         buf[pe + 21] = (opt_header_size >> 8) as u8;
         buf[pe + 22] = 0x22;
         buf[pe + 23] = 0x20; // DLL characteristics
-
-        // Optional header
+                             // Optional header
         let opt = pe + 24;
         buf[opt] = 0x0B;
         buf[opt + 1] = 0x02; // PE32+ magic
-
         let section_rva: u32 = 0x1000;
         let section_raw: u32 = 0x400; // after all headers
         let section_size: u32 = 0x1000;
-
         // Export directory RVA at opt + 112
         let export_dir_offset = opt + 112;
-
         // Section header
         let sec = pe + 24 + opt_header_size as usize;
         buf[sec..sec + 8].copy_from_slice(b".edata\0\0");
@@ -193,20 +202,16 @@ mod tests {
         buf[sec + 12..sec + 16].copy_from_slice(&section_rva.to_le_bytes());
         buf[sec + 16..sec + 20].copy_from_slice(&section_size.to_le_bytes());
         buf[sec + 20..sec + 24].copy_from_slice(&section_raw.to_le_bytes());
-
         // Build export data at file offset section_raw, RVA section_rva
         let num_exports = exports.len();
         let export_data_start = section_raw as usize;
         let edt = export_data_start; // Export Directory Table
-
-        // Export dir is 40 bytes
-        // Then: AddressOfFunctions array, AddressOfNames array, AddressOfNameOrdinals array, then name strings
-
+                                     // Export dir is 40 bytes
+                                     // Then: AddressOfFunctions array, AddressOfNames array, AddressOfNameOrdinals array, then name strings
         let addr_table_off = 40usize;
         let name_ptr_off = addr_table_off + num_exports * 4;
         let ordinal_table_off = name_ptr_off + num_exports * 4;
         let strings_off = ordinal_table_off + num_exports * 2;
-
         // Write export directory
         let ordinal_base: u32 = 1;
         // NumberOfFunctions
@@ -224,36 +229,30 @@ mod tests {
         // AddressOfNameOrdinals RVA
         let ordinal_rva = section_rva + ordinal_table_off as u32;
         buf[edt + 36..edt + 40].copy_from_slice(&ordinal_rva.to_le_bytes());
-
         let mut string_cursor = strings_off;
         for (i, name) in exports.iter().enumerate() {
             // Address table: dummy non-zero RVA (points somewhere in section, not in export dir range)
             let func_rva: u32 = section_rva + 0xD00 + i as u32;
             buf[edt + addr_table_off + i * 4..edt + addr_table_off + i * 4 + 4]
                 .copy_from_slice(&func_rva.to_le_bytes());
-
             // Name pointer table: RVA of string
             let name_string_rva = section_rva + string_cursor as u32;
             buf[edt + name_ptr_off + i * 4..edt + name_ptr_off + i * 4 + 4]
                 .copy_from_slice(&name_string_rva.to_le_bytes());
-
             // Ordinal table
             buf[edt + ordinal_table_off + i * 2] = i as u8;
             buf[edt + ordinal_table_off + i * 2 + 1] = 0;
-
             // Write name string
             buf[edt + string_cursor..edt + string_cursor + name.len()]
                 .copy_from_slice(name.as_bytes());
             buf[edt + string_cursor + name.len()] = 0;
             string_cursor += name.len() + 1;
         }
-
         // Export directory RVA and size
         let export_total_size = string_cursor as u32;
         buf[export_dir_offset..export_dir_offset + 4].copy_from_slice(&section_rva.to_le_bytes());
         buf[export_dir_offset + 4..export_dir_offset + 8]
             .copy_from_slice(&export_total_size.to_le_bytes());
-
         buf
     }
 
@@ -275,7 +274,6 @@ mod tests {
         ]);
         let path = write_temp_dll("named_exports.dll", &pe);
         let exports = parse_exports(&path).unwrap();
-
         assert_eq!(exports.len(), 3);
         assert_eq!(exports[0].name.as_deref(), Some("GetFileVersionInfoA"));
         assert_eq!(exports[1].name.as_deref(), Some("GetFileVersionInfoW"));
@@ -283,7 +281,6 @@ mod tests {
         assert_eq!(exports[0].ordinal, 1);
         assert_eq!(exports[1].ordinal, 2);
         assert_eq!(exports[2].ordinal, 3);
-
         fs::remove_file(&path).ok();
     }
 
@@ -291,14 +288,12 @@ mod tests {
     fn test_parse_no_exports() {
         let mut pe = build_minimal_pe_dll(&[]);
         // Zero out the export directory RVA
-        let pe_offset = read_u32(&pe, 0x3C) as usize;
+        let pe_offset = read_u32(&pe, 0x3C).unwrap() as usize;
         let export_dir_off = pe_offset + 24 + 112;
         pe[export_dir_off..export_dir_off + 8].copy_from_slice(&[0; 8]);
-
         let path = write_temp_dll("no_exports.dll", &pe);
         let exports = parse_exports(&path).unwrap();
         assert!(exports.is_empty());
-
         fs::remove_file(&path).ok();
     }
 
@@ -307,6 +302,52 @@ mod tests {
         let path = write_temp_dll("not_a_dll.bin", b"this is not a PE file");
         let result = parse_exports(&path);
         assert!(result.is_err());
+        fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn test_parse_truncated_files_never_panic() {
+        let full = build_minimal_pe_dll(&["GetFileVersionInfoA", "VerQueryValueW"]);
+        let complete = parse_exports(&write_temp_dll("truncated_ref.dll", &full)).unwrap();
+        for cut in [
+            0usize,
+            1,
+            2,
+            63,
+            64,
+            0x3C,
+            0x80,
+            0x100,
+            0x3FF,
+            0x400,
+            0x410,
+            0x460,
+            full.len() - 1,
+        ] {
+            let path = write_temp_dll(
+                &format!("truncated_{cut}.dll"),
+                &full[..cut.min(full.len())],
+            );
+            let result = parse_exports(&path);
+            assert!(
+                result.is_err() || result.as_ref().unwrap() == &complete,
+                "truncated at {cut} bytes must error or match the complete parse, not panic"
+            );
+            fs::remove_file(&path).ok();
+        }
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("rustpacker_test_pe_parser/truncated_ref.dll"),
+        );
+    }
+
+    #[test]
+    fn test_parse_implausible_section_count_errors() {
+        let mut pe = build_minimal_pe_dll(&[]);
+        let pe_offset = read_u32(&pe, 0x3C).unwrap() as usize;
+        pe[pe_offset + 6] = 0xFF;
+        pe[pe_offset + 7] = 0xFF;
+        let path = write_temp_dll("bad_sections.dll", &pe);
+        assert!(parse_exports(&path).is_err());
         fs::remove_file(&path).ok();
     }
 
@@ -325,11 +366,9 @@ mod tests {
         let pe = build_minimal_pe_dll(&["DllGetClassObject"]);
         let path = write_temp_dll("single_export.dll", &pe);
         let exports = parse_exports(&path).unwrap();
-
         assert_eq!(exports.len(), 1);
         assert_eq!(exports[0].name.as_deref(), Some("DllGetClassObject"));
         assert_eq!(exports[0].ordinal, 1);
-
         fs::remove_file(&path).ok();
     }
 }

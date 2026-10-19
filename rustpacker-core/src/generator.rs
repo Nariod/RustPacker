@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 
 use crate::dll::{apply_dll_format, apply_proxy_config, apply_replacements};
 use crate::replacements::build_replacements;
-use crate::template_io::{copy_template, create_output_folder, get_template_path};
+use crate::template_io::{copy_template, create_output_folder, get_template_path, TEMPLATES_DIR};
 
 /// Ensure no template placeholder remains in a generated file.
 ///
@@ -52,7 +52,9 @@ pub fn validate_no_placeholders(path: &Path) -> Result<()> {
 /// this provides the implementation from a single source of truth
 /// (`templates/common.rs`) instead of one copy per template.
 fn copy_common_module(src_dir: &Path) -> Result<()> {
-    let common_src = Path::new("templates").join("common.rs");
+    let common_src = crate::template_io::find_project_root()?
+        .join(TEMPLATES_DIR)
+        .join("common.rs");
     fs::copy(&common_src, src_dir.join("common.rs")).with_context(|| {
         format!(
             "Failed to copy shared common.rs from {}",
@@ -66,7 +68,7 @@ fn copy_common_module(src_dir: &Path) -> Result<()> {
 pub fn assemble(order: Order) -> Result<PathBuf> {
     println!("[+] Assembling Rust code..");
 
-    let template_path = get_template_path(&order.execution);
+    let template_path = get_template_path(&order.execution)?;
     let folder = create_output_folder()?;
     copy_template(&template_path, &folder)?;
 
@@ -158,6 +160,8 @@ mod tests {
             proxy_dll: None,
             etw_patch: false,
             stack_spoof: false,
+            list_templates: false,
+            clean: false,
         }
     }
 

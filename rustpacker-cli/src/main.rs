@@ -6,6 +6,9 @@ use rustpacker_core::{assemble, cli::parse_args, compile, process_output, rename
 
 fn main() -> anyhow::Result<()> {
     let order = parse_args()?;
+    if order.clean {
+        rustpacker_core::template_io::clean_output_folders()?;
+    }
     let output_folder_path = assemble(order.clone())?;
     compile(&output_folder_path)?;
 

@@ -6,6 +6,7 @@
 use path_clean::PathClean;
 use rand::distr::Alphanumeric;
 use rand::RngExt;
+use rand::TryRng;
 use std::env;
 use std::fs::{self, File};
 use std::io::Write;
@@ -67,7 +68,11 @@ pub fn random_u8() -> u8 {
 /// # Returns
 /// A random AES key
 pub fn random_aes_key() -> [u8; 32] {
-    rand::random::<[u8; 32]>()
+    let mut key = [0u8; 32];
+    rand::rngs::SysRng
+        .try_fill_bytes(&mut key)
+        .expect("OS random source unavailable");
+    key
 }
 
 /// Generate a random AES IV (16 bytes)
@@ -75,7 +80,11 @@ pub fn random_aes_key() -> [u8; 32] {
 /// # Returns
 /// A random AES IV
 pub fn random_aes_iv() -> [u8; 16] {
-    rand::random::<[u8; 16]>()
+    let mut iv = [0u8; 16];
+    rand::rngs::SysRng
+        .try_fill_bytes(&mut iv)
+        .expect("OS random source unavailable");
+    iv
 }
 
 /// Generate a random filename

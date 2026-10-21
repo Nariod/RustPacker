@@ -272,6 +272,8 @@ Optional:
   --etw-patch                 Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
   --stack-spoof               Spoof the call stack of the loader's sensitive syscalls (requires indirect-syscall templates: syscrt, sysfiber)
   -o, --output <PATH>         Custom output path for the resulting binary
+  --list-templates            List all available templates with their supported options (self-injection, indirect syscalls, ETW patch, stack spoof) and exit
+  --clean                      Remove all previously generated folders under shared/ before generating
   --help                      Print help
   --version                   Print version
 ```
@@ -294,6 +296,8 @@ Optional:
   --etw-patch       Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
   --stack-spoof     Spoof the call stack of the loader's sensitive syscalls (requires indirect-syscall templates: syscrt, sysfiber)
   -o <PATH>         Custom output path for the resulting binary
+  --list-templates  List all available templates with their supported options (self-injection, indirect syscalls, ETW patch, stack spoof) and exit
+  --clean            Remove all previously generated folders under shared/ before generating
   -h                Print help
   -V                Print version
 ```

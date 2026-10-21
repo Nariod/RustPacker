@@ -12,7 +12,7 @@
 //! (pure Rust) is used only at pack time to compile the text to a binary; the
 //! generated loader needs no wasm runtime dependency at all.
 
-use crate::shellcode_reader::read_shellcode;
+use crate::shellcode_reader::read_payload;
 use crate::utils::write_to_file;
 use anyhow::{Context, Result};
 use std::path::Path;
@@ -48,7 +48,7 @@ fn build_wat(payload: &[u8]) -> String {
 /// first, then wrap.
 pub fn build_wasm_payload(input_path: &Path, export_path: &Path) -> Result<()> {
     println!("[+] Wrapping payload in a WebAssembly (WAT) module..");
-    let payload = read_shellcode(input_path).context("Failed to read payload for WAT wrapping")?;
+    let payload = read_payload(input_path).context("Failed to read payload for WAT wrapping")?;
     let wat_src = build_wat(&payload);
     let wasm = wat::parse_bytes(wat_src.as_bytes())
         .context("Failed to compile WAT source to a wasm binary")?;

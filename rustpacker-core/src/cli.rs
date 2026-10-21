@@ -13,6 +13,10 @@ use clap::Parser;
 ///
 /// Returns an error instead of exiting the process.
 pub fn parse_args() -> Result<Order> {
+    if std::env::args().any(|arg| arg == "--list-templates") {
+        print_templates();
+        std::process::exit(0);
+    }
     let mut order = Order::parse();
 
     order.shellcode_path = absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
@@ -51,6 +55,35 @@ fn require_template(
         "{flag} is only supported with {rule}. Current eligible templates: {}",
         eligible.join(", ")
     ))
+}
+
+/// Print the template catalogue with per-template option support, so users
+/// can discover valid combinations without trial and error.
+pub fn print_templates() {
+    println!("Available templates:");
+    println!(
+        "{:<15} {:<12} {:<12} {:<12} {:<12}",
+        "TEMPLATE", "SELF-INJECT", "INDIRECT", "ETW-PATCH", "STACK-SPOOF"
+    );
+    for execution in Execution::all() {
+        println!(
+            "{:<15} {:<12} {:<12} {:<12} {:<12}",
+            execution.template_name(),
+            yes_no(execution.is_self_injection()),
+            yes_no(execution.uses_indirect_syscalls()),
+            yes_no(execution.supports_etw_patch()),
+            yes_no(execution.supports_stack_spoof())
+        );
+    }
+    println!("\nEncryption: xor, aes, uuid   Format: exe, dll");
+}
+
+fn yes_no(condition: bool) -> &'static str {
+    if condition {
+        "yes"
+    } else {
+        "no"
+    }
 }
 
 /// Enforce the business rules that link options together.

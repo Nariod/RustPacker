@@ -34,10 +34,7 @@ pub fn parse_args() -> Result<Order> {
 
     if order.output.is_none() {
         let default = PathBuf::from(format!("payload.{}", order.format));
-        println!(
-            "[i] No --output given, defaulting to {}",
-            default.display()
-        );
+        println!("[i] No --output given, defaulting to {}", default.display());
         order.output = Some(default);
     }
     if let Some(ref path) = order.output {

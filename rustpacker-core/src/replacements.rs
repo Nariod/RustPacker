@@ -112,6 +112,10 @@ fn add_api_obfuscation_replacements(replacements: &mut HashMap<&'static str, Str
         obfuscate_api_name("NtDelayExecution", key),
     );
     replacements.insert(
+        "{{OBF_NT_QUERY_SYSTEM_INFORMATION}}",
+        obfuscate_api_name("NtQuerySystemInformation", key),
+    );
+    replacements.insert(
         "{{OBF_NT_RAISE_EXCEPTION}}",
         obfuscate_api_name("NtRaiseException", key),
     );

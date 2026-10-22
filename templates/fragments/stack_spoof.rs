@@ -50,7 +50,7 @@ global_asm!(
     "rp_spoof_stub:",
     "    movzx ecx, cx",
     "    mov  r11, rsp",
-    "    sub  r11, 0x400",
+    "    sub  r11, {0}",
     "    lea  rax, [rip + rp_spoof_fixup]",
     "    mov  [r11-0x60], rax",
     "    mov  [r11-0x58], rbx",
@@ -104,6 +104,7 @@ global_asm!(
     "    mov  rsp, [rbx+0x20]",
     "    mov  rbx, [rbx+0x08]",
     "    jmp  r11",
+    const RP_STACK_SHIFT,
 );
 
 extern "C" {

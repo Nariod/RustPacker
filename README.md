@@ -87,7 +87,7 @@ podman run --rm -v $(pwd):/workdir rustpacker \
 
 **Your payload is ready!** Find it at: `shared/payload.exe`
 
-> **Note:** The container uses long-form arguments (`--shellcode-path`, `--format`, `--execution`, `--encryption`, `--output`). Template names support both short aliases (e.g., `ntcrt`, `ntapc`) and full names (e.g., `nt-create-remote-thread`, `nt-queue-user-apc`).
+> **Note:** `--output` is optional. When omitted, the container writes the payload to the directory you mounted (as `payload.exe` / `payload.dll`) and prints its location on your machine at the end of the run. The container uses long-form arguments (`--shellcode-path`, `--format`, `--execution`, `--encryption`, `--output`). Template names support both short aliases (e.g., `ntcrt`, `ntapc`) and full names (e.g., `nt-create-remote-thread`, `nt-queue-user-apc`).
 
 ### 🐄 Create an Alias for Daily Use
 
@@ -271,9 +271,9 @@ Optional:
   -p, --proxy-dll <DLL_PATH>  DLL proxying: path to legitimate DLL to proxy (requires -f dll, self-injection templates only)
   --etw-patch                 Patch ETW functions to disable Event Tracing for Windows (EDR evasion, requires self-injection templates with indirect syscalls)
   --stack-spoof               Spoof the call stack of the loader's sensitive syscalls (requires indirect-syscall templates: syscrt, sysfiber)
-  -o, --output <PATH>         Custom output path for the resulting binary
+  -o, --output <PATH>         Output path for the resulting binary (default: /workdir/payload.<format> in container mode, ./payload.<format> otherwise; an existing directory is used as destination folder)
   --list-templates            List all available templates with their supported options (self-injection, indirect syscalls, ETW patch, stack spoof) and exit
-  --clean                      Remove all previously generated folders under shared/ before generating
+  --clean                      Remove all previously generated folders under shared/ (standalone) or before generating (combined with other options)
   --help                      Print help
   --version                   Print version
 ```

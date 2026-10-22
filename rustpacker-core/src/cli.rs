@@ -8,21 +8,43 @@ use crate::config::{Execution, Format, Order};
 use crate::utils::absolute_path;
 use anyhow::{anyhow, Context, Result};
 use clap::Parser;
+use std::path::PathBuf;
 
 /// Parse command line arguments, resolve paths, and validate the order.
 ///
 /// Returns an error instead of exiting the process.
 pub fn parse_args() -> Result<Order> {
-    if std::env::args().any(|arg| arg == "--list-templates") {
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|arg| arg == "--list-templates") {
         print_templates();
+        std::process::exit(0);
+    }
+    if args.iter().any(|arg| arg == "--clean")
+        && !args
+            .iter()
+            .any(|arg| arg == "-s" || arg.starts_with("--shellcode-path"))
+    {
+        crate::template_io::clean_output_folders()?;
+        println!("[+] Cleaned generated output folders");
         std::process::exit(0);
     }
     let mut order = Order::parse();
 
     order.shellcode_path = absolute_path(order.shellcode_path).context("Invalid shellcode path")?;
 
+    if order.output.is_none() {
+        let default = PathBuf::from(format!("payload.{}", order.format));
+        println!("[i] No --output given, defaulting to {}", default.display());
+        order.output = Some(default);
+    }
     if let Some(ref path) = order.output {
-        order.output = Some(absolute_path(path).context("Invalid output path")?);
+        let path = absolute_path(path).context("Invalid output path")?;
+        let path = if path.is_dir() {
+            path.join(format!("payload.{}", order.format))
+        } else {
+            path
+        };
+        order.output = Some(path);
     }
 
     if let Some(ref path) = order.proxy_dll {

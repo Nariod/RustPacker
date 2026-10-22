@@ -48,7 +48,9 @@ pub struct Order {
     #[arg(long)]
     pub sandbox: Option<String>,
 
-    /// Optional output path for the resulting binary
+    /// Path for the resulting binary (defaults to ./payload.<format> in the
+    /// current directory). If the path is an existing directory, the binary
+    /// is written inside it as payload.<format>.
     #[arg(short, long)]
     pub output: Option<PathBuf>,
 

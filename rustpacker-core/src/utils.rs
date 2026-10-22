@@ -158,7 +158,7 @@ pub fn process_output(order: &crate::config::Order, output_folder_path: &Path) -
             output_path.display()
         )
     })?;
-    println!("[+] Your binary has been written here: {:?}", output_path);
+    println!("[+] Payload written to: {}", output_path.display());
 
     Ok(())
 }
@@ -195,7 +195,6 @@ pub fn rename_source_binary(order: &crate::config::Order, output_folder_path: &P
             new_path.display()
         )
     })?;
-    println!("[+] Compiled binary can be found at: {:?}", new_path);
 
     Ok(())
 }

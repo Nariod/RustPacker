@@ -71,10 +71,10 @@ pub fn create_output_folder() -> Result<PathBuf> {
         .map(|_| rand::rng().sample(Alphanumeric) as char)
         .collect();
     let folder_name = format!("output_{}_{}", timestamp, suffix);
-    println!("[+] Creating output folder: {}", folder_name);
     let path = find_project_root()?.join(OUTPUT_DIR).join(folder_name);
     fs::create_dir(&path)
         .with_context(|| format!("Failed to create output folder: {}", path.display()))?;
+    println!("[+] Creating output folder: {}", path.display());
     Ok(path)
 }
 

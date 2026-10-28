@@ -436,6 +436,57 @@ podman run --rm -v $(pwd):/workdir rustpacker \
   --output /workdir/shared/payload.exe
 ```
 
+### 😴 Sleep Mask Compatibility (Encrypted Sleep)
+
+Beacons that implement an encrypted sleep mask — such as [specter-rs](https://github.com/Nariod/specter-rs) (Rust rewrite of [Specter](https://github.com/0xC9H/specter) by 0xC9H) — periodically encrypt themselves in memory while sleeping. Since RustPacker never provisions RWX memory, a natural question arises: **does an encrypted sleep mask still work with a payload that only ever holds RX memory at rest?**
+
+**Yes — by design, not by luck.** The sleep mask does not need its memory to *be* RWX at rest; it needs to be able to **change the protection of its own pages** via `NtProtectVirtualMemory`. That syscall accepts private pages allocated through `NtAllocateVirtualMemory` / `VirtualAlloc[Ex]` in any state — including `PAGE_EXECUTE_READ`, which is exactly what RustPacker templates use before jumping into the shellcode.
+
+An RX-at-rest allocation that briefly flips RW and back is actually *stealthier* than a persistent RWX mapping, which remains a classic EDR signal.
+
+#### How the mask works
+
+```
+flip RX -> RW  ->  keystream (xorshift64) applied over the image
+             ->  restore original protection  ->  NtDelayExecution
+             (the image stays encrypted for the whole sleep window)
+wake: flip RW  ->  re-apply the same keystream (= decryption)
+             ->  restore RX  ->  the beacon resumes
+```
+
+- Only the encrypted ranges flip; the stub window (the code that sleeps and decrypts) stays executable throughout.
+- The original protection is captured by a bootstrap probe: if the flip fails (e.g. a read-only file-mapped section), the mask is **refused** and the beacon falls back to plain unencrypted sleep — a graceful degradation, never a crash.
+- The sleep itself goes through `NtDelayExecution` via indirect syscalls on a rotating gadget (Hell's Hall): the `syscall` instruction never executes from the beacon's own memory, and the image remains encrypted during the entire window.
+
+#### What the mask requires from a loader
+
+1. **Private memory** — not a section backed by a file or an image the loader does not control;
+2. **Discoverable bounds** — the bootstrap locates the image by walking down from the stub to the entry prologue at a page boundary (`48 83 EC 08 E8 …`), and the end via an `SPT_END` marker in the last 8 bytes. The blob must live in its own allocation with its entry stub page-aligned at the head;
+3. **Flippable pages** — the bootstrap probe verifies this before committing.
+
+#### Template compatibility
+
+| Template | Shellcode memory | Encrypted sleep mask | Notes |
+|---|---|---|---|
+| `ntapc` | Private `NtAllocateVirtualMemory`, flipped RX | **Validated on a live VM** | Full specter-rs battery (check-in, tasks, BOFs, jobs); mask engaged over 15+ sleep cycles |
+| `ntfiber`, `ntveh`, `ntwat`, `ntcrt`, `syscrt`, `sysfiber`, `wincrt`, `winfiber`, `earlycascade` | Private allocation | Compatible by design | Not re-validated with the current specter-rs blob |
+| `ntstomp` | Module stomping: `LoadLibraryA` of a legit DLL, overwritten at `AddressOfEntryPoint` — pages stay image-backed (`SEC_IMAGE`), not `MEM_PRIVATE` | **Refused (graceful)** | See below |
+
+A template listed as "compatible" but not validated will not crash the beacon either: the worst outcome on the mask side is a refusal (bounds not found / flip impossible) → unencrypted sleep, with all other features still operational.
+
+#### Why `ntstomp` is the exception
+
+Two distinct obstacles:
+
+1. **Bounds discovery**: the mask walks down from the stub looking for the entry prologue *at a page boundary*. In a stomped DLL, the blob lives at `AddressOfEntryPoint` — not page-aligned, not at the head of an allocation — so the walk fails and the mask is refused.
+2. **Image page semantics**: even with the bounds worked around, encrypting/restoring `SEC_IMAGE` pages (copy-on-write, restoring the host module's original protection) behaves differently from private pages.
+
+Adaptation paths (on the beacon side, not in RustPacker): a module-stomped mask variant in the spirit of Ekko / Astral Projection with explicit bounds, or passing the bounds at generation time instead of discovering them at runtime.
+
+Until then, the recommended pairing for maximum evasion remains **a private-allocation template (`ntapc` and friends) + encrypted sleep mask** — the combination validated on a live implant.
+
+> **Note (Adaptix C2 integration):** the payload returned by Adaptix's generation endpoint is base64 with a 3-byte `bin` prefix that must be stripped before feeding the shellcode to RustPacker.
+
 ---
 
 ## ⚙️ Local Installation (Without Containers)
